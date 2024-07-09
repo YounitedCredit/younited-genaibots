@@ -19,7 +19,7 @@ GenaiBots is a comprehensive framework designed for automating and managing inte
 ## Installation Guide
 1. **Clone the Repository**
    ```bash
-   git clone https://example.com/genaibots.git
+   git clone https://github.com/YounitedCredit/younited-genaibots
    cd genaibots
    ```
 2. **Setup Virtual Environment (Recommended)**
