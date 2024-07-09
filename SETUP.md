@@ -1,278 +1,112 @@
-# Setup Guide for GenaiBots
+It appears there is an ongoing issue with saving and downloading the file. Let's try an alternative method. I will display the content again, and you can copy it directly. Here is the full `README.md` content:
 
-## Prerequisites
+```
+# GenaiBots Project
 
+## Overview
+GenaiBots is a comprehensive framework designed for automating and managing interactions across various digital platforms. It is primarily an enterprise tool for integrating generative AI into operational processes through mediums such as instant messaging, emails, ticketing tools, or internal tools. Utilizing advanced AI and a modular plugin system, it enables the creation of sophisticated operational flows and interaction models tailored for both businesses and developers.
+
+## Key Features
+- **AI Enhancements**: Integrate generative AI at the core of interactions. This enables not only custom AI generation through prompts but also the ability to trigger actions and manage processes with a rapid feedback loop.
+- **Custom Action Handlers**: Easily create custom actions based on specific triggers and conditions, and invoke them directly through prompts.
+- **Extensible Plugin Architecture**: Expand functionality or integrate third-party services through plugins, ensuring flexibility and extensibility.
+- **Integration with Enterprise Systems**: Interface generative AI seamlessly within the core IT infrastructure via a web server or Docker container. This allows processing and tracking tasks performed by bots across various contexts (messaging, ticketing tools, emails, custom applications).
+- **Dynamic Backend Services**: Integrates with various backend services for data processing and storage, allowing the system to adapt to specific enterprise use cases and requirements.
+
+## System Requirements
 - **Operating System**: Compatible with Windows, MacOS, and Linux.
 - **Python Version**: 3.8 or later.
-- **Visual Studio Code**: Latest version recommended.
-- **Extensions**:
-  - Python (ms-python.python)
-  - Pylance (ms-python.vscode-pylance)
+- **Additional Libraries and Dependencies**: Listed in the `requirements.txt` file.
 
-## Installation
+## Installation Guide
 
 ### 1. Clone the Repository
-
 ```bash
-git clone https://example.com/genaibots.git
-cd genaibots
+git clone https://github.com/YounitedCredit/younited-genaibots.git
+cd younited-genaibots
 ```
 
 ### 2. Setup Virtual Environment (Recommended)
-
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`
 ```
 
 ### 3. Install Dependencies
-
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Configuration
-
-### Environment Variables
-
-Create a `.env` file in the root directory of the project and add the necessary environment variables.
-
-#### Template for Standard Local Configuration
-
-Here is a template for the `.env` file for a standard local configuration:
-
-```
-# Logging settings
-LOG_DEBUG_LEVEL=DEBUG
-
-# Prompt settings
-PROMPTS_FOLDER=./prompts
-CORE_PROMPT=core_prompt.txt
-MAIN_PROMPT=main_prompt.txt
-SUBPROMPTS_FOLDER=./subprompts
-FEEDBACK_GENERAL_BEHAVIOR=general_feedback.txt
-
-# Costs settings
-SHOW_COST_IN_THREAD=True
-
-# Bot behavior settings
-REQUIRE_MENTION_NEW_MESSAGE=False
-REQUIRE_MENTION_THREAD_MESSAGE=False
-ACKNOWLEDGE_NONPROCESSED_MESSAGE=True
-GET_URL_CONTENT=True
-LLM_CONVERSION_FORMAT=json
-BREAK_KEYWORD=!STOP
-START_KEYWORD=!START
-
-# Default plugins
-ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME=main_actions
-INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME=file_system
-USER_INTERACTIONS_INSTANT_MESSAGING_DEFAULT_PLUGIN_NAME=slack
-USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME=im_default_behavior
-GENAI_TEXT_DEFAULT_PLUGIN_NAME=azure_chatgpt
-GENAI_IMAGE_DEFAULT_PLUGIN_NAME=azure_dalle
-GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME=azure_aisearch
-
-# Utils settings
-APPLICATIONINSIGHTS_CONNECTION_STRING=your_application_insights_connection_string
-
-# File system backend settings
-AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
-
-# Slack settings
-SLACK_SIGNING_SECRET=your_slack_signing_secret
-SLACK_BOT_TOKEN=your_slack_bot_token
-SLACK_BOT_USER_TOKEN=your_slack_bot_user_token
-SLACK_BOT_USER_ID=your_slack_bot_user_id
-SLACK_AUTHORIZED_CHANNELS=your_slack_authorized_channels
-SLACK_FEEDBACK_CHANNEL=your_slack_feedback_channel
-SLACK_FEEDBACK_BOT_ID=your_slack_feedback_bot_id
-SLACK_INTERNAL_CHANNEL=your_slack_internal_channel
-
-# Azure settings for various plugins
-AZURE_COMMANDR_KEY=your_azure_commandr_key
-AZURE_COMMANDR_ENDPOINT=your_azure_commandr_endpoint
-AZURE_LLAMA370B_KEY=your_azure_llama370b_key
-AZURE_LLAMA370B_ENDPOINT=your_azure_llama370b_endpoint
-AZURE_OPENAI_KEY=your_azure_openai_key
-AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-AZURE_MISTRAL_KEY=your_azure_mistral_key
-AZURE_MISTRAL_ENDPOINT=your_azure_mistral_endpoint
-VERTEXAI_GEMINI_KEY=your_vertexai_gemini_key
-VERTEXAI_GEMINI_PROJECTNAME=your_vertexai_gemini_projectname
-VERTEXAI_GEMINI_LOCATION=your_vertexai_gemini_location
-```
+Configure the application settings by editing the `config.yaml` file in the `config` directory. Ensure all necessary API keys and database configurations are set correctly.
 
 ### config.yaml
+The `config.yaml` file centralizes the configuration settings for the GenaiBots application. Here are some key sections and their purposes:
 
-The `config.yaml` file centralizes the configuration settings for the GenaiBots application. Users can either directly input their information into this file or use environment variables by utilizing the `$(VAR_NAME)` syntax, which is useful for different types of deployments.
+#### BOT_CONFIG
+Contains settings related to bot behavior and debugging levels.
+- `LOG_DEBUG_LEVEL`: Defines the debug level for logging.
+- `PROMPTS_FOLDER`, `CORE_PROMPT`, `MAIN_PROMPT`, `SUBPROMPTS_FOLDER`: Specify the directories and files for prompts.
+- `SHOW_COST_IN_THREAD`: Toggle to show cost information in threads.
+- Various plugin default names and behaviors are also configured here.
 
-Here is a detailed explanation of each section and parameter in the `config.yaml` file:
+#### UTILS
+Contains utility configurations, such as logging settings.
+- `LOGGING`: Configures logging, including file system paths and Azure settings.
 
-#### Full Configuration with Comments
+#### PLUGINS
+Defines available plugins and their configurations.
+- Categories include `ACTION_INTERACTIONS`, `BACKEND`, `USER_INTERACTIONS`, `GENAI_INTERACTIONS`, and `USER_INTERACTIONS_BEHAVIORS`.
 
-```yaml
-BOT_CONFIG:
+### Environment Setup
+The environment variables are loaded via `python-dotenv`, typically from a `.env` file. This allows the application to securely load sensitive data like API keys and database URLs. Here's a basic overview of how environment setup works in GenaiBots:
 
-  # DEBUG
-  LOG_DEBUG_LEVEL: "$(LOG_DEBUG_LEVEL)"  # Sets the logging debug level.
+1. **Loading Environment Variables**: `load_dotenv()` function is called to load environment variables from a `.env` file into the application.
+2. **Accessing Environment Variables**: The configuration settings in `config.yaml` can reference these environment variables using the `$(ENV_VAR_NAME)` syntax.
 
-  # PROMPT
-  PROMPTS_FOLDER: "$(PROMPTS_FOLDER)"  # Directory for prompt files.
-  CORE_PROMPT: "$(CORE_PROMPT)"  # Core prompt file.
-  MAIN_PROMPT: "$(MAIN_PROMPT)"  # Main prompt file.
-  SUBPROMPTS_FOLDER: "$(SUBPROMPTS_FOLDER)"  # Directory for sub-prompt files.
-  FEEDBACK_GENERAL_BEHAVIOR: "$(FEEDBACK_GENERAL_BEHAVIOR)"  # General feedback prompt file.
+## Running the Application
+Execute the following command in the project root directory:
+```bash
+python app.py
+```
+This will start the server and begin handling requests based on configured actions and triggers.
 
-  # COSTS
-  SHOW_COST_IN_THREAD: "$(SHOW_COST_IN_THREAD)"  # Display cost information in threads.
+## Debugging in Visual Studio Code
+To debug the application in Visual Studio Code, use the following command:
 
-  # BOT BEHAVIOR
-  REQUIRE_MENTION_NEW_MESSAGE: "$(REQUIRE_MENTION_NEW_MESSAGE)"  # Require mention for new messages.
-  REQUIRE_MENTION_THREAD_MESSAGE: "$(REQUIRE_MENTION_THREAD_MESSAGE)"  # Require mention for thread messages.
-  BEGIN_MARKER: "[BEGINIMDETECT]"  # Marker for the beginning of IM detection.
-  END_MARKER: "[ENDIMDETECT]"  # Marker for the end of IM detection.
-  ACKNOWLEDGE_NONPROCESSED_MESSAGE: "$(ACKNOWLEDGE_NONPROCESSED_MESSAGE)"  # Acknowledge non-processed messages.
-  GET_URL_CONTENT: "$(GET_URL_CONTENT)"  # Enable URL content fetching.
-  LLM_CONVERSION_FORMAT: "$(LLM_CONVERSION_FORMAT)"  # Format for LLM conversion.
-  BREAK_KEYWORD: "!STOP"  # Keyword to break the conversation.
-  START_KEYWORD: "!START"  # Keyword to start the conversation.
-
-  # BOT DEFAULT PLUGINS
-  ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: "$(ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME)"  # Default plugin for action interactions.
-  INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: "$(INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME)"  # Default plugin for internal data processing.
-  USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: "$(USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME)"  # Default plugin for IM behavior.
-  GENAI_TEXT_DEFAULT_PLUGIN_NAME: "$(GENAI_TEXT_DEFAULT_PLUGIN_NAME)"  # Default plugin for text generation.
-  GENAI_IMAGE_DEFAULT_PLUGIN_NAME: "$(GENAI_IMAGE_DEFAULT_PLUGIN_NAME)"  # Default plugin for image generation.
-  GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: "$(GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME)"  # Default plugin for vector search.
-
-UTILS:
-  LOGGING:
-    FILE_SYSTEM:
-      PLUGIN_NAME: 'file_system'  # Plugin name for file system logging.
-      FILE_PATH: 'C:\\LOGS\\GENAI_BOT.log'  # File path for the log file.
-
-PLUGINS:
-  ACTION_INTERACTIONS:
-    DEFAULT:
-      MAIN_ACTIONS:
-        PLUGIN_NAME: "main_actions"  # Main actions plugin name.
-    CUSTOM: {}  # Custom actions can be added here.
-
-  BACKEND:
-    INTERNAL_DATA_PROCESSING:
-      FILE_SYSTEM:
-        PLUGIN_NAME: "file_system"  # Plugin name for file system backend.
-        DIRECTORY: "C:\\GenAI"  # Directory for the file system backend.
-        SESSIONS_CONTAINER: "sessions"  # Directory for sessions.
-        MESSAGES_CONTAINER: "messages"  # Directory for messages.
-        FEEDBACKS_CONTAINER: "feedbacks"  # Directory for feedbacks.
-        CONCATENATE_CONTAINER: "concatenate"  # Directory for concatenated data.
-        PROMPTS_CONTAINER: "prompts"  # Directory for prompts.
-        COSTS_CONTAINER: "costs"  # Directory for cost information.
-        PROCESSING_CONTAINER: "processing"  # Directory for processing data.
-        ABORT_CONTAINER: "abort"  # Directory for abort data.
-        VECTORS_CONTAINER: "vectors"  # Directory for vector data.
-
-  USER_INTERACTIONS:
-    INSTANT_MESSAGING:
-      SLACK:
-        PLUGIN_NAME: "slack"  # Plugin name for Slack integration.
-        BEHAVIOR_PLUGIN_NAME: "im_default_behavior"  # Default behavior plugin for Slack.
-        ROUTE_PATH: "/api/get_slacknotification"  # API route path for Slack notifications.
-        ROUTE_METHODS: ["POST"]  # HTTP methods for the Slack API route.
-        PLUGIN_DIRECTORY: "plugins.user_interactions.plugins"  # Directory for plugins.
-        SLACK_MESSAGE_TTL: 3600  # Time-to-live for Slack messages.
-        SLACK_SIGNING_SECRET: "$(SLACK_SIGNING_SECRET)"  # Signing secret for Slack.
-        SLACK_BOT_TOKEN: "$(SLACK_BOT_TOKEN)"  # Bot token for Slack.
-        SLACK_BOT_USER_TOKEN: "$(SLACK_BOT_USER_TOKEN)"  # User token for Slack bot.
-        SLACK_BOT_USER_ID: "$(SLACK_BOT_USER_ID)"  # User ID for Slack bot.
-        SLACK_API_URL: "https://slack.com/api/"  # API URL for Slack.
-        SLACK_AUTHORIZED_CHANNELS: "$(SLACK_AUTHORIZED_CHANNELS)"  # Authorized channels for Slack bot.
-        SLACK_FEEDBACK_CHANNEL: "$(SLACK_FEEDBACK_CHANNEL)"  # Feedback channel for Slack bot.
-        SLACK_FEEDBACK_BOT_ID: "$(SLACK_FEEDBACK_BOT_ID)"  # Feedback bot ID for Slack.
-        MAX_MESSAGE_LENGTH: 2900  # Maximum message length for Slack.
-        INTERNAL_CHANNEL: "$(SLACK_INTERNAL_CHANNEL)"  # Internal channel for Slack bot.
-        WORKSPACE_NAME: "pretdunion"
+```bash
+c:; cd 'c:\\repos\\Yuc.GenaiBots'; & 'C:\\Users\\AntoineHABERT\\miniconda3\\python.exe' 'c:\\Users\\AntoineHABERT\\.vscode\\extensions\\ms-python.debugpy-2024.6.0-win32-x64\\bundled\\libs\\debugpy\\adapter/../..\\debugpy\\launcher' '64580' '--' '-m' 'uvicorn' 'app:app' '--host' 'localhost' '--port' '7071' '--workers' '1'
 ```
 
-##
+## Plugin Architecture
+GenaiBots employs a modular plugin architecture categorized into several families:
 
- Explanation of Parameters
+### Action Interactions
+- **Default Plugins**: Predefined actions for common tasks.
+- **Custom Plugins**: User-defined actions tailored to specific needs.
 
-### BOT_CONFIG
+### Backend
+- Handles internal data processing and interactions with backend services.
 
-- **LOG_DEBUG_LEVEL**: Sets the logging debug level.
-- **PROMPTS_FOLDER**: Directory for prompt files.
-- **CORE_PROMPT**: Core prompt file.
-- **MAIN_PROMPT**: Main prompt file.
-- **SUBPROMPTS_FOLDER**: Directory for sub-prompt files.
-- **FEEDBACK_GENERAL_BEHAVIOR**: General feedback prompt file.
-- **SHOW_COST_IN_THREAD**: Display cost information in threads.
-- **REQUIRE_MENTION_NEW_MESSAGE**: Require mention for new messages.
-- **REQUIRE_MENTION_THREAD_MESSAGE**: Require mention for thread messages.
-- **BEGIN_MARKER**: Marker for the beginning of IM detection.
-- **END_MARKER**: Marker for the end of IM detection.
-- **ACKNOWLEDGE_NONPROCESSED_MESSAGE**: Acknowledge non-processed messages.
-- **GET_URL_CONTENT**: Enable URL content fetching.
-- **LLM_CONVERSION_FORMAT**: Format for LLM conversion.
-- **BREAK_KEYWORD**: Keyword to break the conversation.
-- **START_KEYWORD**: Keyword to start the conversation.
-- **ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME**: Default plugin for action interactions.
-- **INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME**: Default plugin for internal data processing.
-- **USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME**: Default plugin for IM behavior.
-- **GENAI_TEXT_DEFAULT_PLUGIN_NAME**: Default plugin for text generation.
-- **GENAI_IMAGE_DEFAULT_PLUGIN_NAME**: Default plugin for image generation.
-- **GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME**: Default plugin for vector search.
+### User Interactions
+- **Instant Messaging**: Plugins for handling messaging platforms like Slack and Teams.
+- **Custom API**: Plugins to interact with custom APIs.
 
-### UTILS
+### GenAI Interactions
+- **Text**: Plugins for generating and handling text interactions using AI.
+- **Image**: Plugins for generating and handling image interactions using AI.
+- **Vector Search**: Plugins for handling vector search functionalities.
 
-- **LOGGING.FILE_SYSTEM**: Configuration for file system logging.
-  - **PLUGIN_NAME**: Plugin name for file system logging.
-  - **FILE_PATH**: File path for the log file.
+### User Interactions Behaviors
+- Defines the behavior of user interactions across different messaging platforms and custom APIs.
 
-### PLUGINS
+## Contribution Guidelines
+Interested in contributing? Please read through the `CONTRIBUTING.md` file to understand our contribution requirements and code of conduct.
 
-#### ACTION_INTERACTIONS
+## License
+This project is licensed under the MIT License - see the `LICENSE.md` file for more details.
 
-- **DEFAULT.MAIN_ACTIONS**: Main actions plugin configuration.
-  - **PLUGIN_NAME**: Main actions plugin name.
-- **CUSTOM**: Custom actions can be added here.
-
-#### BACKEND
-
-- **INTERNAL_DATA_PROCESSING.FILE_SYSTEM**: File system backend configuration.
-  - **PLUGIN_NAME**: Plugin name for file system backend.
-  - **DIRECTORY**: Directory for the file system backend.
-  - **SESSIONS_CONTAINER**: Directory for sessions.
-  - **MESSAGES_CONTAINER**: Directory for messages.
-  - **FEEDBACKS_CONTAINER**: Directory for feedbacks.
-  - **CONCATENATE_CONTAINER**: Directory for concatenated data.
-  - **PROMPTS_CONTAINER**: Directory for prompts.
-  - **COSTS_CONTAINER**: Directory for cost information.
-  - **PROCESSING_CONTAINER**: Directory for processing data.
-  - **ABORT_CONTAINER**: Directory for abort data.
-  - **VECTORS_CONTAINER**: Directory for vector data.
-
-#### USER_INTERACTIONS
-
-- **INSTANT_MESSAGING.SLACK**: Slack integration configuration.
-  - **PLUGIN_NAME**: Plugin name for Slack integration.
-  - **BEHAVIOR_PLUGIN_NAME**: Default behavior plugin for Slack.
-  - **ROUTE_PATH**: API route path for Slack notifications.
-  - **ROUTE_METHODS**: HTTP methods for the Slack API route.
-  - **PLUGIN_DIRECTORY**: Directory for plugins.
-  - **SLACK_MESSAGE_TTL**: Time-to-live for Slack messages.
-  - **SLACK_SIGNING_SECRET**: Signing secret for Slack.
-  - **SLACK_BOT_TOKEN**: Bot token for Slack.
-  - **SLACK_BOT_USER_TOKEN**: User token for Slack bot.
-  - **SLACK_BOT_USER_ID**: User ID for Slack bot.
-  - **SLACK_API_URL**: API URL for Slack.
-  - **SLACK_AUTHORIZED_CHANNELS**: Authorized channels for Slack bot.
-  - **SLACK_FEEDBACK_CHANNEL**: Feedback channel for Slack bot.
-  - **SLACK_FEEDBACK_BOT_ID**: Feedback bot ID for Slack.
-  - **MAX_MESSAGE_LENGTH**: Maximum message length for Slack.
-  - **INTERNAL_CHANNEL**: Internal channel for Slack bot.
-  - **WORKSPACE_NAME**: Workspace name.
-
-This setup guide should help you get started with configuring and using the GenaiBots application. If you have any questions or need further assistance, please refer to the project's documentation or contact the support team.
+## Support and Contact
+For any support queries or to report issues, please visit our GitHub Issues page at:
+[https://github.com/YounitedCredit/younited-genaibots/issues](https://github.com/YounitedCredit/younited-genaibots/issues)
+```
