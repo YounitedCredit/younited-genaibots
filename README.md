@@ -2,18 +2,19 @@
 # GenaiBots Project
 
 ## Overview
-GenaiBots is a comprehensive framework designed for automating and managing interactions across various digital platforms. Utilizing advanced AI and plugin systems, it enables sophisticated operational flows and interaction models tailored for both businesses and developers.
+GenaiBots is a comprehensive framework designed for automating and managing interactions across various digital platforms. It is primarily an enterprise tool for integrating generative AI into operational processes through mediums such as instant messaging, emails, ticketing tools, or internal tools. Utilizing advanced AI and a modular plugin system, it enables the creation of sophisticated operational flows and interaction models tailored for both businesses and developers.
 
 ## Key Features
-- **Custom Action Handlers**: Develop and deploy custom actions based on specific triggers and conditions.
-- **Dynamic Backend Services**: Integrates easily with various backend services for data processing and storage.
-- **AI Enhancements**: Leverage built-in AI capabilities for smarter interaction handling and decision making.
-- **Extensible Plugin Architecture**: Easily expandable with plugins to increase functionality or integrate third-party services.
+- **AI Enhancements**: Integrate generative AI at the core of interactions. This enables not only custom AI generation through prompts but also the ability to trigger actions and manage processes with a rapid feedback loop.
+- **Custom Action Handlers**: Easily create custom actions based on specific triggers and conditions, and invoke them directly through prompts.
+- **Extensible Plugin Architecture**: Expand functionality or integrate third-party services through plugins, ensuring flexibility and extensibility.
+- **Integration with Enterprise Systems**: Interface generative AI seamlessly within the core IT infrastructure via a web server or Docker container. This allows processing and tracking tasks performed by bots across various contexts (messaging, ticketing tools, emails, custom applications).
+- **Dynamic Backend Services**: Integrates with various backend services for data processing and storage, allowing the system to adapt to specific enterprise use cases and requirements.
 
 ## System Requirements
-- Operating System: Compatible with Windows, MacOS, and Linux.
-- Python Version: 3.8 or later.
-- Additional Libraries and Dependencies listed in the `requirements.txt` file.
+- **Operating System**: Compatible with Windows, MacOS, and Linux.
+- **Python Version**: 3.8 or later.
+- **Additional Libraries and Dependencies**: Listed in the `requirements.txt` file.
 
 ## Installation Guide
 1. **Clone the Repository**
