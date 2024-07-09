@@ -1,0 +1,68 @@
+# Main dependencies
+aiohttp~=3.9.5
+asynctest
+coloredlogs~=15.0.1
+fastapi~=0.110.2
+gunicorn
+opentelemetry-api
+opentelemetry-exporter-otlp
+opentelemetry-instrumentation-fastapi
+opentelemetry-sdk
+pillow~=10.3.0
+pytz~=2024.1
+PyYAML~=6.0.1
+pypdf~=4.2.0
+pytest~=8.1.1
+pytest-asyncio
+python-dotenv~=1.0.1
+requests~=2.31.0
+ruff==0.4.2
+uvicorn~=0.29.0
+pytest-aiohttp
+pytest-mock
+pandas
+coverage
+requests-mock
+
+# Azure environment dependencies
+azure.identity
+azure.monitor.opentelemetry.exporter
+azure-storage-blob
+azure-monitor-opentelemetry
+
+## User Interactions plugins
+# Slack plugin dependencies
+slack-sdk
+# Teams plugin dependencies
+botbuilder~=0.0.1
+botbuilder-core
+
+## GENAI interactions plugins
+# OpenAI
+openai~=1.23.1
+# Mistral ai plugin dependencies
+mistralai
+# Gemini pro via vertex ai
+vertexai
+
+## ACTIONS
+# DEfault - vector search
+matplotlib
+plotly~=5.22.0
+scipy
+scikit-learn
+
+# Azure Devops
+azure-devops
+# Azure Actions plugin dependencies
+beautifulsoup4~=4.12.3
+azure.mgmt.resource
+azure.mgmt.applicationinsights
+
+azure.keyvault
+
+starlette~=0.37.2
+pydantic~=2.7.0
+numpy
+msal~=1.28.0
+msrest~=0.7.1
