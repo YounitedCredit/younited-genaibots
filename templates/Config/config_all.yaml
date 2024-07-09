@@ -1,0 +1,221 @@
+BOT_CONFIG:
+
+  # DEBUG
+  LOG_DEBUG_LEVEL: "<your_log_debug_level>"
+
+  # PROMPT
+  PROMPTS_FOLDER: "<your_prompts_folder>"
+  CORE_PROMPT: "<your_core_prompt>"
+  MAIN_PROMPT: "<your_main_prompt>"
+  SUBPROMPTS_FOLDER: "<your_subprompts_folder>"
+  FEEDBACK_GENERAL_BEHAVIOR: "<your_feedback_general_behavior>"
+
+  # COSTS
+  SHOW_COST_IN_THREAD: "<your_show_cost_in_thread>"
+
+  # BOT BEHAVIOR
+  REQUIRE_MENTION_NEW_MESSAGE: "<your_require_mention_new_message>"
+  REQUIRE_MENTION_THREAD_MESSAGE: "<your_require_mention_thread_message>"
+  BEGIN_MARKER: "[BEGINIMDETECT]"
+  END_MARKER: "[ENDIMDETECT]"
+  ACKNOWLEDGE_NONPROCESSED_MESSAGE: "<your_acknowledge_nonprocessed_message>"
+  GET_URL_CONTENT: "<your_get_url_content>"
+  LLM_CONVERSION_FORMAT: "<your_llm_conversion_format>"
+  BREAK_KEYWORD: "!STOP"
+  START_KEYWORD: "!START"
+
+  # BOT DEFAULT PLUGINS
+  ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: "main_actions"
+  INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: "file_system"
+  USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: "im_default_behavior"
+  GENAI_TEXT_DEFAULT_PLUGIN_NAME: "azure_chatgpt"
+  GENAI_IMAGE_DEFAULT_PLUGIN_NAME: "azure_dalle"
+  GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: "openai_file_search"
+
+UTILS:
+  LOGGING:
+    FILE_SYSTEM:
+      PLUGIN_NAME: 'file_system'
+      FILE_PATH: '<your_file_path>'
+
+    AZURE:
+      PLUGIN_NAME: 'azure'
+      APPLICATIONINSIGHTS_CONNECTION_STRING: '<your_applicationinsights_connection_string>'
+
+PLUGINS:
+  ACTION_INTERACTIONS:
+    DEFAULT:
+      MAIN_ACTIONS:
+        PLUGIN_NAME: "main_actions"
+    CUSTOM: {}
+
+  BACKEND:
+    INTERNAL_DATA_PROCESSING:
+      AZURE_BLOB_STORAGE:
+        PLUGIN_NAME: "azure_blob_storage"
+        CONNECTION_STRING: "<your_azure_storage_connection_string>"
+        SESSIONS_CONTAINER: "sessions"
+        MESSAGES_CONTAINER: "messages"
+        FEEDBACKS_CONTAINER: "feedbacks"
+        CONCATENATE_CONTAINER: "concatenate"
+        PROMPTS_CONTAINER: "prompts"
+        COSTS_CONTAINER: "costs"
+        PROCESSING_CONTAINER: "processing"
+        ABORT_CONTAINER: "abort"
+        VECTORS_CONTAINER: "vectors"
+
+      FILE_SYSTEM:
+        PLUGIN_NAME: "file_system"
+        DIRECTORY: "C:\\GenAI"
+        SESSIONS_CONTAINER: "sessions"
+        MESSAGES_CONTAINER: "messages"
+        FEEDBACKS_CONTAINER: "feedbacks"
+        CONCATENATE_CONTAINER: "concatenate"
+        PROMPTS_CONTAINER: "prompts"
+        COSTS_CONTAINER: "costs"
+        PROCESSING_CONTAINER: "processing"
+        ABORT_CONTAINER: "abort"
+        VECTORS_CONTAINER: "vectors"
+
+  USER_INTERACTIONS:
+
+    CUSTOM_API:
+      GENERIC_REST:
+        PLUGIN_NAME: "generic_rest"
+        ROUTE_PATH: "/api/generic_rest"
+        ROUTE_METHODS: ["POST"]
+        BEHAVIOR_PLUGIN_NAME: "ca_default_behavior"
+        MESSAGE_URL: "http://127.0.0.1:7072/api/post_message_notification"
+        REACTION_URL: "http://127.0.0.1:7072/api/post_reaction_notification"
+
+    INSTANT_MESSAGING:
+      SLACK:
+        PLUGIN_NAME: "slack"
+        BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
+        ROUTE_PATH: "/api/get_slacknotification"
+        ROUTE_METHODS: ["POST"]
+        PLUGIN_DIRECTORY: "plugins.user_interactions.plugins"
+        SLACK_MESSAGE_TTL: 3600
+        SLACK_SIGNING_SECRET: "<your_slack_signing_secret>"
+        SLACK_BOT_TOKEN: "<your_slack_bot_token>"
+        SLACK_BOT_USER_TOKEN: "<your_slack_bot_user_token>"
+        SLACK_BOT_USER_ID: "<your_slack_bot_user_id>"
+        SLACK_API_URL: "https://slack.com/api/"
+        SLACK_AUTHORIZED_CHANNELS: "<your_slack_authorized_channels>"
+        SLACK_FEEDBACK_CHANNEL: "<your_slack_feedback_channel>"
+        SLACK_FEEDBACK_BOT_ID: "<your_slack_feedback_bot_id>"
+        MAX_MESSAGE_LENGTH: 2900
+        INTERNAL_CHANNEL: "<your_slack_internal_channel>"
+        WORKSPACE_NAME: "<your_slack_workspace_name>"
+
+      TEAMS:
+        PLUGIN_NAME: "teams"
+        BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
+        ROUTE_PATH: "/api/get_teamsnotification"
+        ROUTE_METHODS: ["POST"]
+        TEAMS_APP_ID: "<your_teams_app_id>"
+        TEAMS_APP_PASSWORD: "<your_teams_app_password>"
+        TEAMS_BOT_USER_ID: "<your_teams_bot_user_id>"
+        TEAMS_AUTHORIZED_CHANNELS: "<your_teams_authorized_channels>"
+        TEAMS_FEEDBACK_CHANNEL: "<your_teams_feedback_channel>"
+        TEAMS_FEEDBACK_BOT_USER_ID: "<your_teams_feedback_bot_user_id>"
+
+  USER_INTERACTIONS_BEHAVIORS:
+    INSTANT_MESSAGING:
+      IM_DEFAULT_BEHAVIOR:
+        PLUGIN_NAME: "im_default_behavior"
+
+    CUSTOM_API:
+      CA_DEFAULT_BEHAVIOR:
+        PLUGIN_NAME: "ca_default_behavior"
+
+  GENAI_INTERACTIONS:
+    TEXT:
+      AZURE_CHATGPT:
+        PLUGIN_NAME: "azure_chatgpt"
+        AZURE_CHATGPT_INPUT_TOKEN_PRICE: "<your_azure_chatgpt_input_token_price>"
+        AZURE_CHATGPT_OUTPUT_TOKEN_PRICE: "<your_azure_chatgpt_output_token_price>"
+        AZURE_OPENAI_KEY: "<your_azure_openai_key>"
+        AZURE_OPENAI_ENDPOINT: "<your_azure_openai_endpoint>"
+        OPENAI_API_VERSION: "2023-07-01-preview"
+        AZURE_CHATGPT_MODEL_NAME: "<your_azure_chatgpt_model_name>"
+        AZURE_CHATGPT_VISION_MODEL_NAME: "<your_azure_chatgpt_vision_model_name>"
+
+      AZURE_MISTRAL:
+        PLUGIN_NAME: "azure_mistral"
+        AZURE_MISTRAL_INPUT_TOKEN_PRICE: "0.08"
+        AZURE_MISTRAL_OUTPUT_TOKEN_PRICE: "0.24"
+        AZURE_MISTRAL_KEY: "<your_azure_mistral_key>"
+        AZURE_MISTRAL_ENDPOINT: "<your_azure_mistral_endpoint>"
+        AZURE_MISTRAL_MODELNAME: "Mistral-large-bbnwu"
+
+      VERTEXAI_GEMINI:
+        PLUGIN_NAME: "vertexai_gemini"
+        VERTEXAI_GEMINI_INPUT_TOKEN_PRICE: "0.07"
+        VERTEXAI_GEMINI_OUTPUT_TOKEN_PRICE: "0.21"
+        VERTEXAI_GEMINI_MODELNAME: "gemini-1.5-flash-preview-0514"
+        VERTEXAI_GEMINI_PROJECTNAME: "<your_vertexai_gemini_projectname>"
+        VERTEXAI_GEMINI_LOCATION: "<your_vertexai_gemini_location>"
+        VERTEXAI_GEMINI_KEY: "<your_vertexai_gemini_key>"
+        VERTEXAI_GEMINI_MAX_OUTPUT_TOKENS: "<your_vertexai_gemini_max_output_tokens>"
+        VERTEXAI_GEMINI_TEMPERATURE: "<your_vertexai_gemini_temperature>"
+        VERTEXAI_GEMINI_TOP_P: "<your_vertexai_gemini_top_p>"
+
+      # AZURE_COMMANDR:
+      # PLUGIN_NAME: "azure_commandr"
+      # AZURE_COMMANDR_INPUT_TOKEN_PRICE: "0.003"
+      # AZURE_COMMANDR_OUTPUT_TOKEN_PRICE: "0.015"
+      # AZURE_COMMANDR_KEY: "<your_azure_commandr_key>"
+      # AZURE_COMMANDR_ENDPOINT: "<your_azure_commandr_endpoint>"
+      # AZURE_COMMANDR_MODELNAME: "Cohere-command-r-plus-owxrx"
+
+      # AZURE_LLAMA370B:
+      # PLUGIN_NAME: "azure_llama370b"
+      # AZURE_LLAMA370B_INPUT_TOKEN_PRICE: "0.00378"
+      # AZURE_LLAMA370B_OUTPUT_TOKEN_PRICE: "0.011134"
+      # AZURE_LLAMA370B_KEY: "<your_azure_llama370b_key>"
+      # AZURE_LLAMA370B_ENDPOINT: "<your_azure_llama370b_endpoint>"
+      # AZURE_LLAMA370B_MODELNAME: "Meta-Llama-3-70B-Instruct-sumtm"
+
+    IMAGE:
+      AZURE_DALLE:
+        PLUGIN_NAME: "azure_dalle"
+        INPUT_TOKEN_PRICE: "0.1"
+        OUTPUT_TOKEN_PRICE: "0.3"
+        AZURE_OPENAI_KEY: "<your_azure_openai_key>"
+        AZURE_OPENAI_ENDPOINT: "<your_azure_openai_endpoint>"
+        OPENAI_API_VERSION: "2023-12-01-preview"
+        IMAGE_GENERATOR_MODEL_NAME: "dall-e-3"
+
+    VECTOR_SEARCH:
+      AZURE_AISEARCH:
+        PLUGIN_NAME: "azure_aisearch"
+        AZURE_AISEARCH_INPUT_TOKEN_PRICE: "0.1"
+        AZURE_AISEARCH_OUTPUT_TOKEN_PRICE: "0.3"
+        AZURE_AISEARCH_AZURE_OPENAI_KEY: "<your_azure_openai_key>"
+        AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT: "<your_azure_openai_endpoint>"
+        AZURE_AISEARCH_OPENAI_API_VERSION: "2023-06-01-preview"
+        AZURE_AISEARCH_MODEL_NAME: "text-embedding-ada-002"
+        AZURE_AISEARCH_SEARCH_ENDPOINT: "https://ais-pg-jamesbot.search.windows.net"
+        AZURE_AISEARCH_KEY: "<your_azure_aisearch_key>"
+        AZURE_AISEARCH_INDEX_NAME: "<your_search_index_name>"
+        AZURE_AISEARCH_TOPN_DOCUMENT: 3
+        AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME: "gpt-4-turbo"
+        AZURE_AISEARCH_PROMPT: "you are an AI specialized in [set your speciality here]"
+
+      OPENAI_FILE_SEARCH:
+        PLUGIN_NAME: "openai_file_search"
+        OPENAI_SEARCH_OPENAI_KEY: "<your_openai_search_openai_key>"
+        OPENAI_SEARCH_OPENAI_ENDPOINT: "<your_openai_search_openai_endpoint>"
+        OPENAI_SEARCH_OPENAI_API_VERSION: "<your_openai_search_openai_api_version>"
+        OPENAI_SEARCH_MODEL_HOST: "<your_openai_search_model_host>"
+        OPENAI_SEARCH_MODEL_NAME: "<your_openai_search_model_name>"
+        OPENAI_SEARCH_INPUT_TOKEN_PRICE: "<your_openai_search_input_token_price>"
+        OPENAI_SEARCH_OUTPUT_TOKEN_PRICE: "<your_openai_search_output_token_price>"
+        OPENAI_SEARCH_CONTEXT_EXTRACTION: "<your_openai_search_context_extraction>"
+        OPENAI_SEARCH_CONTEXT_EXTRACTION_BEFORE_RATIO: "<your_openai_search_context_extraction_before_ratio>"
+        OPENAI_SEARCH_CONTEXT_EXTRACTION_AFTER_RATIO: "<your_openai_search_context_extraction_after_ratio>"
+        OPENAI_SEARCH_TEXT_WEIGHT: "<your_openai_search_text_weight>"
+        OPENAI_SEARCH_TITLE_WEIGHT: "<your_openai_search_title_weight>"
+        OPENAI_SEARCH_USE_TITLE_IN_SEARCH: "<your_openai_search_use_title_in_search>"
+        OPENAI_SEARCH_RESULT_COUNT: "<your_openai_search_result_count>"

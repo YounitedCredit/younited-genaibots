@@ -1,0 +1,48 @@
+{
+    "display_information": {
+        "name": "[BOT NAME]",
+        "description": "Back to the game",
+        "background_color": "#000000"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "[BOT DISPLAYNAME]",
+            "always_online": false
+        }
+    },
+    "oauth_config": {
+        "scopes": {
+            "user": [
+                "search:read"
+            ],
+            "bot": [
+                "app_mentions:read",
+                "channels:history",
+                "channels:read",
+                "chat:write",
+                "files:read",
+                "files:write",
+                "groups:history",
+                "links:read",
+                "reactions:write",
+                "users:read",
+                "users:read.email",
+                "commands"
+            ]
+        }
+    },
+    "settings": {
+        "event_subscriptions": {
+            "request_url": "[FRAMEWORK ENDPOINT URL]",
+            "bot_events": [
+                "file_shared",
+                "link_shared",
+                "message.channels",
+                "message.groups"
+            ]
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "token_rotation_enabled": false
+    }
+}

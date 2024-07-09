@@ -1,0 +1,276 @@
+# define the variable Build.BuildVersion
+# reference: https://docs.microsoft.com/en-us/azure/devops/pipelines/process/run-number?view=azure-devops&tabs=yaml
+name: 1.$(Year:yy).$(DayOfYear)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: Pool-Agent-Ubuntu
+
+variables:
+  - name: WORKING_DIRECTORY
+    value: $(System.DefaultWorkingDirectory)
+  - name: PIP_CACHE_DIR
+    value: "/home/vsts/.cache/pip"
+  - name: CACHE_PYTHON_KEY
+    value: 'python | "$(Agent.OS)" | $(WORKING_DIRECTORY)/requirements.txt'
+  - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+    value: "InstrumentationKey=152a0181-d50c-4b93-94ae-42b32cc6856c;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/;LiveEndpoint=https://westeurope.livediagnostics.monitor.azure.com/;ApplicationId=16a4b271-0fad-4956-bb5c-b1313e94c469"
+  - name: FEEDBACK_GENERAL_BEHAVIOR
+    value: "General_Global.txt"
+  - name: CORE_PROMPT
+    value: "core_prompt"
+  - name: MAIN_PROMPT
+    value: "main_prompt"
+  - name: PROMPTS_FOLDER
+    value: "prompts"
+  - name: SUBPROMPTS_FOLDER
+    value: "subprompts"
+  - name: ACKNOWLEDGE_NONPROCESSED_MESSAGE
+    value: false
+  - name: REQUIRE_MENTION_NEW_MESSAGE
+    value: false
+  - name: REQUIRE_MENTION_THREAD_MESSAGE
+    value: true
+  - name: SHOW_COST_IN_THREAD
+    value: false
+  - name: GET_URL_CONTENT
+    value: true
+  - name: LOG_DEBUG_LEVEL
+    value: "INFO"
+  - name: LLM_CONVERSION_FORMAT
+    value: "json"
+  - name: ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME
+    value: "main_actions"
+  - name: INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME
+    value: "azure_blob_storage"
+  - name: USER_INTERACTIONS_INSTANT_MESSAGING_DEFAULT_PLUGIN_NAME
+    value: "slack"
+  - name: USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME
+    value: "im_default_behavior"
+  - name: GENAI_TEXT_DEFAULT_PLUGIN_NAME
+    value: "azure_chatgpt"
+  - name: GENAI_IMAGE_DEFAULT_PLUGIN_NAME
+    value: "azure_dalle"
+  - name: GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME
+    value: "azure_aisearch"
+  - name: ApplicationInsightsAgent_EXTENSION_VERSION
+    value: "~3"
+  - name: AZURE_OPENAI_ENDPOINT
+    value: "https://gpt-pr-techopsai-csw-01.openai.azure.com/"
+  - name: AZURE_STORAGE_CONNECTION_STRING
+    value: "https://astpgdebtcolbot.blob.core.windows.net/"
+  - name: DOCKER_REGISTRY_SERVER_URL
+    value: "https://acrpggenaibots.azurecr.io"
+  - name: DOCKER_REGISTRY_SERVER_USERNAME
+    value: "acrpggenaibots"
+  - name: WEBSITE_HTTPLOGGING_RETENTION_DAYS
+    value: "30"
+  - name: WEBSITES_ENABLE_APP_SERVICE_STORAGE
+    value: "false"
+  - name: XDT_MicrosoftApplicationInsights_Mode
+    value: "Recommended"
+  - name: AZURE_MISTRAL_KEY
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=AZURE-MITRAL-KEY)"
+  - name: AZURE_MISTRAL_ENDPOINT
+    value: "https://Mistral-large-bbnwu-serverless.francecentral.inference.ai.azure.com"
+  - name: VERTEXAI_GEMINI_KEY
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=VERTEXAI-GEMINI-KEY)"
+  - name: VERTEXAI_GEMINI_MAX_OUTPUT_TOKENS
+    value: "8192"
+  - name: VERTEXAI_GEMINI_TEMPERATURE
+    value: "0.1"
+  - name: VERTEXAI_GEMINI_TOP_P
+    value: "0.1"
+  - name: AZURE_CHATGPT_INPUT_TOKEN_PRICE
+    value: "0.01"
+  - name: AZURE_CHATGPT_OUTPUT_TOKEN_PRICE
+    value: "0.03"
+  - name: AZURE_CHATGPT_MODEL_NAME
+    value: "gpt-4-turbo"
+  - name: AZURE_CHATGPT_VISION_MODEL_NAME
+    value: "gpt-4-vision"
+  - name: SEARCH_INDEX_NAME
+    value: "vector-1700698264238"
+  - name: AZURE_AISEARCH_KEY
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=AZURE-IASEARCH-KEY)"
+  - name: AZURE_OPENAI_KEY
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=AZURE-OPENAI-KEY)"
+  - name: BING_SEARCH_SUBSCRIPTION_KEY
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=BING-SEARCH-SUBSCRIPTION-KEY)"
+  - name: DOCKER_REGISTRY_SERVER_PASSWORD
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=DOCKER-REGISTRY-SERVER-PASSWORD)"
+  - name: SLACK_BOT_TOKEN
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=SLACK-BOT-TOKEN-DEBTCOLBOT)"
+  - name: SLACK_BOT_USER_TOKEN
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=SLACK-BOT-USER-TOKEN-DEBTCOLBOT)"
+  - name: SLACK_SIGNING_SECRET
+    value: "@Microsoft.KeyVault(VaultName=AKV-PG-GENAIBOTS;SecretName=SLACK-SIGNING-SECRET-DEBTCOLBOT)"
+  - name: SLACK_AUTHORIZED_CHANNELS
+    value: "C07AHCH29HR"
+  - name: SLACK_BOT_USER_ID
+    value: "U07A2T87S6B"
+  - name: SLACK_INTERNAL_CHANNEL
+    value: "C07AW63APLZ"
+  - name: SLACK_FEEDBACK_BOT_ID
+    value: "U065YJC74R4"
+  - name: SLACK_FEEDBACK_CHANNEL
+    value: "C066RL88VAS"
+  - name: TEAMS_APP_ID
+    value: "34e1e72c-8040-4d53-a4b3-05f099c43de1"
+  - name: TEAMS_APP_PASSWORD
+    value: ""
+  - name: TEAMS_BOT_USER_ID
+    value: "28:34e1e72c-8040-4d53-a4b3-05f099c43de1"
+  - name: TEAMS_AUTHORIZED_CHANNELS
+    value: "19:f2ab130d779f4fc69e679d4fd98f961f@thread.tacv2"
+  - name: TEAMS_FEEDBACK_CHANNEL
+    value: "C066RL88VAS"
+  - name: TEAMS_FEEDBACK_BOT_USER_ID
+    value: "U065YJC74R4"
+  - name: AZURE_COMMANDR_KEY
+    value: "KEY"
+  - name: AZURE_COMMANDR_ENDPOINT
+    value: "https://Cohere-command-r-plus-owxrx-serverless.swedencentral.inference.ai.azure.com"
+  - name: AZURE_LLAMA370B_KEY
+    value: "KEY"
+  - name: AZURE_LLAMA370B_ENDPOINT
+    value: "https://Meta-Llama-3-70B-Instruct-sumtm-serverless.swedencentral.inference.ai.azure.com"
+  - name: AZURE_LLAMA370B_ENDPOINT
+    value: "https://Meta-Llama-3-70B-Instruct-sumtm-serverless.swedencentral.inference.ai.azure.com"
+  - name: OPENAI_SEARCH_OPENAI_KEY
+    value: "key"
+  - name: OPENAI_SEARCH_OPENAI_ENDPOINT
+    value: "endpoint"
+  - name: OPENAI_SEARCH_OPENAI_API_VERSION
+    value: "version"
+  - name: AZURE_AISEARCH_INPUT_TOKEN_PRICE
+    value: "0.01"
+  - name: AZURE_AISEARCH_OUTPUT_TOKEN_PRICE
+    value: "0.05"
+  - name: AZURE_AISEARCH_AZURE_OPENAI_KEY
+    value: "dummy_openai_key"
+  - name: AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT
+    value: "https://dummy-openai-endpoint.com"
+  - name: AZURE_AISEARCH_OPENAI_API_VERSION
+    value: "2023-01-01-preview"
+  - name: AZURE_AISEARCH_MODEL_NAME
+    value: "dummy-model-001"
+  - name: AZURE_AISEARCH_SEARCH_ENDPOINT
+    value: "https://dummy-search-endpoint.com"
+  - name: AZURE_AISEARCH_KEY
+    value: "dummy_aisearch_key"
+  - name: AZURE_AISEARCH_INDEX_NAME
+    value: "dummy_index_name"
+  - name: AZURE_AISEARCH_TOPN_DOCUMENT
+    value: 5
+  - name: AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME
+    value: "dummy-text-completion-model"
+  - name: AZURE_AISEARCH_PROMPT
+    value: "you are a dummy AI specialized in giving dummy responses"
+  - name: OPENAI_FILE_SEARCH_PLUGIN_NAME
+    value: "dummy_file_search"
+  - name: OPENAI_SEARCH_OPENAI_KEY
+    value: "dummy_openai_search_key"
+  - name: OPENAI_SEARCH_OPENAI_ENDPOINT
+    value: "https://dummy-openai-search-endpoint.com"
+  - name: OPENAI_SEARCH_OPENAI_API_VERSION
+    value: "2023-01-01-preview"
+  - name: OPENAI_SEARCH_MODEL_HOST
+    value: "https://dummy-model-host.com"
+  - name: OPENAI_SEARCH__MODEL_NAME
+    value: "dummy-search-model"
+  - name: OPENAI_SEARCH_INPUT_TOKEN_PRICE
+    value: "0.02"
+  - name: OPENAI_SEARCH_OUTPUT_TOKEN_PRICE
+    value: "0.04"
+  - name: OPENAI_SEARCH_CONTEXT_EXTRACTION
+    value: "dummy_context_extraction"
+  - name: OPENAI_SEARCH_CONTEXT_EXTRACTION_BEFORE_RATIO
+    value: "0.5"
+  - name: OPENAI_SEARCH_CONTEXT_EXTRACTION_AFTER_RATIO
+    value: "0.5"
+  - name: OPENAI_SEARCH_TEXT_WEIGHT
+    value: "1.0"
+  - name: OPENAI_SEARCH_TITLE_WEIGHT
+    value: "0.8"
+  - name: OPENAI_SEARCH_USE_TITLE_IN_SEARCH
+    value: true
+  - name: OPENAI_SEARCH_RESULT_COUNT
+    value: 10  
+
+jobs:
+  - job: run_unit_tests_and_sonar_analysis
+    displayName: Run python unit tests and sonar analysis
+    steps:
+    - checkout: self
+      fetchDepth: 0 # Ensure that full history is fetched
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.10'
+      displayName: Use Python 3.10
+
+    - script: |
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk
+        sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-17-openjdk-amd64/bin/java 1
+        sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+        echo "##vso[task.setvariable variable=JAVA_HOME]/usr/lib/jvm/java-17-openjdk-amd64"
+        echo "##vso[task.prependpath]/usr/lib/jvm/java-17-openjdk-amd64/bin"
+        java -version
+      displayName: Install and Set Java 17
+
+    - script: |
+        echo "##vso[task.prependpath]$(JAVA_HOME)/bin"
+        java -version
+      displayName: Ensure Java 17 is in PATH
+
+    - script: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+      displayName: Install Python dependencies
+
+    - script: |
+        source venv/bin/activate
+        pytest
+      displayName: Run python unit tests
+      env:
+        PYTHONPATH: $(System.DefaultWorkingDirectory)
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: $(System.DefaultWorkingDirectory)/coverage.xml
+        artifactName: TestReports
+
+    - task: SonarCloudPrepare@2
+      displayName: Prepare analysis on SonarCloud
+      inputs:
+        SonarCloud: 'SonarCloud Younited'
+        organization: 'younited-credit'
+        scannerMode: CLI
+        configMode: manual
+        cliProjectKey: "Yuc.GenaiBots"
+        cliProjectName: "Yuc.GenaiBots"
+        cliProjectVersion: $(Build.BuildId)
+        extraProperties: |
+          sonar.python.version=3.10
+          sonar.sources=app.py,core,plugins,templates,utils
+          sonar.tests=tests
+          sonar.exclusions=tests/**
+          sonar.test.inclusions=tests/**/*.py
+          sonar.python.coverage.reportPaths=$(System.DefaultWorkingDirectory)/coverage.xml
+
+    - task: SonarCloudAnalyze@2
+      displayName: Run Code Analysis
+      inputs:
+        jdkversion: 'JAVA_HOME_17_X64'
+
+    - task: SonarCloudPublish@2
+      displayName: Publish Quality Gate Result
