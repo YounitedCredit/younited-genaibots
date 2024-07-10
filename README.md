@@ -67,7 +67,7 @@ This will start the server and begin handling requests based on configured actio
 To debug the application in Visual Studio Code, use the following command:
 
 ```bash
-c:; cd 'c:\repos\Yuc.GenaiBots'; & 'C:\Users\AntoineHABERT\miniconda3\python.exe' 'c:\Users\AntoineHABERT\.vscode\extensions\ms-python.debugpy-2024.6.0-win32-x64\bundled\libs\debugpy\adapter/../..\debugpy\launcher' '64580' '--' '-m' 'uvicorn' 'app:app' '--host' 'localhost' '--port' '7071' '--workers' '1'
+c:; cd 'c:\repos\Yuc.GenaiBots'; & 'C:\Users\<your profile>\miniconda3\python.exe' 'c:\Users\<your profile>\.vscode\extensions\ms-python.debugpy-2024.6.0-win32-x64\bundled\libs\debugpy\adapter/../..\debugpy\launcher' '64580' '--' '-m' 'uvicorn' 'app:app' '--host' 'localhost' '--port' '7071' '--workers' '1'
 ```
 
 ## Plugin Architecture
@@ -100,4 +100,4 @@ This project is licensed under the MIT License - see the `LICENSE.md` file for m
 
 ## Support and Contact
 For any support queries or to report issues, please visit our GitHub Issues page at:
-https://example.com/genaibots/issues
+https://github.com/YounitedCredit/younited-genaibots/issues
