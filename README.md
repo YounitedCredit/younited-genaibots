@@ -4,6 +4,8 @@
 ## Overview
 GenaiBots is a comprehensive framework designed for automating and managing interactions across various digital platforms. It is primarily an enterprise tool for integrating generative AI into operational processes through mediums such as instant messaging, emails, ticketing tools, or internal tools. Utilizing advanced AI and a modular plugin system, it enables the creation of sophisticated operational flows and interaction models tailored for both businesses and developers.
 
+More details in the wiki https://github.com/YounitedCredit/younited-genaibots/wiki
+
 ## Key Features
 - **AI Enhancements**: Integrate generative AI at the core of interactions. This enables not only custom AI generation through prompts but also the ability to trigger actions and manage processes with a rapid feedback loop.
 - **Custom Action Handlers**: Easily create custom actions based on specific triggers and conditions, and invoke them directly through prompts.
