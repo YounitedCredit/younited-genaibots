@@ -12,3 +12,5 @@ htmlcov/
 logs/*
 .ruff_cache
 .venv/
+.coverage
+coverage.xml

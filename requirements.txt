@@ -23,6 +23,7 @@ pytest-mock
 pandas
 coverage
 requests-mock
+pytest-cov
 
 # Azure environment dependencies
 azure.identity
