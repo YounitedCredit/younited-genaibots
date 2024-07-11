@@ -20,7 +20,7 @@ def openai_file_search_plugin(mock_global_manager):
         "OPENAI_SEARCH_OPENAI_ENDPOINT": "https://fake_endpoint",
         "OPENAI_SEARCH_OPENAI_API_VERSION": "v1",
         "OPENAI_SEARCH_MODEL_HOST": "openai",
-        "OPENAI_SEARCH__MODEL_NAME": "gpt-35-turbo",
+        "OPENAI_SEARCH_MODEL_NAME": "gpt-35-turbo",
         "OPENAI_SEARCH_INPUT_TOKEN_PRICE": 0.01,
         "OPENAI_SEARCH_OUTPUT_TOKEN_PRICE": 0.01,
         "OPENAI_SEARCH_CONTEXT_EXTRACTION": True,

@@ -26,7 +26,7 @@ class OpenaiFileSearchConfig(BaseModel):
     OPENAI_SEARCH_OPENAI_ENDPOINT: str
     OPENAI_SEARCH_OPENAI_API_VERSION: str
     OPENAI_SEARCH_MODEL_HOST : str
-    OPENAI_SEARCH__MODEL_NAME: str
+    OPENAI_SEARCH_MODEL_NAME: str
     OPENAI_SEARCH_INPUT_TOKEN_PRICE: float
     OPENAI_SEARCH_OUTPUT_TOKEN_PRICE: float
     OPENAI_SEARCH_CONTEXT_EXTRACTION: bool
@@ -50,7 +50,7 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         self.openai_key = self.openai_search_config.OPENAI_SEARCH_OPENAI_KEY
         self.openai_endpoint = self.openai_search_config.OPENAI_SEARCH_OPENAI_ENDPOINT
         self.openai_api_version = self.openai_search_config.OPENAI_SEARCH_OPENAI_API_VERSION
-        self.model_name = self.openai_search_config.OPENAI_SEARCH__MODEL_NAME
+        self.model_name = self.openai_search_config.OPENAI_SEARCH_MODEL_NAME
         self.model_host = self.openai_search_config.OPENAI_SEARCH_MODEL_HOST
         self.input_token_price = self.openai_search_config.OPENAI_SEARCH_INPUT_TOKEN_PRICE
         self.output_token_price = self.openai_search_config.OPENAI_SEARCH_OUTPUT_TOKEN_PRICE
