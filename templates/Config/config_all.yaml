@@ -196,7 +196,7 @@ PLUGINS:
         AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT: "<your_azure_openai_endpoint>"
         AZURE_AISEARCH_OPENAI_API_VERSION: "2023-06-01-preview"
         AZURE_AISEARCH_MODEL_NAME: "text-embedding-ada-002"
-        AZURE_AISEARCH_SEARCH_ENDPOINT: "https://ais-pg-jamesbot.search.windows.net"
+        AZURE_AISEARCH_SEARCH_ENDPOINT: "your aisearch endpoint"
         AZURE_AISEARCH_KEY: "<your_azure_aisearch_key>"
         AZURE_AISEARCH_INDEX_NAME: "<your_search_index_name>"
         AZURE_AISEARCH_TOPN_DOCUMENT: 3
