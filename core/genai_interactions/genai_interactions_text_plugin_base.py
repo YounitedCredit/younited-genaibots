@@ -4,8 +4,9 @@ from core.genai_interactions.genai_cost_base import GenAICostBase
 from core.genai_interactions.genai_interactions_plugin_base import (
     GenAIInteractionsPluginBase,
 )
-from plugins import IncomingNotificationDataBase
-
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 
 class GenAIInteractionsTextPluginBase(GenAIInteractionsPluginBase, ABC):
     def __init__(self, *args, **kwargs):

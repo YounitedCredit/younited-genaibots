@@ -6,7 +6,10 @@ import pytest
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
-from plugins import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 
 

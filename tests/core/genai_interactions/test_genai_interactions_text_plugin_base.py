@@ -7,7 +7,10 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
 from core.global_manager import GlobalManager
-from plugins import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+
 
 
 class DummyGenAIInteractionsTextPluginBase(GenAIInteractionsTextPluginBase):

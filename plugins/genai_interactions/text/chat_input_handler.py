@@ -13,7 +13,10 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
 )
 from core.global_manager import GlobalManager
 from core.user_interactions.message_type import MessageType
-from plugins import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+
 from utils.config_manager.config_model import BotConfig
 from utils.plugin_manager.plugin_manager import PluginManager
 

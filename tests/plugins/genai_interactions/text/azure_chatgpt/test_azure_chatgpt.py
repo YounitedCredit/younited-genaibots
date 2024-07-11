@@ -4,7 +4,10 @@ from unittest.mock import AsyncMock, MagicMock, patch, ANY
 import pytest
 
 from core.action_interactions.action_input import ActionInput
-from plugins import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+
 from plugins.genai_interactions.text.azure_chatgpt.azure_chatgpt import (
     AzureChatgptPlugin,
     MessageType

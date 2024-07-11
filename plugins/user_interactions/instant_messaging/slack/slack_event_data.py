@@ -1,4 +1,7 @@
-from plugins import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+
 
 
 class SlackEventData(IncomingNotificationDataBase):
