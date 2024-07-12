@@ -20,6 +20,7 @@ ruff==0.4.2
 uvicorn~=0.29.0
 pytest-aiohttp
 pytest-mock
+pytest-cov
 pandas
 coverage
 requests-mock
