@@ -482,7 +482,8 @@ class SlackInputHandler:
 
     async def _fetch_message_data(self, channel_id, message_ts, is_reply):
         params = self._build_api_params(channel_id, message_ts, is_reply)
-        response = requests.get(f"{self.SLACK_API_URL}conversations.history", params=params)
+        headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
+        response = requests.get(f"{self.SLACK_API_URL}conversations.history", headers=headers, params=params)
 
         if response.status_code != 200:
             error_message = response.json().get('error', 'Unknown error')
@@ -499,8 +500,7 @@ class SlackInputHandler:
             'channel': channel_id,
             'latest': message_ts,
             'limit': 1,
-            'inclusive': True,
-            'token': self.SLACK_BOT_TOKEN
+            'inclusive': True
         }
         if is_reply:
             params['oldest'] = message_ts
@@ -518,7 +518,9 @@ class SlackInputHandler:
         text = message.get('text', '')
 
         if 'blocks' in message:
-            text = SlackBlockProcessor.extract_text_from_blocks(message['blocks'])
+            block = message["blocks"]
+            slack_block_processor = SlackBlockProcessor()
+            text = slack_block_processor.extract_text_from_blocks(block)
 
         return f"*{user_id}*: _{text}_"
 

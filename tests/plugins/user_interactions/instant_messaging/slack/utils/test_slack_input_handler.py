@@ -805,8 +805,7 @@ def test_build_api_params(slack_input_handler):
         'channel': "C12345",
         'latest': "1620834875.000400",
         'limit': 1,
-        'inclusive': True,
-        'token': slack_input_handler.SLACK_BOT_TOKEN
+        'inclusive': True
     }
 
     params_reply = slack_input_handler._build_api_params("C12345", "1620834875.000400", True)
