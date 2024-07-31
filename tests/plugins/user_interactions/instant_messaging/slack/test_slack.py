@@ -30,6 +30,7 @@ class SlackConfig(BaseModel):
     SLACK_BOT_USER_ID: str
     SLACK_API_URL: str
     SLACK_AUTHORIZED_CHANNELS: str
+    SLACK_AUTHORIZED_APPS: str
     SLACK_FEEDBACK_CHANNEL: str
     SLACK_FEEDBACK_BOT_ID: str
     MAX_MESSAGE_LENGTH: int
@@ -51,6 +52,7 @@ def slack_config_data():
         "SLACK_BOT_USER_ID": "bot_user_id",
         "SLACK_API_URL": "https://slack.com/api",
         "SLACK_AUTHORIZED_CHANNELS": "C12345678,C23456789",
+        "SLACK_AUTHORIZED_APPS": "A1BFDR28J",
         "SLACK_FEEDBACK_CHANNEL": "C34567890",
         "SLACK_FEEDBACK_BOT_ID": "feedback_bot_id",
         "MAX_MESSAGE_LENGTH": 40000,
@@ -69,6 +71,7 @@ def slack_plugin(mock_global_manager, slack_config_data):
     plugin.SLACK_MESSAGE_TTL = slack_config_data["SLACK_MESSAGE_TTL"]
     plugin.bot_user_id = slack_config_data["SLACK_BOT_USER_ID"]
     plugin.SLACK_AUTHORIZED_CHANNELS = slack_config_data["SLACK_AUTHORIZED_CHANNELS"].split(",")
+    plugin.SLACK_AUTHORIZED_APPS = slack_config_data["SLACK_AUTHORIZED_APPS"].split(",")
     plugin.SLACK_FEEDBACK_CHANNEL = slack_config_data["SLACK_FEEDBACK_CHANNEL"]
     plugin.FEEDBACK_BOT_USER_ID = slack_config_data["SLACK_FEEDBACK_BOT_ID"]
     plugin.slack_bot_token = slack_config_data["SLACK_BOT_TOKEN"]
@@ -130,6 +133,7 @@ async def test_validate_request_from_bot_user(slack_plugin):
         "event": {
             "type": "message",
             "user": slack_plugin.bot_user_id,  # User ID is the bot's user ID
+            "app_id": "A2CEES41H",
             "channel": "C12345678",
             "ts": "1234567890.123456"
         }
@@ -138,7 +142,7 @@ async def test_validate_request_from_bot_user(slack_plugin):
         'X-Slack-Request-Timestamp': '1531420618',
         'X-Slack-Signature': 'v0=abcd1234'
     }
-    raw_body_str = '{"event": {"type": "message", "user": "' + slack_plugin.bot_user_id + '", "channel": "C12345678", "ts": "1234567890.123456"}}'
+    raw_body_str = '{"event": {"type": "message", "user": "' + slack_plugin.bot_user_id + '", "app_id": "A2CEES41H", "channel": "C12345678", "ts": "1234567890.123456"}}'
 
     sig_basestring = f'v0:{headers["X-Slack-Request-Timestamp"]}:{raw_body_str}'
     correct_signature = 'v0=' + hmac.new(
@@ -161,6 +165,7 @@ async def test_validate_request_from_unauthorized_user_in_feedback_channel(slack
         "event": {
             "type": "message",
             "user": "U999999",  # Unauthorized user
+            "app_id": None,
             "channel": slack_plugin.SLACK_FEEDBACK_CHANNEL,
             "ts": "1234567890.123456"
         }
@@ -169,7 +174,7 @@ async def test_validate_request_from_unauthorized_user_in_feedback_channel(slack
         'X-Slack-Request-Timestamp': '1531420618',
         'X-Slack-Signature': 'v0=abcd1234'
     }
-    raw_body_str = '{"event": {"type": "message", "user": "U999999", "channel": "' + slack_plugin.SLACK_FEEDBACK_CHANNEL + '", "ts": "1234567890.123456"}}'
+    raw_body_str = '{"event": {"type": "message", "user": "U999999", "app_id": None, "channel": "' + slack_plugin.SLACK_FEEDBACK_CHANNEL + '", "ts": "1234567890.123456"}}'
 
     sig_basestring = f'v0:{headers["X-Slack-Request-Timestamp"]}:{raw_body_str}'
     correct_signature = 'v0=' + hmac.new(
@@ -192,6 +197,7 @@ async def test_validate_request_from_unauthorized_user_in_feedback_channel(slack
         "event": {
             "type": "message",
             "user": "U999999",  # Unauthorized user
+            "app_id": None,
             "channel": slack_plugin.SLACK_FEEDBACK_CHANNEL,
             "ts": "1234567890.123456"
         }
@@ -200,7 +206,7 @@ async def test_validate_request_from_unauthorized_user_in_feedback_channel(slack
         'X-Slack-Request-Timestamp': '1531420618',
         'X-Slack-Signature': 'v0=abcd1234'
     }
-    raw_body_str = '{"event": {"type": "message", "user": "U999999", "channel": "' + slack_plugin.SLACK_FEEDBACK_CHANNEL + '", "ts": "1234567890.123456"}}'
+    raw_body_str = '{"event": {"type": "message", "user": "U999999", "app_id": None, "channel": "' + slack_plugin.SLACK_FEEDBACK_CHANNEL + '", "ts": "1234567890.123456"}}'
 
     sig_basestring = f'v0:{headers["X-Slack-Request-Timestamp"]}:{raw_body_str}'
     correct_signature = 'v0=' + hmac.new(
@@ -223,6 +229,7 @@ async def test_validate_request_with_invalid_event_type(slack_plugin):
         "event": {
             "type": "reaction_added",  # Invalid event type for processing
             "user": "U123456",
+            "app_id": "A2CEES41H",
             "channel": "C12345678",
             "ts": "1234567890.123456"
         }
@@ -231,7 +238,7 @@ async def test_validate_request_with_invalid_event_type(slack_plugin):
         'X-Slack-Request-Timestamp': '1531420618',
         'X-Slack-Signature': 'v0=abcd1234'
     }
-    raw_body_str = '{"event": {"type": "reaction_added", "user": "U123456", "channel": "C12345678", "ts": "1234567890.123456"}}'
+    raw_body_str = '{"event": {"type": "reaction_added", "user": "U123456", "app_id": "A2CEES41H", "channel": "C12345678", "ts": "1234567890.123456"}}'
 
     sig_basestring = f'v0:{headers["X-Slack-Request-Timestamp"]}:{raw_body_str}'
     correct_signature = 'v0=' + hmac.new(
@@ -254,6 +261,7 @@ async def test_process_interaction(slack_plugin):
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": "A2CEES41H",
             "channel": "C12345678",
             "ts": "1234567890.123456",
             "text": "Hello, world!"
@@ -282,7 +290,7 @@ async def test_validate_headers(slack_plugin):
 @pytest.mark.asyncio
 async def test_validate_signature(slack_plugin):
     timestamp = '1531420618'
-    raw_body_str = '{"event": {"type": "message", "user": "U123456", "channel": "C12345678", "ts": "1234567890.123456"}}'
+    raw_body_str = '{"event": {"type": "message", "user": "U123456", "app_id": "A2CEES41H", "channel": "C12345678", "ts": "1234567890.123456"}}'
     
     # Set the root_message_timestamp
     slack_plugin.root_message_timestamp = timestamp
@@ -317,21 +325,26 @@ async def test_validate_event_data(slack_plugin):
         "channel": "C12345678",
         "ts": "1234567890.123456"
     }
-    assert slack_plugin._validate_event_data("message", "1234567890.123456", "C12345678", "U123456", valid_event) is True
+    assert slack_plugin._validate_event_data("message", "1234567890.123456", "C12345678", "U123456", None, valid_event) is True
 
     # Test with bot user
     bot_event = valid_event.copy()
     bot_event["user"] = slack_plugin.bot_user_id
-    assert slack_plugin._validate_event_data("message", "1234567890.123456", "C12345678", slack_plugin.bot_user_id, bot_event) is False
+    assert slack_plugin._validate_event_data("message", "1234567890.123456", "C12345678", slack_plugin.bot_user_id, None, bot_event) is False
+
+    # Test with unauthorized channel
+    unauthorized_event = valid_event.copy()
+    unauthorized_event["app_id"] = "UNAUTHORIZED"
+    assert slack_plugin._validate_event_data("message", "1234567890.123456", "UNAUTHORIZED", "U123456", "UNAUTHORIZED", unauthorized_event) is False
 
     # Test with unauthorized channel
     unauthorized_event = valid_event.copy()
     unauthorized_event["channel"] = "UNAUTHORIZED"
-    assert slack_plugin._validate_event_data("message", "1234567890.123456", "UNAUTHORIZED", "U123456", unauthorized_event) is False
+    assert slack_plugin._validate_event_data("message", "1234567890.123456", "UNAUTHORIZED", None, "A2CEES41H", unauthorized_event) is False
 
     # Test with reaction_added event type
     reaction_event = valid_event.copy()
-    assert slack_plugin._validate_event_data("reaction_added", "1234567890.123456", "C12345678", "U123456", reaction_event) is False
+    assert slack_plugin._validate_event_data("reaction_added", "1234567890.123456", "C12345678", None, "A2CEES41H", reaction_event) is False
 
 @pytest.mark.asyncio
 async def test_validate_processing_status(slack_plugin):
@@ -355,6 +368,7 @@ async def test_process_event_data(slack_plugin):
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": "A2CEES41H",
             "channel": "C12345678",
             "ts": "1234567890.123456"
         }
@@ -363,7 +377,7 @@ async def test_process_event_data(slack_plugin):
         'X-Slack-Request-Timestamp': '1531420618',
         'X-Slack-Signature': 'v0=abcd1234'
     }
-    raw_body_str = '{"event": {"type": "message", "user": "U123456", "channel": "C12345678", "ts": "1234567890.123456"}}'
+    raw_body_str = '{"event": {"type": "message", "user": "U123456", "app_id": "A2CEES41H", "channel": "C12345678", "ts": "1234567890.123456"}}'
 
     with patch.object(slack_plugin, 'validate_request', return_value=True), \
          patch.object(slack_plugin, 'handle_valid_request') as mock_handle:
@@ -376,6 +390,7 @@ async def test_handle_valid_request(slack_plugin):
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": "A2CEES41H",
             "channel": "C12345678",
             "ts": "1234567890.123456",
             "text": "Hello, world!"
@@ -392,6 +407,7 @@ async def test_process_event_by_type(slack_plugin):
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": "A2CEES41H",
             "channel": "C12345678",
             "ts": "1234567890.123456",
             "text": "Hello, world!"
@@ -420,7 +436,8 @@ async def test_process_event_by_type(slack_plugin):
         await slack_plugin.process_event_by_type(event_data, "reaction_added", None)
         mock_logger.assert_called_once_with("Event type is not 'message', it's 'reaction_added'. Skipping processing.")
 
-async def test_send_message(slack_plugin, requests_mock):
+@pytest.mark.asyncio
+async def test_send_message_user(slack_plugin, requests_mock):
     requests_mock.post('https://slack.com/api/chat.postMessage', json={'ok': True})
 
     message = "Hello, world!"
@@ -431,6 +448,8 @@ async def test_send_message(slack_plugin, requests_mock):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -462,7 +481,10 @@ async def test_send_message(slack_plugin, requests_mock):
         await slack_plugin.send_message(message, event, "INVALID_TYPE")
 
 @pytest.mark.asyncio
-async def test_add_reaction(slack_plugin):
+async def test_send_message_app(slack_plugin, requests_mock):
+    requests_mock.post('https://slack.com/api/chat.postMessage', json={'ok': True})
+
+    message = "Hello, world!"
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         converted_timestamp="1234567890.123456",
@@ -470,6 +492,49 @@ async def test_add_reaction(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id="A2CEES41H",
+        username="app",
+        user_name=None,
+        user_email=None,
+        user_id=None,
+        is_mention=False,
+        text="Test message",
+        origin="slack"
+    )
+    message_type = MessageType.TEXT
+
+    # Test regular message
+    response = await slack_plugin.send_message(message, event, message_type)
+    assert response.status_code == 200
+    assert response.json() == {'ok': True}
+
+    # Test with show_ref=True
+    slack_plugin.add_reference_message = AsyncMock(return_value=True)
+    response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
+    assert slack_plugin.add_reference_message.called
+    assert response.status_code == 200
+
+    # Test internal message
+    slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
+    response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
+    assert slack_plugin.handle_internal_message.called
+    assert response.status_code == 200
+
+    # Test with invalid message type
+    with pytest.raises(ValueError):
+        await slack_plugin.send_message(message, event, "INVALID_TYPE")
+
+@pytest.mark.asyncio
+async def test_add_reaction_user_message(slack_plugin):
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        converted_timestamp="1234567890.123456",
+        event_label="test_event",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -490,7 +555,7 @@ async def test_add_reaction(slack_plugin):
     assert slack_plugin.slack_output_handler.add_reaction.called
 
 @pytest.mark.asyncio
-async def test_remove_reaction(slack_plugin):
+async def test_add_reaction_app_message(slack_plugin):
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         converted_timestamp="1234567890.123456",
@@ -498,9 +563,71 @@ async def test_remove_reaction(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id="A2CEES41H",
+        username="app",
+        user_name=None,
+        user_email=None,
+        user_id=None,
+        is_mention=False,
+        text="Test message",
+        origin="slack"
+    )
+    channel_id = "C12345678"
+    timestamp = "1234567890.123456"
+    reaction_name = "like"
+
+    # Mock the post_notification method
+    slack_plugin.post_notification = AsyncMock()
+    slack_plugin.slack_output_handler.add_reaction = AsyncMock()  # Utilisation d'AsyncMock pour gérer les appels await
+
+    await slack_plugin.add_reaction(event, channel_id, timestamp, reaction_name)
+
+    assert slack_plugin.slack_output_handler.add_reaction.called
+
+@pytest.mark.asyncio
+async def test_remove_reaction_user_message(slack_plugin):
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        converted_timestamp="1234567890.123456",
+        event_label="test_event",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
+        is_mention=False,
+        text="Test message",
+        origin="slack"
+    )
+    channel_id = "C12345678"
+    timestamp = "1234567890.123456"
+    reaction_name = "like"
+
+    # Mock the post_notification method
+    slack_plugin.post_notification = AsyncMock()
+    slack_plugin.slack_output_handler.remove_reaction = AsyncMock()  # Utilisation d'AsyncMock pour gérer les appels await
+
+    await slack_plugin.remove_reaction(event, channel_id, timestamp, reaction_name)
+
+    assert slack_plugin.slack_output_handler.remove_reaction.called
+
+@pytest.mark.asyncio
+async def test_remove_reaction_app_message(slack_plugin):
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        converted_timestamp="1234567890.123456",
+        event_label="test_event",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
+        app_id="A2CEES41H",
+        username="app",
+        user_name=None,
+        user_email=None,
+        user_id=None,
         is_mention=False,
         text="Test message",
         origin="slack"
@@ -523,6 +650,7 @@ def test_initialize(slack_plugin):
     assert slack_plugin.slack_output_handler is not None
     assert slack_plugin.SLACK_MESSAGE_TTL == slack_plugin.slack_config.SLACK_MESSAGE_TTL
     assert slack_plugin.SLACK_AUTHORIZED_CHANNELS == slack_plugin.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
+    assert slack_plugin.SLACK_AUTHORIZED_APPS == slack_plugin.slack_config.SLACK_AUTHORIZED_APPS.split(",")
     assert slack_plugin.SLACK_FEEDBACK_CHANNEL == slack_plugin.slack_config.SLACK_FEEDBACK_CHANNEL
     assert slack_plugin.slack_bot_token == slack_plugin.slack_config.SLACK_BOT_TOKEN
     assert slack_plugin.slack_signing_secret == slack_plugin.slack_config.SLACK_SIGNING_SECRET
@@ -536,11 +664,12 @@ def test_initialize(slack_plugin):
     assert slack_plugin.FEEDBACK_BOT_USER_ID == slack_plugin.slack_config.SLACK_FEEDBACK_BOT_ID
 
 @pytest.mark.asyncio
-async def test_request_to_notification_data(slack_plugin):
+async def test_request_to_notification_data_user(slack_plugin):
     event_data = {
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": None,
             "channel": "C12345678",
             "ts": "1234567890.123456",
             "text": "Hello, world!"
@@ -553,6 +682,8 @@ async def test_request_to_notification_data(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        username=None,
+        app_id=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -567,6 +698,44 @@ async def test_request_to_notification_data(slack_plugin):
     assert result.text == "Hello, world!"
     assert result.user_id == "U123456"
     assert result.channel_id == "C12345678"
+    assert result.app_id == ""
+
+@pytest.mark.asyncio
+async def test_request_to_notification_data_app(slack_plugin):
+    event_data = {
+        "event": {
+            "type": "message",
+            "user": None,
+            "app_id": "A2CEES41H",
+            "channel": "C12345678",
+            "ts": "1234567890.123456",
+            "text": "Hello, world!"
+        }
+    }
+    slack_plugin.slack_input_handler.request_to_notification_data = AsyncMock(return_value=IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        converted_timestamp="1234567890.123456",
+        event_label="message",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
+        username="app",
+        app_id="A2CEES41H",
+        user_name=None,
+        user_email=None,
+        user_id=None,
+        is_mention=False,
+        text="Hello, world!",
+        origin="slack"
+    ))
+
+    result = await slack_plugin.request_to_notification_data(event_data)
+
+    assert isinstance(result, IncomingNotificationDataBase)
+    assert result.text == "Hello, world!"
+    assert result.user_id == ""
+    assert result.channel_id == "C12345678"
+    assert result.app_id == "A2CEES41H"
 
 def test_split_message(slack_plugin):
     message = "This is a long message that needs to be split into multiple parts."
@@ -629,11 +798,13 @@ async def test_execute_slash_command(slack_plugin, monkeypatch):
     slack_plugin.slack_output_handler.send_slack_message.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_add_reference_message(slack_plugin):
+async def test_add_reference_message_user(slack_plugin):
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         converted_timestamp="1234567890.123456",
         event_label="test_event",
+        app_id=None,
+        username=None,
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
@@ -655,12 +826,43 @@ async def test_add_reference_message(slack_plugin):
     assert message_blocks[0].startswith("<https://example.com|[ref msg link]>")
 
 @pytest.mark.asyncio
+async def test_add_reference_message_app(slack_plugin):
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        converted_timestamp="1234567890.123456",
+        event_label="test_event",
+        username="app",
+        app_id="A2CEES41H",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
+        user_name=None,
+        user_email=None,
+        user_id=None,
+        is_mention=False,
+        text="Test message",
+        origin="slack"
+    )
+    message_blocks = ["Hello, world!"]
+    
+    slack_plugin.slack_input_handler.get_message_permalink_and_text = AsyncMock(return_value=("https://example.com", "Test message"))
+    
+    result = await slack_plugin.add_reference_message(event, message_blocks, "1234567890.123456")
+    
+    assert result is True
+    assert len(message_blocks) == 2
+    assert message_blocks[0].startswith("<https://example.com|[ref msg link]>")
+
+
+@pytest.mark.asyncio
 async def test_handle_internal_message(slack_plugin):
     slack_plugin.INTERNAL_CHANNEL = "C87654321"
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         converted_timestamp="1234567890.123456",
         event_label="test_event",
+        app_id=None,
+        username=None,
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
@@ -713,6 +915,8 @@ async def test_send_message(slack_plugin, requests_mock):
         timestamp="1234567890.123456",
         converted_timestamp="1234567890.123456",
         event_label="test_event",
+        app_id=None,
+        username=None,
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
@@ -751,6 +955,8 @@ async def test_upload_file(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -784,6 +990,8 @@ async def test_handle_internal_channel(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -815,6 +1023,8 @@ async def test_wait_for_internal_message(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -841,6 +1051,7 @@ async def test_process_event_data_invalid_request(slack_plugin):
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": None,
             "channel": "C12345678",
             "ts": "1234567890.123456",
             "text": "Hello, world!"
@@ -863,6 +1074,7 @@ async def test_handle_valid_request_error(slack_plugin):
         "event": {
             "type": "message",
             "user": "U123456",
+            "app_id": None,
             "channel": "C12345678",
             "ts": "1234567890.123456",
             "text": "Hello, world!"
@@ -921,6 +1133,8 @@ async def test_upload_file_no_internal_channel(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
@@ -960,6 +1174,8 @@ async def test_upload_file_no_internal_channel(slack_plugin):
     assert kwargs['event'].channel_id == event.channel_id
     assert kwargs['event'].thread_id == event.thread_id
     assert kwargs['event'].response_id == event.response_id
+    assert kwargs['event'].app_id == event.app_id
+    assert kwargs['event'].username == event.username
     assert kwargs['event'].user_name == event.user_name
     assert kwargs['event'].user_email == event.user_email
     assert kwargs['event'].user_id == event.user_id
@@ -979,6 +1195,8 @@ async def test_wait_for_internal_message_timeout(slack_plugin):
         channel_id="C12345678",
         thread_id="1234567890.123456",
         response_id="1234567890.123456",
+        app_id=None,
+        username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",

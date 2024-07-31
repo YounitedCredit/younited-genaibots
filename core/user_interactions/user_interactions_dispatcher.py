@@ -105,7 +105,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             plugin_name = event.origin_plugin_name
 
         plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
-        return await plugin.add_reaction(channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
+        return await plugin.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
 
     async def remove_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name = None):
         if event is not None:
