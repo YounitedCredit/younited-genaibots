@@ -161,6 +161,8 @@ class SlackOutputHandler:
                     }
                 }
             ]
+        elif message_format.value == "custom":
+            blocks = message_text
         else:
             raise ValueError(f"Unsupported message format: {message_format}")
 

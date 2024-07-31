@@ -6,7 +6,7 @@ from core.user_interactions.incoming_notification_data_base import (
 
 
 @pytest.fixture
-def sample_data():
+def sample_data_user():
     return {
         'timestamp': '2023-06-20T12:00:00Z',
         'converted_timestamp': '2023-06-20T12:00:00+00:00',
@@ -17,6 +17,8 @@ def sample_data():
         'user_name': 'test_user',
         'user_email': 'test_user@example.com',
         'user_id': 'user123',
+        'app_id': None,
+        'username': None,
         'is_mention': True,
         'text': 'This is a test message.',
         'origin': 'test_origin',
@@ -26,48 +28,132 @@ def sample_data():
         'origin_plugin_name': 'test_plugin'
     }
 
-def test_incoming_notification_data_base_initialization(sample_data):
+@pytest.fixture
+def sample_data_app():
+    return {
+        'timestamp': '2023-06-20T12:00:00Z',
+        'converted_timestamp': '2023-06-20T12:00:00+00:00',
+        'event_label': 'Test Event',
+        'channel_id': '123456',
+        'thread_id': '654321',
+        'response_id': '111111',
+        'user_name': None,
+        'user_email': None,
+        'user_id': None,
+        'username': 'test_app',
+        'app_id': 'app123',
+        'is_mention': True,
+        'text': 'This is a test message.',
+        'origin': 'test_origin',
+        'images': ['image1.png', 'image2.png'],
+        'files_content': ['file1.txt', 'file2.txt'],
+        'raw_data': {'key': 'value'},
+        'origin_plugin_name': 'test_plugin'
+    }
+
+def test_incoming_notification_data_base_initialization(sample_data_user):
     # Test initialization of IncomingNotificationDataBase
-    notification = IncomingNotificationDataBase(**sample_data)
-    assert notification.timestamp == sample_data['timestamp']
-    assert notification.converted_timestamp == sample_data['converted_timestamp']
-    assert notification.event_label == sample_data['event_label']
-    assert notification.channel_id == sample_data['channel_id']
-    assert notification.thread_id == sample_data['thread_id']
-    assert notification.response_id == sample_data['response_id']
-    assert notification.user_name == sample_data['user_name']
-    assert notification.user_email == sample_data['user_email']
-    assert notification.user_id == sample_data['user_id']
-    assert notification.is_mention == sample_data['is_mention']
-    assert notification.text == sample_data['text']
-    assert notification.origin == sample_data['origin']
-    assert notification.images == sample_data['images']
-    assert notification.files_content == sample_data['files_content']
-    assert notification.raw_data == sample_data['raw_data']
-    assert notification.origin_plugin_name == sample_data['origin_plugin_name']
+    notification = IncomingNotificationDataBase(**sample_data_user)
+    assert notification.timestamp == sample_data_user['timestamp']
+    assert notification.converted_timestamp == sample_data_user['converted_timestamp']
+    assert notification.event_label == sample_data_user['event_label']
+    assert notification.channel_id == sample_data_user['channel_id']
+    assert notification.thread_id == sample_data_user['thread_id']
+    assert notification.response_id == sample_data_user['response_id']
+    assert notification.user_name == sample_data_user['user_name']
+    assert notification.user_email == sample_data_user['user_email']
+    assert notification.user_id == sample_data_user['user_id']
+    assert notification.app_id if notification.app_id!="" else None  == sample_data_user["app_id"]
+    assert notification.username  if notification.username!="" else None  == sample_data_user["username"]
+    assert notification.is_mention == sample_data_user['is_mention']
+    assert notification.text == sample_data_user['text']
+    assert notification.origin == sample_data_user['origin']
+    assert notification.images == sample_data_user['images']
+    assert notification.files_content == sample_data_user['files_content']
+    assert notification.raw_data == sample_data_user['raw_data']
+    assert notification.origin_plugin_name == sample_data_user['origin_plugin_name']
 
-def test_incoming_notification_data_base_to_dict(sample_data):
+def test_incoming_notification_data_base_to_dict(sample_data_user):
     # Test conversion of IncomingNotificationDataBase to dictionary
-    notification = IncomingNotificationDataBase(**sample_data)
+    notification = IncomingNotificationDataBase(**sample_data_user)
+    notification.app_id = sample_data_user["app_id"] if sample_data_user["app_id"]!="" else None
+    notification.username = sample_data_user["username"] if sample_data_user["username"]!="" else None
     notification_dict = notification.to_dict()
-    assert notification_dict == sample_data
+    assert notification_dict == sample_data_user
 
-def test_incoming_notification_data_base_from_dict(sample_data):
+def test_incoming_notification_data_base_from_dict(sample_data_user):
     # Test creation of IncomingNotificationDataBase from dictionary
-    notification = IncomingNotificationDataBase.from_dict(sample_data)
-    assert notification.timestamp == sample_data['timestamp']
-    assert notification.converted_timestamp == sample_data['converted_timestamp']
-    assert notification.event_label == sample_data['event_label']
-    assert notification.channel_id == sample_data['channel_id']
-    assert notification.thread_id == sample_data['thread_id']
-    assert notification.response_id == sample_data['response_id']
-    assert notification.user_name == sample_data['user_name']
-    assert notification.user_email == sample_data['user_email']
-    assert notification.user_id == sample_data['user_id']
-    assert notification.is_mention == sample_data['is_mention']
-    assert notification.text == sample_data['text']
-    assert notification.origin == sample_data['origin']
-    assert notification.images == sample_data['images']
-    assert notification.files_content == sample_data['files_content']
-    assert notification.raw_data == sample_data['raw_data']
-    assert notification.origin_plugin_name == sample_data['origin_plugin_name']
+    notification = IncomingNotificationDataBase.from_dict(sample_data_user)
+    assert notification.timestamp == sample_data_user['timestamp']
+    assert notification.converted_timestamp == sample_data_user['converted_timestamp']
+    assert notification.event_label == sample_data_user['event_label']
+    assert notification.channel_id == sample_data_user['channel_id']
+    assert notification.thread_id == sample_data_user['thread_id']
+    assert notification.response_id == sample_data_user['response_id']
+    assert notification.user_name == sample_data_user['user_name']
+    assert notification.user_email == sample_data_user['user_email']
+    assert notification.user_id == sample_data_user['user_id']
+    assert notification.username if notification.username!="" else None  == sample_data_user["username"]
+    assert notification.app_id if notification.app_id!="" else None == sample_data_user["app_id"]
+    assert notification.is_mention == sample_data_user['is_mention']
+    assert notification.text == sample_data_user['text']
+    assert notification.origin == sample_data_user['origin']
+    assert notification.images == sample_data_user['images']
+    assert notification.files_content == sample_data_user['files_content']
+    assert notification.raw_data == sample_data_user['raw_data']
+    assert notification.origin_plugin_name == sample_data_user['origin_plugin_name']
+
+def test_incoming_notification_data_base_initialization_app(sample_data_app):
+    # Test initialization of IncomingNotificationDataBase
+    notification = IncomingNotificationDataBase(**sample_data_app)
+    print(notification.user_name)
+    assert notification.timestamp == sample_data_app['timestamp']
+    assert notification.converted_timestamp == sample_data_app['converted_timestamp']
+    assert notification.event_label == sample_data_app['event_label']
+    assert notification.channel_id == sample_data_app['channel_id']
+    assert notification.thread_id == sample_data_app['thread_id']
+    assert notification.response_id == sample_data_app['response_id']
+    assert notification.username == sample_data_app["username"]
+    assert notification.app_id == sample_data_app["app_id"]
+    assert notification.user_name if notification.user_name!="" else None == sample_data_app['user_name']
+    assert notification.user_email if notification.user_email!="" else None == sample_data_app['user_email']
+    assert notification.user_id if notification.user_id!="" else None == sample_data_app['user_id']
+    assert notification.is_mention == sample_data_app['is_mention']
+    assert notification.text == sample_data_app['text']
+    assert notification.origin == sample_data_app['origin']
+    assert notification.images == sample_data_app['images']
+    assert notification.files_content == sample_data_app['files_content']
+    assert notification.raw_data == sample_data_app['raw_data']
+    assert notification.origin_plugin_name == sample_data_app['origin_plugin_name']
+
+def test_incoming_notification_data_base_to_dict_app(sample_data_app):
+    # Test conversion of IncomingNotificationDataBase to dictionary
+    notification = IncomingNotificationDataBase(**sample_data_app)
+    notification.user_name = sample_data_app['user_name'] if sample_data_app['user_name']!="" else None
+    notification.user_email = sample_data_app['user_email'] if sample_data_app['user_email']!="" else None
+    notification.user_id = sample_data_app['user_id'] if sample_data_app['user_id']!="" else None
+    notification_dict = notification.to_dict()
+    assert notification_dict == sample_data_app
+
+
+def test_incoming_notification_data_base_from_dict_app(sample_data_app):
+    # Test creation of IncomingNotificationDataBase from dictionary
+    notification = IncomingNotificationDataBase.from_dict(sample_data_app)
+    assert notification.timestamp == sample_data_app['timestamp']
+    assert notification.converted_timestamp == sample_data_app['converted_timestamp']
+    assert notification.event_label == sample_data_app['event_label']
+    assert notification.channel_id == sample_data_app['channel_id']
+    assert notification.thread_id == sample_data_app['thread_id']
+    assert notification.response_id == sample_data_app['response_id']
+    assert notification.user_name if notification.user_name!="" else None == sample_data_app['user_name'] 
+    assert notification.user_email if notification.user_email!="" else None == sample_data_app['user_email']
+    assert notification.user_id if notification.user_id!="" else None == sample_data_app['user_id']
+    assert notification.username == sample_data_app['username']
+    assert notification.app_id == sample_data_app['app_id']
+    assert notification.is_mention == sample_data_app['is_mention']
+    assert notification.text == sample_data_app['text']
+    assert notification.origin == sample_data_app['origin']
+    assert notification.images == sample_data_app['images']
+    assert notification.files_content == sample_data_app['files_content']
+    assert notification.raw_data == sample_data_app['raw_data']
+    assert notification.origin_plugin_name == sample_data_app['origin_plugin_name']

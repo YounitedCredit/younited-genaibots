@@ -51,10 +51,12 @@ class SlackInputHandler:
             return
 
         self.SLACK_AUTHORIZED_CHANNELS = self.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
+        self.SLACK_AUTHORIZED_APPS = self.slack_config.SLACK_AUTHORIZED_APPS.split(",")
         self.SLACK_BOT_USER_ID = self.slack_config.SLACK_BOT_USER_ID
         self.SLACK_BOT_TOKEN = self.slack_config.SLACK_BOT_TOKEN
         self.SLACK_BOT_USER_TOKEN = self.slack_config.SLACK_BOT_USER_TOKEN
         self.client = WebClient(token=self.SLACK_BOT_TOKEN)
+        self.WORKSPACE_NAME = self.slack_config.WORKSPACE_NAME
 
     def is_message_too_old(self, event_ts):
 
@@ -66,7 +68,7 @@ class SlackInputHandler:
         diff = current_datetime - event_datetime
         return diff.total_seconds() > self.SLACK_MESSAGE_TTL
 
-    async def is_relevant_message(self, event_type, event_ts, user_id, bot_user_id, channel_id):
+    async def is_relevant_message(self, event_type, event_ts, user_id, app_id, bot_user_id, channel_id):
 
         if event_type == "reaction_added":
             self.logger.info("Ignoring emoji reaction notification")
@@ -79,6 +81,10 @@ class SlackInputHandler:
 
         elif user_id == bot_user_id:
             self.logger.info("Ignoring message from the bot itself.")
+            return False
+
+        elif (app_id not in self.SLACK_AUTHORIZED_APPS and app_id is not None):
+            self.logger.info(f"Ignoring event from unauthorized app: {app_id}")
             return False
 
         elif channel_id not in self.SLACK_AUTHORIZED_CHANNELS:
@@ -106,39 +112,44 @@ class SlackInputHandler:
 
     # Function to get user info
     def get_user_info(self, user_id):
-        try:
-            slack_token = os.environ.get('SLACK_BOT_TOKEN')
-            headers = {
-                'Authorization': f'Bearer {slack_token}'
-            }
+        if user_id is not None:
+            try:
+                slack_token = os.environ.get('SLACK_BOT_TOKEN')
+                headers = {
+                    'Authorization': f'Bearer {slack_token}'
+                }
 
-            response = requests.get(f'{self.SLACK_USER_INFO}{user_id}', headers=headers)
-            response.raise_for_status()  # This will raise an exception for 4xx and 5xx status codes
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Failed to fetch user info: {e}")
-            return None, None
-
-        try:
-            user_info = response.json()
-            if user_info and user_info.get('ok'):
-                user = user_info.get('user')
-                name = user.get('name')
-                email = user.get('profile', {}).get('email')
-                return name, email
-            else:
-                self.logger.error(f"Failed to fetch user info: {user_info.get('error', 'Unknown error')}")
+                response = requests.get(f'{self.SLACK_USER_INFO}{user_id}', headers=headers)
+                response.raise_for_status()  # This will raise an exception for 4xx and 5xx status codes
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Failed to fetch user info: {e}")
                 return None, None
-        except ValueError as e:
-            self.logger.error(f"Failed to parse user info: {e}")
+
+            try:
+                user_info = response.json()
+                if user_info and user_info.get('ok'):
+                    user = user_info.get('user')
+                    name = user.get('name')
+                    email = user.get('profile', {}).get('email')
+                    return name, email
+                else:
+                    self.logger.error(f"Failed to fetch user info: {user_info.get('error', 'Unknown error')}")
+                    return None, None
+            except ValueError as e:
+                self.logger.error(f"Failed to parse user info: {e}")
+                return None, None
+        else:
             return None, None
 
     def extract_event_details(self, event):
         try:
             ts = event.get('ts')
             user_id = event.get('user')
+            app_id = event.get('app_id')
+            username = event.get("username")
             channel_id = event.get('channel')
             main_timestamp = event.get('ts')
-            return ts, user_id, channel_id, main_timestamp
+            return ts, user_id, app_id, username, channel_id, main_timestamp
         except Exception as e:
             self.logger.error(f"Failed to extract event details: {e}")
             return None, None, None, None
@@ -270,7 +281,7 @@ class SlackInputHandler:
                 return None
 
             event_type = event.get('type')
-            ts, user_id, channel_id, main_timestamp = self.extract_event_details(event)
+            ts, user_id, app_id, username, channel_id, main_timestamp = self.extract_event_details(event)
             thread_id = event.get('thread_ts')
 
             if event_type not in ['message', 'app_mention']:
@@ -293,7 +304,7 @@ class SlackInputHandler:
             response_id = ts if thread_id == '' else thread_id
 
             event_data_instance = await self._create_event_data_instance(
-                ts, channel_id, thread_id, response_id, user_id, is_mention, text, base64_images, files_content
+                ts, channel_id, thread_id, response_id, user_id, app_id, username, is_mention, text, base64_images, files_content
             )
 
             if text or event_data_instance.images or event_data_instance.files_content:
@@ -366,13 +377,17 @@ class SlackInputHandler:
         link_channel_id, link_message_ts, is_reply = await self.extract_info_from_url(link)
         try:
             linked_message_content = await self.get_message_content(link_channel_id, link_message_ts, is_reply)
+            while(f"https://{self.WORKSPACE_NAME}" in linked_message_content):
+                self._process_slack_links(linked_message_content, main_timestamp, user_id)
+                link_channel_id, link_message_ts, is_reply = await self.extract_info_from_url(linked_message_content)
+                linked_message_content = await self.get_message_content(link_channel_id, link_message_ts, is_reply)
+
             full_message_text = f"\nLinked Message: {linked_message_content}"
             converted_timestamp = await self.format_slack_timestamp(main_timestamp)
             user_name, user_email = self.get_user_info(user_id)
             
             # Combine the original text with the linked message content
             processed_text = f"{original_text}\n{full_message_text.strip()}"
-            
             return processed_text
         except Exception as e:
             if str(e) == "Failed to retrieve message from Slack API: not_in_channel":
@@ -410,7 +425,7 @@ class SlackInputHandler:
             self.logger.error(f"An error occurred while trying to get {url}: {e}")
             return f"The following text is an automated response inserted in the user conversation automatically: An error occurred while trying to get {url}: {e}\n"
 
-    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, is_mention, text, base64_images, files_content):
+    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, username, is_mention, text, base64_images, files_content):
         converted_timestamp = await self.format_slack_timestamp(ts)
         user_name, user_email = self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
@@ -425,8 +440,10 @@ class SlackInputHandler:
             thread_id=thread_id,
             response_id=response_id,
             user_name=user_name,
+            username=username,
             user_email=user_email,
             user_id=user_id,
+            app_id=app_id,
             is_mention=is_mention,
             text=text,
             images=base64_images,
@@ -516,11 +533,10 @@ class SlackInputHandler:
         message = messages[0]
         user_id = message.get('user', 'Unknown')
         text = message.get('text', '')
-
         if 'blocks' in message:
             block = message["blocks"]
             slack_block_processor = SlackBlockProcessor()
-            text = slack_block_processor.extract_text_from_blocks(block)
+            text = slack_block_processor.extract_text_from_blocks(blocks=block)
 
         return f"*{user_id}*: _{text}_"
 
@@ -591,15 +607,20 @@ class SlackInputHandler:
 
             messages = message_response.data.get('messages')
             if messages:
-                message_text = messages[0]['text']  # Get the linked message text
-
                 # Get the user's name
-                user_id = messages[0]['user']
-                user_info_response = self.client.users_info(user=user_id)
-                if user_info_response['ok']:
-                    user_name = user_info_response['user']['name']
-                    message_text = f"*{user_name}*: _{message_text}_"  # Prepend the user's name to the message and format it
-
+                if "user" in str(messages) and "app" not in str(messages):
+                    self.logger.info(f"user:{messages} ")
+                    user_id = messages[0]['user']
+                    user_info_response = self.client.users_info(user=user_id)
+                    if user_info_response['ok']:
+                        user_name = user_info_response['user']['name']
+                        message_text = f"*{user_name}*: _{messages[0]['text']}_"  # Prepend the user's name to the message and format it
+                        return permalink, message_text
+                if "app_id" in str(messages):
+                    self.logger.info(f"app:{messages} ")
+                    username = messages[0]['username']
+                    message_text = f"*{username}*: _{messages[0]['text']}_"  # Prepend the app's name to the message and format it
+                    return permalink, message_text
                 return permalink, message_text
 
         self.logger.error(f"Error getting permalink: {response['error']}")
