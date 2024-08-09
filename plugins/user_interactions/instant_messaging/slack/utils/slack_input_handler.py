@@ -52,6 +52,7 @@ class SlackInputHandler:
 
         self.SLACK_AUTHORIZED_CHANNELS = self.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
         self.SLACK_AUTHORIZED_APPS = self.slack_config.SLACK_AUTHORIZED_APPS.split(",")
+        self.SLACK_AUTHORIZED_WEBHOOKS = self.slack_config.SLACK_AUTHORIZED_WEBHOOKS.split(",")
         self.SLACK_BOT_USER_ID = self.slack_config.SLACK_BOT_USER_ID
         self.SLACK_BOT_TOKEN = self.slack_config.SLACK_BOT_TOKEN
         self.SLACK_BOT_USER_TOKEN = self.slack_config.SLACK_BOT_USER_TOKEN
@@ -68,7 +69,7 @@ class SlackInputHandler:
         diff = current_datetime - event_datetime
         return diff.total_seconds() > self.SLACK_MESSAGE_TTL
 
-    async def is_relevant_message(self, event_type, event_ts, user_id, app_id, bot_user_id, channel_id):
+    async def is_relevant_message(self, event_type, event_ts, user_id, app_id, api_app_id, bot_user_id, channel_id):
 
         if event_type == "reaction_added":
             self.logger.info("Ignoring emoji reaction notification")
@@ -85,6 +86,10 @@ class SlackInputHandler:
 
         elif (app_id not in self.SLACK_AUTHORIZED_APPS and app_id is not None):
             self.logger.info(f"Ignoring event from unauthorized app: {app_id}")
+            return False
+        
+        elif (api_app_id not in self.SLACK_AUTHORIZED_WEBHOOKS and api_app_id is not None and app_id is None):
+            self.logger.info(f"Ignoring event from unauthorized webhook: {api_app_id}")
             return False
 
         elif channel_id not in self.SLACK_AUTHORIZED_CHANNELS:
@@ -146,13 +151,14 @@ class SlackInputHandler:
             ts = event.get('ts')
             user_id = event.get('user')
             app_id = event.get('app_id')
+            api_app_id = event.get('api_app_id')
             username = event.get("username")
             channel_id = event.get('channel')
             main_timestamp = event.get('ts')
-            return ts, user_id, app_id, username, channel_id, main_timestamp
+            return ts, user_id, app_id, api_app_id, username, channel_id, main_timestamp
         except Exception as e:
             self.logger.error(f"Failed to extract event details: {e}")
-            return None, None, None, None
+            return None, None, None, None, None, None, None
 
     def process_message_event(self, event, bot_user_id, timestamp):
         try:
@@ -281,7 +287,7 @@ class SlackInputHandler:
                 return None
 
             event_type = event.get('type')
-            ts, user_id, app_id, username, channel_id, main_timestamp = self.extract_event_details(event)
+            ts, user_id, app_id, api_app_id, username, channel_id, main_timestamp = self.extract_event_details(event)
             thread_id = event.get('thread_ts')
 
             if event_type not in ['message', 'app_mention']:
@@ -304,7 +310,7 @@ class SlackInputHandler:
             response_id = ts if thread_id == '' else thread_id
 
             event_data_instance = await self._create_event_data_instance(
-                ts, channel_id, thread_id, response_id, user_id, app_id, username, is_mention, text, base64_images, files_content
+                ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content
             )
 
             if text or event_data_instance.images or event_data_instance.files_content:
@@ -425,7 +431,7 @@ class SlackInputHandler:
             self.logger.error(f"An error occurred while trying to get {url}: {e}")
             return f"The following text is an automated response inserted in the user conversation automatically: An error occurred while trying to get {url}: {e}\n"
 
-    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, username, is_mention, text, base64_images, files_content):
+    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):
         converted_timestamp = await self.format_slack_timestamp(ts)
         user_name, user_email = self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
@@ -444,6 +450,7 @@ class SlackInputHandler:
             user_email=user_email,
             user_id=user_id,
             app_id=app_id,
+            api_app_id=api_app_id,
             is_mention=is_mention,
             text=text,
             images=base64_images,
@@ -608,7 +615,7 @@ class SlackInputHandler:
             messages = message_response.data.get('messages')
             if messages:
                 # Get the user's name
-                if "user" in str(messages) and "app" not in str(messages):
+                if "'user':" in str(messages) and "app" not in str(messages):
                     self.logger.info(f"user:{messages} ")
                     user_id = messages[0]['user']
                     user_info_response = self.client.users_info(user=user_id)
@@ -616,7 +623,7 @@ class SlackInputHandler:
                         user_name = user_info_response['user']['name']
                         message_text = f"*{user_name}*: _{messages[0]['text']}_"  # Prepend the user's name to the message and format it
                         return permalink, message_text
-                if "app_id" in str(messages):
+                if "username" in str(messages):
                     self.logger.info(f"app:{messages} ")
                     username = messages[0]['username']
                     message_text = f"*{username}*: _{messages[0]['text']}_"  # Prepend the app's name to the message and format it

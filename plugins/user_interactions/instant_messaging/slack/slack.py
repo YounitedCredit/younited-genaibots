@@ -42,6 +42,7 @@ class SlackConfig(BaseModel):
     SLACK_API_URL: str
     SLACK_AUTHORIZED_CHANNELS: str
     SLACK_AUTHORIZED_APPS: str
+    SLACK_AUTHORIZED_WEBHOOKS: str
     SLACK_FEEDBACK_CHANNEL: str
     SLACK_FEEDBACK_BOT_ID: str
     MAX_MESSAGE_LENGTH: int
@@ -90,6 +91,7 @@ class SlackPlugin(UserInteractionsPluginBase):
 
         self.SLACK_AUTHORIZED_CHANNELS = self.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
         self.SLACK_AUTHORIZED_APPS = self.slack_config.SLACK_AUTHORIZED_APPS.split(",")
+        self.SLACK_AUTHORIZED_WEBHOOKS = self.slack_config.SLACK_AUTHORIZED_WEBHOOKS.split(",")
         self.SLACK_FEEDBACK_CHANNEL = self.slack_config.SLACK_FEEDBACK_CHANNEL
         self.slack_bot_token = self.slack_config.SLACK_BOT_TOKEN
         self.slack_signing_secret = self.slack_config.SLACK_SIGNING_SECRET
@@ -191,12 +193,14 @@ class SlackPlugin(UserInteractionsPluginBase):
         try:
             user_id = event_data.get('event', {}).get('user')
             app_id = event_data.get('event', {}).get('app_id')
+            api_app_id = event_data.get('api_app_id')
             channel_id = event_data.get('event', {}).get('channel')
             if user_id is not None:
                 self.logger.info(f"Valid <SLACK> request received from user {user_id} in channel {channel_id}, processing..")
             if app_id is not None:
                 self.logger.info(f"Valid <SLACK> request received from app {app_id} in channel {channel_id}, processing..")
-            
+            if api_app_id is not None:
+                self.logger.info(f"Valid <SLACK> request received from webhook {api_app_id} in channel {channel_id}, processing..")
             event_type = event_data.get('event', {}).get('type')
             event_subtype = event_data.get('event', {}).get('subtype')
 
@@ -232,13 +236,14 @@ class SlackPlugin(UserInteractionsPluginBase):
         ts = event.get('ts')
         channel_id = event.get('channel') or event.get('channel_id')
         user_id = event_data.get('event', {}).get('user', None)
+        api_app_id = event_data.get('api_app_id', None)
         app_id = event_data.get('event', {}).get('app_id', None)
         self.logger.debug(f"event_type: {event_type}, ts: {ts}")
 
         if not self._validate_signature(headers, raw_body_str):
             return False
 
-        if not self._validate_event_data(event_type, ts, channel_id, user_id, app_id, event):
+        if not self._validate_event_data(event_type, ts, channel_id, user_id, app_id, api_app_id, event):
             return False
 
         if not await self._validate_processing_status(channel_id, ts):
@@ -271,9 +276,9 @@ class SlackPlugin(UserInteractionsPluginBase):
             return False
         return True
 
-    def _validate_event_data(self, event_type, ts, channel_id, user_id, app_id, event):
-        if (user_id is None and app_id is None) or channel_id is None:
-            self.logger.debug(f"User ID is {'None' if user_id is None else 'set'}, App ID is {'None' if app_id is None else 'set'}, Channel ID is {'None' if channel_id is None else 'set'}")
+    def _validate_event_data(self, event_type, ts, channel_id, user_id, app_id, api_app_id, event):
+        if (user_id is None and app_id is None and api_app_id is None) or channel_id is None:
+            self.logger.debug(f"User ID is {'None' if user_id is None else 'set'}, App ID is {'None' if app_id is None else 'set'}, API App ID is {'None' if app_id is None else 'set'}, Channel ID is {'None' if channel_id is None else 'set'}")
             return False
 
         if event_type == "reaction_added":
@@ -284,7 +289,12 @@ class SlackPlugin(UserInteractionsPluginBase):
             self.logger.info("Discarding request: message from the bot itself")
             return False
         
-        if app_id is not None:
+        if ((api_app_id is not None and user_id is not None and app_id is not None) or (api_app_id is not None and app_id is None)):
+            if api_app_id not in self.SLACK_AUTHORIZED_WEBHOOKS and api_app_id != self.bot_user_id:
+                self.logger.info(f"Discarding request: ignoring event from unauthorized webhook: {api_app_id}")
+                return False
+        
+        if app_id is not None and api_app_id is None :
             if app_id not in self.SLACK_AUTHORIZED_APPS and app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized app: {app_id}")
                 return False
