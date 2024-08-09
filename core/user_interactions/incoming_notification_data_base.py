@@ -43,7 +43,7 @@ class IncomingNotificationDataBase:
         Returns the attributes of the object as a dictionary.
     """
 
-    def __init__(self, timestamp, converted_timestamp, event_label, channel_id, thread_id, response_id, is_mention, text, origin, app_id=None, username=None, user_name=None, user_email=None, user_id=None, images=None, files_content=None, raw_data=None, origin_plugin_name=None):
+    def __init__(self, timestamp, converted_timestamp, event_label, channel_id, thread_id, response_id, is_mention, text, origin, app_id=None, api_app_id=None, username=None, user_name=None, user_email=None, user_id=None, images=None, files_content=None, raw_data=None, origin_plugin_name=None):
         self.timestamp = timestamp
         self.converted_timestamp = converted_timestamp
         self.event_label = event_label
@@ -54,6 +54,7 @@ class IncomingNotificationDataBase:
         self.user_email = user_email if user_email is not None else ""
         self.user_id = user_id if user_id is not None else ""
         self.app_id = app_id if app_id is not None else ""
+        self.api_app_id = api_app_id if api_app_id is not None else ""
         self.username = username if username is not None else ""
         self.is_mention = is_mention
         self.text = text
@@ -76,6 +77,7 @@ class IncomingNotificationDataBase:
             'user_email': self.user_email,
             'user_id': self.user_id,
             'app_id': self.app_id,
+            'api_app_id': self.api_app_id,
             'is_mention': self.is_mention,
             'text': self.text,
             'origin': self.origin,
@@ -95,6 +97,7 @@ class IncomingNotificationDataBase:
             thread_id=data.get('thread_id'),
             response_id=data.get('response_id'),
             app_id=data.get('app_id'),
+            api_app_id=data.get('api_app_id'),
             username=data.get('username'),
             user_name=data.get('user_name'),
             user_email=data.get('user_email'),

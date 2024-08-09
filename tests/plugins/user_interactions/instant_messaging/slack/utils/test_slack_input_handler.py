@@ -25,6 +25,7 @@ def slack_config():
         SLACK_MESSAGE_TTL = 60
         SLACK_AUTHORIZED_CHANNELS = "authorized_channel"
         SLACK_AUTHORIZED_APPS = "authorized_app"
+        SLACK_AUTHORIZED_WEBHOOKS = "authorized_webhook"
         SLACK_BOT_USER_ID = "BOT_USER_ID"
         SLACK_BOT_TOKEN = "xoxb-1234"
         SLACK_BOT_USER_TOKEN = "xoxp-5678"
@@ -49,22 +50,28 @@ def test_is_message_too_old(slack_input_handler):
 @pytest.mark.asyncio
 async def test_is_relevant_message(slack_input_handler):
     event_ts = datetime.now(timezone.utc) - timedelta(seconds=30)
-    result = await slack_input_handler.is_relevant_message("reaction_added", event_ts, "USER_ID", None, "BOT_USER_ID", "authorized_channel")
+    result = await slack_input_handler.is_relevant_message("reaction_added", event_ts, "USER_ID", None, None, "BOT_USER_ID", "authorized_channel")
     assert result is False
 
-    result = await slack_input_handler.is_relevant_message("message", event_ts, "USER_ID", None, "BOT_USER_ID", "unauthorized_channel")
+    result = await slack_input_handler.is_relevant_message("message", event_ts, "USER_ID", None, None, "BOT_USER_ID", "unauthorized_channel")
     assert result is False
 
-    result = await slack_input_handler.is_relevant_message("message", event_ts, None, "authorized_app", "BOT_USER_ID", "authorized_channel")
+    result = await slack_input_handler.is_relevant_message("message", event_ts, None, "authorized_app", None, "BOT_USER_ID", "authorized_channel")
     assert result is True
 
-    result = await slack_input_handler.is_relevant_message("message", event_ts, None, "unauthorized_app", "BOT_USER_ID", "authorized_channel")
+    result = await slack_input_handler.is_relevant_message("message", event_ts, None, "unauthorized_app", None, "BOT_USER_ID", "authorized_channel")
     assert result is False
 
-    result = await slack_input_handler.is_relevant_message("message", event_ts, "BOT_USER_ID", None, "BOT_USER_ID", "authorized_channel")
+    result = await slack_input_handler.is_relevant_message("message", event_ts, None, None, "authorized_webhook", "BOT_USER_ID", "authorized_channel")
+    assert result is True
+
+    result = await slack_input_handler.is_relevant_message("message", event_ts, None, None, "unauthorized_webhook", "BOT_USER_ID", "authorized_channel")
     assert result is False
 
-    result = await slack_input_handler.is_relevant_message("message", event_ts, "USER_ID", None, "BOT_USER_ID", "authorized_channel")
+    result = await slack_input_handler.is_relevant_message("message", event_ts, "BOT_USER_ID", None, None, "BOT_USER_ID", "authorized_channel")
+    assert result is False
+
+    result = await slack_input_handler.is_relevant_message("message", event_ts, "USER_ID", None, None, "BOT_USER_ID", "authorized_channel")
     assert result is True
 
 @pytest.mark.asyncio
@@ -102,9 +109,33 @@ def test_extract_event_details(slack_input_handler):
         "user": "USER_ID",
         "channel": "CHANNEL_ID"
     }
-    ts, user_id, app_id, username, channel_id, main_timestamp = slack_input_handler.extract_event_details(event)
+    ts, user_id, app_id, api_app_id, username, channel_id, main_timestamp = slack_input_handler.extract_event_details(event)
     assert ts == "1620834875.000400"
     assert user_id == "USER_ID"
+    assert channel_id == "CHANNEL_ID"
+    assert main_timestamp == "1620834875.000400"
+
+def test_extract_event_details_app(slack_input_handler):
+    event = {
+        "ts": "1620834875.000400",
+        "app_id": "APP_ID",
+        "channel": "CHANNEL_ID"
+    }
+    ts, user_id, app_id, api_app_id, username, channel_id, main_timestamp = slack_input_handler.extract_event_details(event)
+    assert ts == "1620834875.000400"
+    assert app_id == "APP_ID"
+    assert channel_id == "CHANNEL_ID"
+    assert main_timestamp == "1620834875.000400"
+
+def test_extract_event_details_webhook(slack_input_handler):
+    event = {
+        "ts": "1620834875.000400",
+        "api_app_id": "WEBHOOK",
+        "channel": "CHANNEL_ID"
+    }
+    ts, user_id, app_id, api_app_id, username, channel_id, main_timestamp = slack_input_handler.extract_event_details(event)
+    assert ts == "1620834875.000400"
+    assert api_app_id == "WEBHOOK"
     assert channel_id == "CHANNEL_ID"
     assert main_timestamp == "1620834875.000400"
 
@@ -201,7 +232,7 @@ async def test_handle_text_file(slack_input_handler, mocker):
 @pytest.mark.asyncio
 async def test_request_to_notification_data(slack_input_handler, mocker):
     # Mock des méthodes et valeurs nécessaires
-    mocker.patch.object(slack_input_handler, 'extract_event_details', return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, 'extract_event_details', return_value=("1620834875.000400", "USER_ID", None, None,None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, 'process_message_event', return_value=("Hello <@BOT_USER_ID>", True, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, 'format_slack_timestamp', return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, 'get_user_info', return_value=("John Doe", "john.doe@example.com"))
@@ -215,6 +246,7 @@ async def test_request_to_notification_data(slack_input_handler, mocker):
             "ts": "1620834875.000400",
             "user": "USER_ID",
             "app_id": "APP_ID",
+            "api_app_id": "WEBHOOK",
             "channel": "CHANNEL_ID",
             "text": "Hello <@BOT_USER_ID>",
             "blocks": [
@@ -406,7 +438,7 @@ async def test_request_to_notification_data_file_share(slack_input_handler, mock
 
     mocker.patch.object(slack_input_handler, "handle_image_file", return_value="base64_image")
     mocker.patch.object(slack_input_handler, "handle_text_file", return_value=["PDF content"])
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("", False, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com"))
@@ -435,7 +467,7 @@ async def test_request_to_notification_data_message_changed(slack_input_handler,
         }
     }
 
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000500", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000500", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("Updated message", False, "1620834875.000500"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com"))
@@ -473,7 +505,7 @@ async def test_request_to_notification_data_app_mention(slack_input_handler, moc
     }
 
     # Mock necessary methods
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("<@BOT_ID> Hello bot", True, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com"))
@@ -512,7 +544,7 @@ async def test_request_to_notification_data_with_url(slack_input_handler, mocker
     }
 
     # Mock necessary methods
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("Check this link <https://example.com>", False, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com"))
@@ -577,7 +609,7 @@ async def test_request_to_notification_data_file_share(slack_input_handler, mock
 
     mocker.patch.object(slack_input_handler, "handle_image_file", return_value="base64_image")
     mocker.patch.object(slack_input_handler, "handle_text_file", return_value=["PDF content"])
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("Check out this file", False, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com"))
@@ -637,6 +669,18 @@ async def test_get_message_permalink_and_text_app(slack_input_handler, mocker):
 
     assert permalink == "https://example.slack.com/archives/C12345/p1620834875000400"
     assert message_text == "*John Doe APP*: _Hello, world!_"
+
+@pytest.mark.asyncio
+async def test_get_message_permalink_and_text_api_app(slack_input_handler, mocker):
+    mock_client = mocker.Mock()
+    mock_client.chat_getPermalink.return_value = {"ok": True, "permalink": "https://example.slack.com/archives/C12345/p1620834875000400"}
+    mock_client.conversations_history.return_value.data = {"messages": [{"text": "Hello, world!", "api_app_id": "WEB12345", "username": "John Doe WEBHOOK"}]}
+    mocker.patch.object(slack_input_handler, "client", mock_client)
+
+    permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
+
+    assert permalink == "https://example.slack.com/archives/C12345/p1620834875000400"
+    assert message_text == "*John Doe WEBHOOK*: _Hello, world!_"
 
 @pytest.mark.asyncio
 async def test_get_message_permalink_and_text_threaded(slack_input_handler, mocker):
@@ -954,7 +998,7 @@ async def test_request_to_notification_data_with_slack_link(slack_input_handler,
         }
     }
 
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("Check this Slack message <https://slack.com/archives/C12345/p1620834875000300>", False, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com"))
@@ -1175,7 +1219,7 @@ async def test_create_event_data_instance(slack_input_handler, mocker):
 
     result = await slack_input_handler._create_event_data_instance(
         "1620834875.000400", "C12345", "1620834875.000400", "1620834875.000400",
-        "USER_ID", None, None, True, "Hello", ["base64_image"], ["file_content"]
+        "USER_ID", None, None, None, True, "Hello", ["base64_image"], ["file_content"]
     )
     
     assert isinstance(result, SlackEventData)
@@ -1204,7 +1248,7 @@ async def test_request_to_notification_data_full_flow(slack_input_handler, mocke
         }
     }
 
-    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("Check this <https://slack.com/archives/C12345/p1620834875000300> and <https://example.com>", False, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "_process_files", return_value=(["base64_image"], ["PDF content"]))
     mocker.patch.object(slack_input_handler, "_process_text", return_value="Processed text with Slack link and URL content")
