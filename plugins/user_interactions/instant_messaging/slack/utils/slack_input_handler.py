@@ -364,7 +364,8 @@ class SlackInputHandler:
                     self.logger.debug('Added zip image to base64_images')
         except Exception as e:
             self.logger.error(f"Error processing file with mimetype {mimetype}: {e}")
-
+        return base64_images, files_content
+    
     async def _process_text(self, text, main_timestamp, user_id):
         if text is not None:
             text = await self._process_slack_links(text, main_timestamp, user_id)
