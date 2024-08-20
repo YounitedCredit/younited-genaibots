@@ -95,9 +95,6 @@ GenaiBots employs a modular plugin architecture categorized into several familie
 5. **User Interactions Behaviors**:
     - Defines the behavior of user interactions across different messaging platforms and custom APIs.
 
-## Contribution Guidelines
-Interested in contributing? Please read through the `CONTRIBUTING.md` file to understand our contribution requirements and code of conduct.
-
 ## License
 This project is licensed under the MIT License - see the `LICENSE.md` file for more details.
 
