@@ -614,9 +614,10 @@ class SlackInputHandler:
                 message_response = self.client.conversations_history(channel=channel, latest=latest, inclusive=True, limit=1)
 
             messages = message_response.data.get('messages')
+            
             if messages:
                 # Get the user's name
-                if "'user':" in str(messages) and "app" not in str(messages):
+                if "'user':" in str(messages) and not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS):
                     self.logger.info(f"user:{messages} ")
                     user_id = messages[0]['user']
                     user_info_response = self.client.users_info(user=user_id)
@@ -624,7 +625,7 @@ class SlackInputHandler:
                         user_name = user_info_response['user']['name']
                         message_text = f"*{user_name}*: _{messages[0]['text']}_"  # Prepend the user's name to the message and format it
                         return permalink, message_text
-                if "username" in str(messages):
+                if "'username':" in str(messages):
                     self.logger.info(f"app:{messages} ")
                     username = messages[0]['username']
                     message_text = f"*{username}*: _{messages[0]['text']}_"  # Prepend the app's name to the message and format it
