@@ -617,7 +617,7 @@ class SlackInputHandler:
             
             if messages:
                 # Get the user's name
-                if "'user':" in str(messages) and not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS):
+                if "'user':" in str(messages) and (self.SLACK_AUTHORIZED_APPS == "" or not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS)):
                     self.logger.info(f"user:{messages} ")
                     user_id = messages[0]['user']
                     user_info_response = self.client.users_info(user=user_id)
