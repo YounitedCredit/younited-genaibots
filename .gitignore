@@ -14,3 +14,4 @@ logs/*
 .venv/
 .coverage
 coverage.xml
+codebase.md

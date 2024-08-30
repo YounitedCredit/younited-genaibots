@@ -9,7 +9,6 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 
-
 class VectorSearch(ActionBase):
     REQUIRED_PARAMETERS = ['query','index_name', 'result_count']
     def __init__(self, global_manager):

@@ -113,7 +113,8 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
         except Exception as e:
             self.logger.error(f"Error processing incoming request: {str(e)}")
-            await self.instantmessaging_plugin.send_message(event=event, message=":warning: Error processing incoming request : {str(e)}", message_type=MessageType.TEXT, is_internal=True, show_ref=False)
+            self.logger.error(traceback.format_exc())
+            await self.instantmessaging_plugin.send_message(event=event, message=f":warning: Error processing incoming request : {str(e)}", message_type=MessageType.TEXT, is_internal=True, show_ref=False)
             raise
         finally:
             end_time = time.time()  # Stop the timer

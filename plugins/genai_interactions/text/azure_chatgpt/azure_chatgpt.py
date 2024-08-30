@@ -32,6 +32,9 @@ class AzureChatGptConfig(BaseModel):
     OPENAI_API_VERSION: str
     AZURE_CHATGPT_MODEL_NAME: str
     AZURE_CHATGPT_VISION_MODEL_NAME: str
+    AZURE_CHATGPT_IS_ASSISTANT: bool = False  
+    AZURE_CHATGPT_ASSISTANT_ID: str = None 
+
 
 class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -76,6 +79,8 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
         self.input_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_OUTPUT_TOKEN_PRICE
+        self.is_assistant = self.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT
+        self.assistant_id = self.azure_chatgpt_config.AZURE_CHATGPT_ASSISTANT_ID
 
         self.load_client()
         self.input_handler = ChatInputHandler(self.global_manager, self)
@@ -169,8 +174,86 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
 
+    async def generate_completion_assistant(self, messages, event_data: IncomingNotificationDataBase):
+        try:
+            # Create a copy of the messages to avoid modifying the original list
+            messages_copy = messages[:]
+
+            # Initialize instructions as None
+            instructions = None
+
+            # Check for a system message in the copied list and handle it
+            for i, message in enumerate(messages_copy):
+                if message['role'] == "system":
+                    instructions = message['content']
+                    # Remove the system message from the copy, not the original
+                    messages_copy.pop(i)
+                    break
+
+            # Create the thread
+            thread = await self.gpt_client.beta.threads.create()
+
+            # Add remaining messages to the thread
+            for message in messages_copy:
+                await self.gpt_client.beta.threads.messages.create(
+                    thread_id=thread.id,
+                    role=message['role'],
+                    content=message['content']
+                )
+
+            # Execute the assistant with instructions
+            run = await self.gpt_client.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id=self.assistant_id,
+                instructions=instructions  # Pass instructions separately
+            )
+
+            # Poll for completion
+            while run.status in ['queued', 'in_progress', 'cancelling']:
+                await asyncio.sleep(1)
+                run = await self.gpt_client.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+
+            if run.status == 'completed':
+                response_messages = await self.gpt_client.beta.threads.messages.list(thread_id=thread.id)
+                response = response_messages.data[0].content[0].text.value
+
+                 # Extract the GPT response and token usage details
+                self.genai_cost_base = GenAICostBase()
+                total_tokens = sum([len(message.content[0].text.value) for message in response_messages.data])
+                self.genai_cost_base.total_tk = total_tokens
+                self.genai_cost_base.prompt_tk = total_tokens
+                self.genai_cost_base.completion_tk = total_tokens
+                self.genai_cost_base.input_token_price = self.input_token_price
+                self.genai_cost_base.output_token_price = self.output_token_price
+                return response, self.genai_cost_base
+            elif run.status == 'requires_action':
+                pass
+            else:
+                self.logger.error(f"Run status: {run.status}")
+                return None, self.genai_cost_base
+
+        except Exception as e:
+            self.logger.error(f"An error occurred during assistant completion: {str(e)}")
+            await self.user_interaction_dispatcher.send_message(
+                event=event_data, 
+                message="An unexpected error occurred during assistant completion", 
+                message_type=MessageType.ERROR, 
+                is_internal=True
+            )
+            raise
+
+
+        
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
-        # Define blob_name for session storage
+        # Check if we should use the assistant
+        self.logger.info("generate completion called")
+        if self.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT:
+            return await self.generate_completion_assistant(messages, event_data)
+
+        # If not using an assistant, proceed with the standard completion
         model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
 
         if event_data.images:
@@ -195,9 +278,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             response = completion.choices[0].message.content
             # Extract the GPT response and token usage details
-            # Create an instance of GenAICostBase without arguments
             self.genai_cost_base = GenAICostBase()
-            # Set the attributes
             self.genai_cost_base.total_tk = completion.usage.total_tokens
             self.genai_cost_base.prompt_tk = completion.usage.prompt_tokens
             self.genai_cost_base.completion_tk = completion.usage.completion_tokens

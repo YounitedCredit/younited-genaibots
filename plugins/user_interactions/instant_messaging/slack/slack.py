@@ -233,7 +233,7 @@ class SlackPlugin(UserInteractionsPluginBase):
 
         event = event_data.get('event', {})
         event_type = event.get('type')
-        ts = event.get('ts')
+        ts = event.get('event_ts')
         channel_id = event.get('channel') or event.get('channel_id')
         user_id = event_data.get('event', {}).get('user', None)
         api_app_id = event_data.get('api_app_id', None)
