@@ -1088,20 +1088,21 @@ async def test_process_files(slack_input_handler, mocker):
             {"url_private": "https://example.com/document.pdf", "mimetype": "application/pdf"}
         ]
     }
-    
+
     async def mock_process_single_file(file, existing_images, existing_content):
         if file["mimetype"] == "image/png":
-            return ["base64_image"], []
+            existing_images.append("base64_image")
         elif file["mimetype"] == "application/pdf":
-            return [], ["PDF content"]
-        return [], []
+            existing_content.append("PDF content")
 
     mocker.patch.object(slack_input_handler, "_process_single_file", side_effect=mock_process_single_file)
 
     base64_images, files_content = await slack_input_handler._process_files(event)
 
-    assert base64_images == ["base64_image"]
-    assert files_content == ["PDF content"]
+    assert len(base64_images) == 1
+    assert base64_images[0] == "base64_image"
+    assert len(files_content) == 1
+    assert files_content[0] == "PDF content"
 
 @pytest.mark.asyncio
 async def test_process_single_file(slack_input_handler, mocker):
@@ -1117,24 +1118,22 @@ async def test_process_single_file(slack_input_handler, mocker):
 
     # Test image file
     await slack_input_handler._process_single_file(image_file, base64_images, files_content)
-    assert base64_images == ["base64_image"]
-    assert files_content == []
-
-    # Reset lists
-    base64_images, files_content = [], []
+    assert len(base64_images) == 1
+    assert base64_images[0] == "base64_image"
+    assert len(files_content) == 0
 
     # Test text file
     await slack_input_handler._process_single_file(text_file, base64_images, files_content)
-    assert base64_images == []
-    assert files_content == ["Text content"]
-
-    # Reset lists
-    base64_images, files_content = [], []
+    assert len(base64_images) == 1  # No new image added
+    assert len(files_content) == 1
+    assert files_content[0] == "Text content"
 
     # Test zip file
     await slack_input_handler._process_single_file(zip_file, base64_images, files_content)
-    assert base64_images == ["Zip image"]
-    assert files_content == ["Zip content"]
+    assert len(base64_images) == 2
+    assert base64_images[1] == "Zip image"
+    assert len(files_content) == 2
+    assert files_content[1] == "Zip content"
 
 @pytest.mark.asyncio
 async def test_process_text(slack_input_handler, mocker):

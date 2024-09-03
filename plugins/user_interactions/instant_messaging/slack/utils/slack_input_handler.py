@@ -253,7 +253,7 @@ class SlackInputHandler:
                                 for encoding in ['utf-8', 'latin-1', 'cp1252']:
                                     try:
                                         file_content_decoded = file_content.decode(encoding)
-                                        all_files_content.append(f"SHARED FILE FULL NAME in a ZIP : {zip_info.filename}\nTHIS FILE CONTENT:\n{file_content_decoded}")
+                                        all_files_content.append(f"SHARED FILE FULL NAME in a ZIP : {zip_info.filename}\n THIS FILE CONTENT: \n{file_content_decoded}")
                                         self.logger.debug(f'Successfully processed text file {zip_info.filename} with encoding {encoding}')
                                         decoded = True
                                         break

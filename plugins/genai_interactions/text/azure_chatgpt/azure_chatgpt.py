@@ -3,7 +3,7 @@ import inspect
 import json
 import traceback
 from typing import Any
-
+import copy
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel
 
@@ -176,53 +176,146 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
     async def generate_completion_assistant(self, messages, event_data: IncomingNotificationDataBase):
         try:
-            # Create a copy of the messages to avoid modifying the original list
-            messages_copy = messages[:]
-
-            # Initialize instructions as None
+            self.logger.info("Starting generate_completion_assistant method")
+            messages_copy = copy.deepcopy(messages)
             instructions = None
+            user_query = None
+            last_user_message_index = None
 
-            # Check for a system message in the copied list and handle it
-            for i, message in enumerate(messages_copy):
-                if message['role'] == "system":
-                    instructions = message['content']
-                    # Remove the system message from the copy, not the original
-                    messages_copy.pop(i)
+            # Extract instructions if present (should be the first message)
+            if messages_copy and messages_copy[0]['role'] == 'system':
+                instructions = messages_copy.pop(0)['content']
+                self.logger.info("Extracted instructions from system message")
+
+            # Find the last user message and extract query
+            last_user_message = None
+            for message in reversed(messages_copy):
+                if message['role'] == 'user':
+                    last_user_message = message
                     break
 
-            # Create the thread
-            thread = await self.gpt_client.beta.threads.create()
+            if last_user_message:
+                content = last_user_message['content']
+                if isinstance(content, list) and len(content) > 0:
+                    user_query = content[0]['text'] if content[0]['type'] == 'text' else ''
+                else:
+                    user_query = content
 
-            # Add remaining messages to the thread
+                last_user_message_index = messages_copy.index(last_user_message)
+                self.logger.info(f"Extracted user query: {user_query[:50]}...")  # Log first 50 chars of query
+            else:
+                self.logger.warning("No user message found")
+                user_query = ""
+                last_user_message_index = None
+
+            thread = await self.gpt_client.beta.threads.create()
+            self.logger.info(f"Created new thread with ID: {thread.id}")
+
+            # Handle images if present
+            if event_data.images:
+                self.logger.info(f"Processing {len(event_data.images)} images")
+                vision_model = self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME
+                if not vision_model:
+                    raise ValueError("Image received but AZURE_CHATGPT_VISION_MODEL_NAME not configured")
+                
+                self.logger.info(f"Using vision model: {vision_model}")
+                image_interpretations = []
+                for i, base64_image in enumerate(event_data.images):
+                    self.logger.info(f"Interpreting image {i+1}/{len(event_data.images)}")
+                    image_prompt = (
+                        f"Please provide a detailed description of this image in the context of the following user query: '{user_query}'. "
+                        "Include all relevant details, colors, text, objects, and their relationships. "
+                        "If there are any aspects of the image that seem particularly relevant to the query, emphasize those. give as much detail as possible on what is provided in this, provide a long answer."
+                    )
+
+                    image_message = {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}",
+                            "detail": "high"
+                        }
+                    }
+
+                    self.logger.info("Calling vision model for image interpretation")
+                    image_completion = await self.gpt_client.chat.completions.create(
+                        model=vision_model,
+                        messages=[
+                            {"role": "user", "content": [
+                                {"type": "text", "text": image_prompt},
+                                image_message
+                            ]}
+                        ]
+                    )
+                    interpretation = image_completion.choices[0].message.content
+                    self.logger.info(f"Image {i+1} interpretation: {interpretation[:50]}...")  # Log first 50 chars
+                    image_interpretations.append(interpretation)
+                
+                # Ajout des interprétations d'images au dernier message utilisateur
+                if last_user_message_index is not None:
+                    automated_response = (
+                        "\n\n[Automated Response] "
+                        "Here are detailed descriptions of the images I've uploaded, relevant to my query: "
+                        f"{'; '.join(image_interpretations)}"
+                    )
+                    if isinstance(messages_copy[last_user_message_index]['content'], list):
+                        messages_copy[last_user_message_index]['content'] = [
+                            item for item in messages_copy[last_user_message_index]['content']
+                            if item['type'] == 'text'
+                        ]
+                        messages_copy[last_user_message_index]['content'].append({
+                            'type': 'text',
+                            'text': automated_response
+                        })
+                    else:
+                        messages_copy[last_user_message_index]['content'] += automated_response
+                    self.logger.info(f"Added image interpretations to the last user message")
+
+            # Remove images from event_data to avoid sending them again
+            event_data.images = []
+
+            # Add messages to the thread
+            self.logger.info(f"Adding {len(messages_copy)} messages to the thread")
             for message in messages_copy:
+                content = message['content']
+                if isinstance(content, list):
+                    text_content = ' '.join([item['text'] for item in content if item['type'] == 'text'])
+                else:
+                    text_content = content
+
                 await self.gpt_client.beta.threads.messages.create(
                     thread_id=thread.id,
                     role=message['role'],
-                    content=message['content']
+                    content=text_content
                 )
 
             # Execute the assistant with instructions
+            self.logger.info(f"Executing assistant with ID: {self.assistant_id}")
             run = await self.gpt_client.beta.threads.runs.create(
                 thread_id=thread.id,
                 assistant_id=self.assistant_id,
-                instructions=instructions  # Pass instructions separately
+                instructions=instructions
             )
 
             # Poll for completion
+            self.logger.info("Polling for run completion")
             while run.status in ['queued', 'in_progress', 'cancelling']:
+                self.logger.info(f"Run status: {run.status}")
                 await asyncio.sleep(1)
                 run = await self.gpt_client.beta.threads.runs.retrieve(
                     thread_id=thread.id,
                     run_id=run.id
                 )
 
+            self.logger.info(f"Run completed with status: {run.status}")
             if run.status == 'completed':
                 response_messages = await self.gpt_client.beta.threads.messages.list(thread_id=thread.id)
                 response = response_messages.data[0].content[0].text.value
+                self.logger.info(f"Received response: {response[:100]}...")  # Log first 100 chars of response
 
-                 # Extract the GPT response and token usage details
+                # Extract the GPT response and token usage details
                 self.genai_cost_base = GenAICostBase()
                 total_tokens = sum([len(message.content[0].text.value) for message in response_messages.data])
+                self.logger.info(f"Total tokens used: {total_tokens}")
                 self.genai_cost_base.total_tk = total_tokens
                 self.genai_cost_base.prompt_tk = total_tokens
                 self.genai_cost_base.completion_tk = total_tokens
@@ -230,22 +323,22 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 self.genai_cost_base.output_token_price = self.output_token_price
                 return response, self.genai_cost_base
             elif run.status == 'requires_action':
+                self.logger.warning("Run requires action, not implemented in this version")
                 pass
             else:
-                self.logger.error(f"Run status: {run.status}")
+                self.logger.error(f"Run failed with status: {run.status}")
                 return None, self.genai_cost_base
 
         except Exception as e:
             self.logger.error(f"An error occurred during assistant completion: {str(e)}")
+            self.logger.error(traceback.format_exc())  # Log the full stack trace
             await self.user_interaction_dispatcher.send_message(
                 event=event_data, 
                 message="An unexpected error occurred during assistant completion", 
-                message_type=MessageType.ERROR, 
+                message_type=MessageType.COMMENT, 
                 is_internal=True
             )
             raise
-
-
         
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         # Check if we should use the assistant
