@@ -60,7 +60,8 @@ class ChatInputHandler():
                 init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
 
             messages = [{"role": "system", "content": init_prompt}]
-            user_content = [{"type": "text", "text": constructed_message}]
+            user_content_text = [{"type": "text", "text": constructed_message}]
+            user_content_images = []
 
             if event_data.images:
                 for base64_image in event_data.images:
@@ -71,21 +72,19 @@ class ChatInputHandler():
                             "detail": "high"
                         }
                     }
-
-                    user_content.append(image_message)
-
-                messages.append({"role": "user", "content": user_content})
-            else:
-                messages.append({"role": "user", "content": constructed_message})
+                    user_content_images.append(image_message)
 
             if event_data.files_content:
                 for file_content in event_data.files_content:
-                    constructed_message = f"{file_content}"
-                    messages.append({"role": "user", "content": [{"type": "text", "text": constructed_message}]})
+                    file_message = {"type": "text", "text": file_content}
+                    user_content_text.append(file_message)
 
                 if len(event_data.files_content) > 20:
                     reminder_message = f"Remember to follow the core prompt rules: {init_prompt}"
-                    messages.append({"role": "user", "content": [{"type": "text", "text": reminder_message}]})
+                    user_content_text.append({"type": "text", "text": reminder_message})
+
+            user_content = user_content_text + user_content_images
+            messages.append({"role": "user", "content": user_content})
 
             return await self.generate_response(event_data, messages)
         except Exception as e:
@@ -105,7 +104,8 @@ class ChatInputHandler():
                 "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, [Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
             }
 
-            user_content = [{"type": "text", "text": constructed_message["content"]}]
+            user_content_text = [{"type": "text", "text": constructed_message["content"]}]
+            user_content_images = []
 
             if event_data.images:
                 for base64_image in event_data.images:
@@ -116,14 +116,15 @@ class ChatInputHandler():
                             "detail": "high"
                         }
                     }
-                    user_content.append(image_message)
-
-                messages.append({"role": "user", "content": user_content})
+                    user_content_images.append(image_message)
 
             if event_data.files_content:
                 for file_content in event_data.files_content:
-                    constructed_message = f"{file_content}"
-                    messages.append({"role": "user", "content": [{"type": "text", "text": constructed_message}]})
+                    file_message = {"type": "text", "text": file_content}
+                    user_content_text.append(file_message)
+
+            user_content = user_content_text + user_content_images
+            messages.append({"role": "user", "content": user_content})
 
             if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
                 # If bot is mentioned or require_mention_thread_message is true, retrieve and extend with previously stored messages

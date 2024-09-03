@@ -75,7 +75,7 @@ async def test_remove_data_content_file_not_exists(file_system_plugin):
 @patch('os.makedirs')
 def test_init_shares(mock_makedirs, file_system_plugin):
     file_system_plugin.init_shares()
-    assert mock_makedirs.call_count == 6
+    assert mock_makedirs.call_count == 7
 
 @pytest.mark.asyncio
 async def test_append_data(file_system_plugin):

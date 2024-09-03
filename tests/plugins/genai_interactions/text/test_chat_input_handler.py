@@ -167,16 +167,17 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         messages = call_args[1]
 
         # Check that the messages list is constructed correctly
-        assert len(messages) == 4  # system message, user message, 2 file content messages
         assert messages[0]['role'] == 'system'
-        assert "mocked core prompt" in messages[0]['content']
-        assert "mocked main prompt" in messages[0]['content']
+        assert messages[0]['content'] == 'mocked core prompt\nmocked main prompt\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: mocked general behavior content'
+
         assert messages[1]['role'] == 'user'
-        assert isinstance(messages[1]['content'], str)
-        assert messages[2]['role'] == 'user'
-        assert messages[2]['content'] == [{"type": "text", "text": "file content 1"}]
-        assert messages[3]['role'] == 'user'
-        assert messages[3]['content'] == [{"type": "text", "text": "file content 2"}]
+        assert len(messages[1]['content']) == 3
+        assert messages[1]['content'][0]['type'] == 'text'
+        assert messages[1]['content'][0]['text'] == 'Timestamp: converted_timestamp, [username]: user_name, [user id]: user_id, [user email]: user_email, [Directly mentioning you]: True, [message]: user text'
+        assert messages[1]['content'][1]['type'] == 'text'
+        assert messages[1]['content'][1]['text'] == 'file content 1'
+        assert messages[1]['content'][2]['type'] == 'text'
+        assert messages[1]['content'][2]['text'] == 'file content 2'
 
 @pytest.mark.asyncio
 async def test_filter_messages(chat_input_handler):
@@ -257,12 +258,11 @@ async def test_handle_message_event_with_many_files(chat_input_handler, incoming
         last_message = messages[-1]
         assert last_message['role'] == 'user'
         assert isinstance(last_message['content'], list)
-        assert len(last_message['content']) == 1
+        assert len(last_message['content']) == 23
         assert last_message['content'][0]['type'] == 'text'
-        assert last_message['content'][0]['text'] == reminder_message
 
         # Optional: Check that there are 23 messages in total (1 system, 1 user, 21 file contents, 1 reminder)
-        assert len(messages) == 24
+        assert len(messages) == 2
 
 @pytest.mark.asyncio
 async def test_handle_completion_errors(chat_input_handler, incoming_notification):

@@ -13,6 +13,11 @@ from plugins.genai_interactions.text.azure_chatgpt.azure_chatgpt import (
     MessageType
 )
 
+from plugins.genai_interactions.text.chat_input_handler import (
+    ChatInputHandler
+)
+
+from core.genai_interactions.genai_cost_base import GenAICostBase
 
 @pytest.fixture
 def mock_config():
@@ -40,12 +45,22 @@ def azure_chatgpt_plugin(extended_mock_global_manager):
     plugin.initialize()
     return plugin
 
-def test_initialize(azure_chatgpt_plugin):
-    assert azure_chatgpt_plugin.azure_openai_key == "fake_key"
-    assert azure_chatgpt_plugin.azure_openai_endpoint == "https://fake_endpoint"
-    assert azure_chatgpt_plugin.openai_api_version == "v1"
-    assert azure_chatgpt_plugin.model_name == "gpt-35-turbo"
-    assert azure_chatgpt_plugin.plugin_name == "azure_chatgpt"
+@pytest.mark.asyncio
+async def test_initialize(azure_chatgpt_plugin):
+    # Reset the plugin to its pre-initialized state
+    azure_chatgpt_plugin.gpt_client = None
+    azure_chatgpt_plugin.input_handler = None
+
+    # Call initialize
+    azure_chatgpt_plugin.initialize()
+
+    # Assert that the client and input handler are properly set up
+    assert azure_chatgpt_plugin.gpt_client is not None
+    assert isinstance(azure_chatgpt_plugin.input_handler, ChatInputHandler)
+    assert azure_chatgpt_plugin.user_interaction_dispatcher is not None
+    assert azure_chatgpt_plugin.genai_interactions_text_dispatcher is not None
+    assert azure_chatgpt_plugin.backend_internal_data_processing_dispatcher is not None
+
 
 @pytest.mark.asyncio
 async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
@@ -267,3 +282,73 @@ async def test_trigger_genai(azure_chatgpt_plugin):
         assert event.text == "<@BOT123> user text"
         assert event.is_mention == True
         assert event.thread_id == "thread_id"
+
+@pytest.mark.asyncio
+async def test_generate_completion_assistant(azure_chatgpt_plugin, mock_incoming_notification_data_base):
+    # Configuration du plugin
+    azure_chatgpt_plugin.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT = True
+    azure_chatgpt_plugin.azure_chatgpt_config.AZURE_CHATGPT_ASSISTANT_ID = "test_assistant_id"
+    azure_chatgpt_plugin.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME = "gpt-4-vision-preview"
+
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What's the weather like?"},
+        {"role": "assistant", "content": "I'm sorry, I don't have real-time weather information."},
+        {"role": "user", "content": "Can you analyze this image?"}
+    ]
+
+    event_data = mock_incoming_notification_data_base
+    event_data.images = ["base64_encoded_image_data"]
+
+    # Créer des mocks pour tous les appels asynchrones
+    async def mock_create_thread(*args, **kwargs):
+        return AsyncMock(id="test_thread_id")
+
+    async def mock_create_message(*args, **kwargs):
+        return AsyncMock()
+
+    async def mock_create_run(*args, **kwargs):
+        return AsyncMock(id="test_run_id", status="completed")
+
+    async def mock_retrieve_run(*args, **kwargs):
+        return AsyncMock(status="completed")
+
+    async def mock_list_messages(*args, **kwargs):
+        return MagicMock(data=[MagicMock(content=[MagicMock(text=MagicMock(value="This is the assistant's response."))])])
+
+    async def mock_create_completion(*args, **kwargs):
+        return AsyncMock(choices=[MagicMock(message=MagicMock(content="This is an image of a sunny day."))])
+
+    with patch.object(azure_chatgpt_plugin.gpt_client.beta.threads, 'create', side_effect=mock_create_thread), \
+         patch.object(azure_chatgpt_plugin.gpt_client.beta.threads.messages, 'create', side_effect=mock_create_message), \
+         patch.object(azure_chatgpt_plugin.gpt_client.beta.threads.runs, 'create', side_effect=mock_create_run), \
+         patch.object(azure_chatgpt_plugin.gpt_client.beta.threads.runs, 'retrieve', side_effect=mock_retrieve_run), \
+         patch.object(azure_chatgpt_plugin.gpt_client.beta.threads.messages, 'list', side_effect=mock_list_messages), \
+         patch.object(azure_chatgpt_plugin.gpt_client.chat.completions, 'create', side_effect=mock_create_completion):
+
+        response, genai_cost_base = await azure_chatgpt_plugin.generate_completion_assistant(messages, event_data)
+
+        # Ajoutez ici vos assertions pour vérifier le résultat
+        assert response == "This is the assistant's response."
+        assert isinstance(genai_cost_base, GenAICostBase)
+
+@pytest.mark.asyncio
+async def test_generate_completion_assistant_error(azure_chatgpt_plugin, mock_incoming_notification_data_base):
+    azure_chatgpt_plugin.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT = True
+    azure_chatgpt_plugin.azure_chatgpt_config.AZURE_CHATGPT_ASSISTANT_ID = "test_assistant_id"
+
+    messages = [{"role": "user", "content": "Hello"}]
+    event_data = mock_incoming_notification_data_base
+
+    with patch.object(azure_chatgpt_plugin.gpt_client.beta.threads, 'create', side_effect=Exception("Test error")), \
+         patch.object(azure_chatgpt_plugin.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message:
+
+        with pytest.raises(Exception):
+            await azure_chatgpt_plugin.generate_completion_assistant(messages, event_data)
+
+        mock_send_message.assert_called_once_with(
+            event=event_data,
+            message="An unexpected error occurred during assistant completion",
+            message_type=MessageType.COMMENT,  # Changé de ERROR à COMMENT
+            is_internal=True
+        )

@@ -249,12 +249,18 @@ class SlackInputHandler:
                                 all_files_content.extend(text_contents)
                                 self.logger.debug(f'Successfully processed PDF file {zip_info.filename}')
                             else:
-                                try:
-                                    file_content = file_content.decode('utf-8')
-                                    all_files_content.append(f"SHARED FILE FULL NAME in a ZIP : {zip_info.filename}\nTHIS FILE CONTENT:\n{file_content}")
-                                    self.logger.debug(f'Successfully processed text file {zip_info.filename}')
-                                except UnicodeDecodeError:
-                                    self.logger.debug(f'Error decoding file content for file {zip_info.filename}, content might be binary.')
+                                decoded = False
+                                for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                                    try:
+                                        file_content_decoded = file_content.decode(encoding)
+                                        all_files_content.append(f"SHARED FILE FULL NAME in a ZIP : {zip_info.filename}\n THIS FILE CONTENT: \n{file_content_decoded}")
+                                        self.logger.debug(f'Successfully processed text file {zip_info.filename} with encoding {encoding}')
+                                        decoded = True
+                                        break
+                                    except UnicodeDecodeError as e:
+                                        self.logger.warning(f'UnicodeDecodeError for file {zip_info.filename} with encoding {encoding}: start={e.start}, end={e.end}, reason={e.reason}')
+                                if not decoded:
+                                    self.logger.warning(f'Error decoding file content for file {zip_info.filename}, content might be binary.')
         except Exception as e:
             self.logger.error(f"Failed to extract files from zip: {e}")
         return all_files_content, zip_images
@@ -274,7 +280,7 @@ class SlackInputHandler:
                     file_content = pdftext
             else:
                 file_content = file_content.decode('utf-8')
-            return [f"\nYOU RECEIVED A SHARED FILE FROM THE USER. FILE NAME : {file.get('name')}\nFILE CONTENT:\n```BEGIN OF FILE {file_content}\nEND OF FILE```"]
+            return [f"\nYOU RECEIVED A SHARED FILE FROM THE USER. FILE NAME : {file.get('name')}. Here is the file content between BEGIN OF FILE and END OF FILE marquee: ```BEGIN OF FILE \n {file_content} \n ```END OF FILE"]
 
     async def request_to_notification_data(self, event_data):
         try:
@@ -335,9 +341,7 @@ class SlackInputHandler:
             self.logger.info('Event subtype is a file share and it contains files')
             files = event.get('files', [])
             for file in files:
-                single_images, single_content = await self._process_single_file(file, base64_images, files_content)
-                base64_images.extend(single_images)
-                files_content.extend(single_content)
+                await self._process_single_file(file, base64_images, files_content)
         return base64_images, files_content
 
     async def _process_single_file(self, file, base64_images, files_content):
@@ -364,7 +368,6 @@ class SlackInputHandler:
                     self.logger.debug('Added zip image to base64_images')
         except Exception as e:
             self.logger.error(f"Error processing file with mimetype {mimetype}: {e}")
-        return base64_images, files_content
 
     async def _process_text(self, text, main_timestamp, user_id):
         if text is not None:
