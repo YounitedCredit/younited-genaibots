@@ -199,8 +199,6 @@ class SlackPlugin(UserInteractionsPluginBase):
                 self.logger.info(f"Valid <SLACK> request received from user {user_id} in channel {channel_id}, processing..")
             if app_id is not None:
                 self.logger.info(f"Valid <SLACK> request received from app {app_id} in channel {channel_id}, processing..")
-            if api_app_id is not None:
-                self.logger.info(f"Valid <SLACK> request received from webhook {api_app_id} in channel {channel_id}, processing..")
             event_type = event_data.get('event', {}).get('type')
             event_subtype = event_data.get('event', {}).get('subtype')
 
