@@ -53,7 +53,7 @@ class VectorSearch(ActionBase):
                         message += f"Score: {result['@search.score']}\n"
                         message += f"Title: {result['title']}\n"
                         message += f"Content: {result['content']}\n"  # No truncation applied
-                        message += "Based on this result and its similarity related to the user's input, answer their previous query.\n\n"
+                        message += "Based on this result and its similarity related to the user's input, answer their previous query. Use only information relevant to the user question, everything is not necessary relevant but use anything useful\n\n"
 
                 # Send message to trigger the GenAI interaction
                 event_copy.text = message

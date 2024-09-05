@@ -12,7 +12,7 @@ import argparse
 import colorama
 from colorama import Fore, Style
 
-"""
+help_description = """
 File Embedder Script with Dynamic Chunking
 
 This script processes documents (files or directories) to create embeddings using Azure OpenAI.
@@ -20,37 +20,69 @@ It handles segmentation of documents dynamically by either a fixed token count o
 It also provides the option to overlap chunks for better contextual continuity.
 
 Usage:
-python file_embedder.py --input <input_path> --output <output_path> --output_format <csv|json> 
-                        --openai_key <api_key> --openai_endpoint <endpoint_url>
-                        [--max_tokens <number>] [--index_name <name>]
-                        [--openai_api_version <version>] [--dynamic_chunking] [--overlap_tokens <number>]
+  python file_embedder.py --input <input_path> --output <output_path> --output_format <csv|json>
+                          --openai_key <api_key> --openai_endpoint <endpoint_url>
+                          [--max_tokens <number>] [--index_name <name>]
+                          [--openai_api_version <version>] [--dynamic_chunking] [--overlap_tokens <number>]
+                          [--source_type <filesystem|azure_devops_wiki>] [--wiki_url <url>]
 
 Arguments:
---input              : Path to input file or directory (required)
---output             : Path to output file without extension (required)
---output_format      : Output format, either 'csv' or 'json' (default: csv)
---openai_key         : Azure OpenAI API key (required)
---openai_endpoint    : Azure OpenAI endpoint URL (required)
---max_tokens         : Maximum number of tokens per segment (optional)
-                       If not provided, entire documents will be processed without segmentation
---index_name         : Name for the Azure Cognitive Search index. If provided, an index definition will be generated.
---openai_api_version : Azure OpenAI API version (optional, default: 2023-06-01-preview)
---dynamic_chunking   : Enable chunking based on document structure such as paragraphs or headings (optional, default: False)
---overlap_tokens     : Number of tokens to overlap between chunks (optional, default: 50)
+  --input              : Path to input file or directory (required).
+                         This can be a single document or a directory containing multiple documents.
+  --output             : Path to the output file without extension (required).
+                         The script will generate either a CSV or JSON file based on the format you choose.
+  --output_format      : Output format, either 'csv' or 'json' (default: csv).
+                         Specifies the format for the embedding results. If not provided, the default is CSV.
+  --openai_key         : Azure OpenAI API key (required).
+                         Your API key to authenticate with Azure OpenAI services.
+  --openai_endpoint    : Azure OpenAI endpoint URL (required).
+                         The endpoint URL provided by Azure for your OpenAI instance.
+  --max_tokens         : Maximum number of tokens per segment (optional).
+                         If not provided, the entire document is processed in a single pass. Use this to limit the number of tokens in each chunk.
+  --index_name         : Name for the Azure Cognitive Search index (optional).
+                         If provided, an index definition will be generated based on the document embeddings.
+  --openai_api_version : Azure OpenAI API version (optional, default: 2023-06-01-preview).
+                         The API version to be used for the OpenAI services.
+  --dynamic_chunking   : Enable chunking based on document structure such as paragraphs or headings (optional, default: False).
+                         Allows dynamic chunking based on the structure of the document instead of a fixed token limit.
+  --overlap_tokens     : Number of tokens to overlap between chunks (optional, default: 50).
+                         This helps maintain continuity between chunks by repeating a certain number of tokens from the previous chunk.
+  --model_name         : OpenAI model name to be used for generating embeddings (optional, default: 'text-embedding-3-large').
+                         Specifies the OpenAI model to use for generating embeddings. You can provide a custom model if needed.
+  --source_type        : Specify the source type for the file path (optional, default: 'filesystem').
+                         'filesystem' (default): The file path is stored as the full local path.
+                         'azure_devops_wiki': Converts the file path to an Azure DevOps Wiki URL.
+  --wiki_url           : The base URL of your Azure DevOps Wiki.
+                         This is required if you select 'azure_devops_wiki' as the source type.
+                         Example: https://your-domain.visualstudio.com/your-project/_wiki/wikis/your-project.wiki
 
 Examples:
-1. Process a single file and output as CSV (entire document):
+1. Basic usage - Process a single file and output as CSV:
    python file_embedder.py --input /path/to/document.txt --output /path/to/output --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
 
-2. Process a directory and output as JSON (entire documents):
+2. Process a directory and output as JSON:
    python file_embedder.py --input /path/to/docs --output /path/to/output --output_format json --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
 
-3. Process a file with custom token limit (segmented) and specific API version:
+3. Process a file with a custom token limit and specific API version:
    python file_embedder.py --input /path/to/document.txt --output /path/to/output --max_tokens 500 --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT --openai_api_version 2023-05-15
 
-4. Process a directory with dynamic chunking enabled and overlapping:
-   python file_embedder.py --input /path/to/docs --output /path/to/output --output_format json --dynamic_chunking --overlap_tokens 50 --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
+4. Use dynamic chunking based on document structure with overlap tokens:
+   python file_embedder.py --input /path/to/docs --output /path/to/output --output_format json --dynamic_chunking --overlap_tokens 100 --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
 
+5. Process a directory and generate an Azure Cognitive Search index definition:
+   python file_embedder.py --input /path/to/docs --output /path/to/output --index_name my_search_index --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
+
+6. Use a custom model for embedding generation:
+   python file_embedder.py --input /path/to/document.txt --output /path/to/output --model_name "your-custom-model" --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
+
+7. Process a directory from an Azure DevOps Wiki:
+   python file_embedder.py --input /path/to/docs --output /path/to/output --source_type azure_devops_wiki --wiki_url https://your-domain.visualstudio.com/your-project/_wiki/wikis/your-project.wiki --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
+
+8. Process with a mix of all options - token limit, dynamic chunking, overlap, and custom model:
+   python file_embedder.py --input /path/to/docs --output /path/to/output --max_tokens 800 --dynamic_chunking --overlap_tokens 75 --model_name "your-custom-model" --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT --index_name my_search_index
+
+9. Process a directory, limit tokens, use custom model and specific API version, output to JSON:
+   python file_embedder.py --input /path/to/docs --output /path/to/output --output_format json --max_tokens 300 --model_name "text-embedding-2" --openai_api_version 2023-01-15 --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
 """
 
 colorama.init(autoreset=True)
@@ -87,7 +119,8 @@ stream_handler.setFormatter(ColoredFormatter())
 logger.addHandler(stream_handler)
 
 # Parse command-line arguments
-parser = argparse.ArgumentParser(description='Process documents and create embeddings.')
+parser = argparse.ArgumentParser(description=help_description, formatter_class=argparse.RawTextHelpFormatter)
+
 parser.add_argument('--input', required=True, help='Path to input file or directory')
 parser.add_argument('--output', required=True, help='Path to output file (without extension)')
 parser.add_argument('--output_format', choices=['csv', 'json'], default='csv', help='Output format (csv or json)')
@@ -99,6 +132,9 @@ parser.add_argument('--openai_api_version', default="2023-06-01-preview", help='
 parser.add_argument('--dynamic_chunking', action='store_true', help='Enable chunking based on document structure such as paragraphs or headings')
 parser.add_argument('--overlap_tokens', type=int, default=50, help='Number of tokens to overlap between chunks')
 parser.add_argument('--model_name', default="text-embedding-3-large", help="OpenAI model name to be used for generating embeddings. Default is 'text-embedding-3-large'")
+parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki'], default='filesystem', 
+                    help="Source type: 'filesystem' (default) or 'azure_devops_wiki'. Specifies how the file path is treated.")
+parser.add_argument('--wiki_url', help="Base URL of the Azure DevOps Wiki. Required if 'azure_devops_wiki' is selected as source_type.")
 args = parser.parse_args()
 
 # Create an OpenAI object specifying the endpoint
