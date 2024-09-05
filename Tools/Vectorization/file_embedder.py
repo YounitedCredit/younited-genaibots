@@ -11,6 +11,7 @@ import json
 import argparse
 import colorama
 from colorama import Fore, Style
+import urllib.parse
 
 help_description = """
 File Embedder Script with Dynamic Chunking
@@ -137,6 +138,70 @@ parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki']
 parser.add_argument('--wiki_url', help="Base URL of the Azure DevOps Wiki. Required if 'azure_devops_wiki' is selected as source_type.")
 args = parser.parse_args()
 
+if args.source_type == 'azure_devops_wiki':
+    if not args.wiki_url:
+        raise ValueError("You must provide --wiki_url when using 'azure_devops_wiki' as source_type")
+
+def get_file_path(local_path, source_type, wiki_url, input_dir):
+    if source_type == 'filesystem':
+        return local_path
+    elif source_type == 'azure_devops_wiki':
+        return create_wiki_url(wiki_url, local_path, input_dir)
+    else:
+        raise ValueError(f"Invalid source_type: {source_type}")
+    
+def create_wiki_url(wiki_base_url, local_file_path, input_dir):
+    # Get the relative path from the input directory
+    relative_path = os.path.relpath(local_file_path, input_dir)
+    
+    # Replace backslashes with forward slashes (for Windows paths)
+    relative_path = relative_path.replace('\\', '/')
+
+    # Remove .md extension if present
+    if relative_path.lower().endswith('.md'):
+        relative_path = os.path.splitext(relative_path)[0]
+    
+    # Encode the relative path
+    encoded_path = urllib.parse.quote(relative_path)
+    
+    # Construct and return the full wiki URL with pagePath parameter
+    return f"{wiki_base_url}?pagePath=/{encoded_path}"
+
+file_paths = []
+
+# Main processing logic to determine file paths and process files
+if os.path.isdir(args.input):
+    for root, dirs, files in os.walk(args.input):
+        for file in files:
+            local_file_path = os.path.join(root, file)
+            file_path = get_file_path(local_file_path, args.source_type, args.wiki_url, args.input)
+            
+            logging.info(f"Processing file at: {file_path}")
+            
+            try:
+                with open(local_file_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+            except Exception as e:
+                logging.error(f"Failed to read file {local_file_path}: {e}")
+                continue
+            # Ensure the correct file_path (DevOps Wiki URL or local path) is stored
+            file_paths.append(file_path)  # Append the correct URL            
+
+else:
+    local_file_path = args.input
+    file_path = get_file_path(local_file_path, args.source_type, args.wiki_url, os.path.dirname(args.input))
+    
+    logging.info(f"Processing single file at: {file_path}")
+    
+    try:
+        with open(local_file_path, 'r', encoding='utf-8') as f:
+            text = f.read()
+    except Exception as e:
+        logging.error(f"Failed to read file {local_file_path}: {e}")
+        raise
+
+    file_paths.append(file_path)
+
 # Create an OpenAI object specifying the endpoint
 try:
     openai_client = AzureOpenAI(
@@ -167,8 +232,8 @@ def clean_text(text):
         # Remove Markdown images
         text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', '', text)
         
-        # Remove remaining Markdown syntax
-        text = re.sub(r'(?<!\w)-(?!\w)|[#*_`]+', ' ', text)
+        # Remove remaining Markdown syntax, but keep hyphens
+        text = re.sub(r'(?<!\w)[-](?!\w)|[#*_`]+', ' ', text)
         
         # Remove consecutive spaces
         text = re.sub(r'\s+', ' ', text)
@@ -177,6 +242,21 @@ def clean_text(text):
     except Exception as e:
         logging.error(f"Error cleaning text: {e}")
         return ""
+
+def clean_title(title):
+    # Decode the title first to handle any URL encoded characters
+    title = urllib.parse.unquote(title)
+    
+    # Replace hyphens and underscores with spaces
+    title = title.replace('-', ' ').replace('_', ' ')
+    
+    # Remove any remaining URL-unsafe characters
+    title = re.sub(r'[^\w\s-]', '', title)
+    
+    # Remove extra whitespace
+    title = ' '.join(title.split())
+    
+    return title
 
 def split_document_by_structure(text, max_tokens, overlap_tokens=50):
     """Split a document into passages by structure with optional overlap."""
@@ -252,7 +332,7 @@ def convert_to_azure_search_json(df, key_name='id'):
         doc = {
             key_name: sanitized_id,  # Unique ID for the passage
             "content": row['text'],  # Full content of the passage
-            "filepath": row['file_path'],  # Original file path
+            "file_path": row['file_path'],  # Original file path
             "title": row['title'],  # Title of the document
             "chunk": int(row['passage_index']),  # The passage chunk index
             "passage_id": int(row['passage_id']),  # Adding passage_id explicitly
@@ -316,11 +396,11 @@ def generate_index_definition(index_name, vector_dimension):
                 "analyzer": "standard.lucene"
             },
             {
-                "name": "filepath",
+                "name": "file_path",
                 "type": "Edm.String",
                 "searchable": False,
                 "filterable": True,
-                "retrievable": True,  # Make the filepath field retrievable
+                "retrievable": True,  # Make the file_path field retrievable
                 "sortable": False,
                 "facetable": False
             },
@@ -408,14 +488,16 @@ if __name__ == "__main__":
     total_files = len(files_to_process)
 
     # Process files
-    for file_count, file_path in enumerate(files_to_process, 1):
+    for file_count, local_file_path in enumerate(files_to_process, 1):
+        file_path = get_file_path(local_file_path, args.source_type, args.wiki_url, args.input)
+        
         logging.info(f"Processing file {file_count}/{total_files}: {file_path}")
         
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(local_file_path, 'r', encoding='utf-8') as f:
                 text = f.read()
         except Exception as e:
-            logging.error(f"Failed to read file {file_path}: {e}")
+            logging.error(f"Failed to read file {local_file_path}: {e}")
             continue
         
         cleaned_text = clean_text(text)
@@ -439,18 +521,21 @@ if __name__ == "__main__":
             logging.warning(f"No valid passages found for file {file_path}, ignored.")
             continue
         
-        title = clean_text(os.path.splitext(os.path.basename(file_path))[0])
-        if title.strip() == '':
-            title = os.path.splitext(os.path.basename(file_path))[0]
-        title = urllib.parse.unquote(title)
-        title_embedding = get_text_embedding(title, model=args.model_name)  # Pass the model_name
+        title = os.path.splitext(os.path.basename(local_file_path))[0]
+        title = clean_title(title)
+        if not title.strip():
+            title = os.path.splitext(os.path.basename(local_file_path))[0]
+
+        logging.info(f"Cleaned title: {title}")
+        title_embedding = get_text_embedding(title, model=args.model_name)
         if not title_embedding:
             logging.warning(f"Failed to get embedding for title: {title}")
         
         logging.info(f"Title: {title}")
         
+        # Process passages and store embeddings
         for passage_index, passage in enumerate(document_passages, 1):
-            embedding = get_text_embedding(passage, model=args.model_name)  # Pass the model_name
+            embedding = get_text_embedding(passage, model=args.model_name)
             if embedding:
                 document_ids.append(title)
                 passage_ids.append(passage_index)
@@ -458,7 +543,7 @@ if __name__ == "__main__":
                 texts.append(passage)
                 titles.append(title)
                 title_embeddings.append(title_embedding)
-                file_paths.append(file_path)
+                file_paths.append(file_path)  # This now contains the correct unique path for each file
                 passage_indices.append(passage_index)
                 logging.info(f"    Passage {passage_index}/{len(document_passages)} processed")
 
@@ -467,11 +552,11 @@ if __name__ == "__main__":
         df = pd.DataFrame({
             'document_id': document_ids,
             'passage_id': passage_ids,
-            'file_path': file_paths,  
+            'file_path': file_paths,
             'passage_index': passage_indices,
-            'text': texts,        
+            'text': texts,
             'title': titles,
-            'title_embedding': title_embeddings,        
+            'title_embedding': title_embeddings,
             'embedding': embeddings
         })
     except Exception as e:
