@@ -24,7 +24,7 @@ from utils.config_manager.config_model import (
     Backend,
     BotConfig,
     ConfigModel,
-    File,
+    FileSystem,
     GenaiInteractions,
     Logging,
     Plugin,
@@ -43,7 +43,7 @@ def mock_app():
 def mock_utils():
     return Utils(
         LOGGING=Logging(
-            FILE=File(
+            FILE=FileSystem(
                 PLUGIN_NAME="file_logging",
                 LEVEL="DEBUG",
                 FILE_PATH="log.txt"
