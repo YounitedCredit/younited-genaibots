@@ -8,7 +8,6 @@ from azure.monitor.opentelemetry.exporter import (
     AzureMonitorTraceExporter,
 )
 
-# OpenTelemetry imports for tracing and logging
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -25,7 +24,7 @@ def setup_logger_and_tracer(global_manager):
     logger = logging.getLogger()
     tracer = None  # Initialiser tracer à None
     config_handler = ConfigManager(global_manager)
-    debug_level = config_handler.get_config(['BOT_CONFIG', 'LOG_DEBUG_LEVEL'])
+    debug_level = config_handler.get_config(['BOT_CONFIG', 'LOG_DEBUG_LEVEL']).upper()  # Convertir en majuscule
 
     # Define log levels
     log_levels = {
@@ -35,6 +34,13 @@ def setup_logger_and_tracer(global_manager):
         'ERROR': logging.ERROR,
         'CRITICAL': logging.CRITICAL
     }
+
+    # Vérifier si le niveau de log est valide
+    if debug_level not in log_levels:
+        logger.warning(f"Niveau de log '{debug_level}' non reconnu, utilisation du niveau 'INFO'.")
+        log_level = logging.INFO
+    else:
+        log_level = log_levels[debug_level]
 
     # Define styles for different logging levels
     level_styles = {
@@ -46,9 +52,7 @@ def setup_logger_and_tracer(global_manager):
     }
 
     logging.getLogger("http.client").setLevel(logging.WARNING)
-    # Set log level
-    log_level = log_levels.get(debug_level, logging.INFO)
-
+    
     # Install coloredlogs
     coloredlogs.install(
         level=log_level,
@@ -61,18 +65,19 @@ def setup_logger_and_tracer(global_manager):
     file_log_format = '%(asctime)s [%(levelname)s] %(message)s'
     file_formatter = logging.Formatter(file_log_format, datefmt='%H:%M:%S')
 
-    log_plugin_file = config_handler.get_config(['UTILS', 'LOGGING', 'FILE'])
+    log_plugin_file = config_handler.get_config(['UTILS', 'LOGGING', 'FILE_SYSTEM'])
     log_plugin_azure = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE'])
 
-    if log_plugin_file and log_plugin_file.PLUGIN_NAME == 'file':
+    if log_plugin_file and log_plugin_file.PLUGIN_NAME == 'file_system':
         # File handler setup
         file_handler = RotatingFileHandler(
-            config_handler.get_config(['UTILS', 'LOGGING', 'FILE', 'FILE_PATH']),
+            config_handler.get_config(['UTILS', 'LOGGING', 'FILE_SYSTEM', 'FILE_PATH']),
             maxBytes=10000000,
             backupCount=3
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
+        logger.debug("File logging is set up")
 
     elif log_plugin_azure and log_plugin_azure.PLUGIN_NAME == 'azure':
         logging.getLogger('azure').setLevel(logging.WARNING)
