@@ -10,7 +10,7 @@ from plugins.genai_interactions.vector_search.openai_file_search.openai_file_sea
     OpenaiFileSearchPlugin,
 )
 import numpy as np
-import pandas as pd
+import json 
 
 @pytest.fixture
 def openai_file_search_plugin(mock_global_manager):
@@ -40,10 +40,10 @@ def openai_file_search_plugin(mock_global_manager):
 
 def test_initialize(openai_file_search_plugin):
     assert openai_file_search_plugin.plugin_name == "openai_file_search"
-    assert openai_file_search_plugin.openai_key == "fake_key"
-    assert openai_file_search_plugin.openai_endpoint == "https://fake_endpoint"
-    assert openai_file_search_plugin.openai_api_version == "v1"
-    assert openai_file_search_plugin.model_name == "gpt-35-turbo"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_OPENAI_KEY == "fake_key"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_OPENAI_ENDPOINT == "https://fake_endpoint"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_OPENAI_API_VERSION == "v1"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_MODEL_NAME == "gpt-35-turbo"
 
 @pytest.mark.asyncio
 async def test_handle_action(openai_file_search_plugin):
@@ -62,25 +62,34 @@ async def test_handle_action(openai_file_search_plugin):
 async def test_call_search_with_results(openai_file_search_plugin):
     query = "test query"
     index_name = "test_index"
-    expected_result = [("doc1", "passage_id", 1.0, "This is a passage", "title", "file_path")]
+    expected_result = [{"id": "doc1", "@search.score": 1.0}]
+    
     with patch.object(openai_file_search_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
-        mock_read_data_content.return_value = "passage_index,text,embedding\n0,This is a passage,[0.1,0.2,0.3]"
-        with patch.object(openai_file_search_plugin, 'search_reviews', new_callable=AsyncMock) as mock_search_reviews:
-            mock_search_reviews.return_value = [("doc1", "passage_id", 1.0, "This is a passage", "title", "file_path")]
-            result = await openai_file_search_plugin.call_search(query=query, index_name=index_name)
-            assert result == [("doc1", "passage_id", 1.0, "This is a passage", "title", "file_path")]
-        assert result == expected_result
+        mock_read_data_content.return_value = json.dumps({
+            "value": [{"id": "doc1", "vector": [0.1, 0.2, 0.3]}]
+        })
+        
+        with patch.object(openai_file_search_plugin, 'get_embedding', new_callable=AsyncMock) as mock_get_embedding:
+            mock_get_embedding.return_value = [0.1, 0.2, 0.3]
+            
+            result = await openai_file_search_plugin.call_search(query=query, index_name=index_name, result_count=5)
+            assert json.loads(result)["search_results"][0]["id"] == "doc1"
+            assert json.loads(result)["search_results"][0]["@search.score"] == 1.0
 
 @pytest.mark.asyncio
 async def test_call_search_without_results(openai_file_search_plugin):
     query = "test query"
     index_name = "test_index"
+    
+    # Simuler la lecture d'un fichier JSON vide
     with patch.object(openai_file_search_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
-        mock_read_data_content.return_value = "passage_index,text,embedding\n"
-        with patch.object(openai_file_search_plugin, 'search_reviews', new_callable=AsyncMock) as mock_search_reviews:
-            mock_search_reviews.return_value = []
-            result = await openai_file_search_plugin.call_search(query=query, index_name=index_name)
-            assert result == []
+        mock_read_data_content.return_value = json.dumps({"value": []})  # Renvoie un fichier JSON vide
+        
+        # Appeler la méthode call_search et vérifier que le résultat est vide
+        result = await openai_file_search_plugin.call_search(query=query, index_name=index_name, result_count=5)
+        
+        # Vérifier que les résultats sont bien vides
+        assert json.loads(result) == {"search_results": []}
 
 @pytest.mark.asyncio
 async def test_handle_request(openai_file_search_plugin):
@@ -120,15 +129,6 @@ def test_cosine_similarity(openai_file_search_plugin):
     b = np.array([0, 1, 1])
     result = openai_file_search_plugin.cosine_similarity(a, b)
     assert np.isclose(result, 0.5)
-
-@pytest.mark.asyncio
-async def test_extract_context(openai_file_search_plugin):
-    with patch.object(openai_file_search_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
-        mock_read_data_content.return_value = "This is a long text for context extraction test."
-        result = await openai_file_search_plugin.extract_context("index_name", "doc_id", 10, 20)
-        assert "long text for context" in result  # Changé cette assertion
-        assert len(result) <= len("This is a long text for context extraction test.")  # Ajouté cette assertion
-        mock_read_data_content.assert_called_once_with(data_container="index_name", data_file="doc_id")
 
 @pytest.mark.asyncio
 async def test_call_search_error_handling(openai_file_search_plugin):

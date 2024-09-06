@@ -92,7 +92,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
         query = parameters.get('query', '')  # The query to search for
-        index_name = parameters.get('index_name', self.search_index_name)  # Use provided index_name or fall back to default
+        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fall back to default and convert to lower case
         result = await self.call_search(message=query, index_name=index_name)
         return result
     

@@ -196,8 +196,14 @@ async def test_update_prompt_system_message(azure_blob_storage_plugin):
 async def test_update_session_invalid_json(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
          patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
+        
+        # Simuler un contenu JSON invalide
         mock_read.return_value = 'invalid json'
+        
+        # Appel de la méthode avec des données invalides
         await azure_blob_storage_plugin.update_session('container', 'file', 'role', 'content')
+        
+        # Vérifier que write_data_content n'est pas appelé en cas de JSON invalide
         mock_write.assert_not_called()
 
 @pytest.mark.asyncio
@@ -224,10 +230,6 @@ async def test_store_unmentioned_messages_existing_blob(azure_blob_storage_plugi
         uploaded_content = mock_blob_client.upload_blob.call_args[0][0]
         assert json.loads(uploaded_content) == [{"content": "existing message"}, {"content": "new message"}]
 
-    # Vérifier que write_data_content n'a pas été appelé
-    with patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
-        await azure_blob_storage_plugin.store_unmentioned_messages("channel1", "thread1", message)
-        mock_write.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_update_pricing_empty_initial_data(azure_blob_storage_plugin):

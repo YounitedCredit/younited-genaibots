@@ -1,7 +1,7 @@
 # tests/plugins/action_interactions/default/main_actions/actions/test_vector_search.py
 
 from unittest.mock import AsyncMock
-
+import json
 import pytest
 
 from core.action_interactions.action_input import ActionInput
@@ -46,11 +46,11 @@ async def test_vector_search_execute_with_results(mock_global_manager):
 
     # Mock methods
     mock_results = [
-        {'document_id': 'doc1', 'passage_id': 'p1', 'similarity': 0.95, 'text': 'Test text 1', 'title': 'Test title 1', 'file_path': 'path1'},
-        {'document_id': 'doc2', 'passage_id': 'p2', 'similarity': 0.90, 'text': 'Test text 2', 'title': 'Test title 2', 'file_path': 'path2'}
+        {'id': 'doc1', '@search.score': 0.95, 'content': 'Test text 1', 'title': 'Test title 1', 'file_path': 'path1'},
+        {'id': 'doc2', '@search.score': 0.90, 'content': 'Test text 2', 'title': 'Test title 2', 'file_path': 'path2'}
     ]
     mock_global_manager.user_interactions_dispatcher.send_message = AsyncMock()
-    mock_global_manager.genai_vectorsearch_dispatcher.handle_action = AsyncMock(return_value=mock_results)
+    mock_global_manager.genai_vectorsearch_dispatcher.handle_action = AsyncMock(return_value=json.dumps({"search_results": mock_results}))
     mock_global_manager.genai_interactions_text_dispatcher.trigger_genai = AsyncMock()
 
     # Execute the action
@@ -58,7 +58,7 @@ async def test_vector_search_execute_with_results(mock_global_manager):
 
     # Assert that send_message was called correctly to indicate search start
     assert any(
-        call.kwargs['message'] == "Looking at existing documentations..."
+        call.kwargs['message'] == "Looking at existing documentation..."
         and call.kwargs['message_type'] == MessageType.COMMENT
         for call in mock_global_manager.user_interactions_dispatcher.send_message.call_args_list
     )
@@ -66,7 +66,7 @@ async def test_vector_search_execute_with_results(mock_global_manager):
     # Assert that trigger_genai was called with the correct message
     assert mock_global_manager.genai_interactions_text_dispatcher.trigger_genai.call_count == 1
     event_copy = mock_global_manager.genai_interactions_text_dispatcher.trigger_genai.call_args[1]['event']
-    assert "Here's the result from the vector db search:" in event_copy.text
+    assert "Here's the result from the vector db search" in event_copy.text
 
 @pytest.mark.asyncio
 async def test_vector_search_execute_no_results(mock_global_manager):
@@ -100,7 +100,7 @@ async def test_vector_search_execute_no_results(mock_global_manager):
 
     # Assert that send_message was called correctly to indicate search start
     assert any(
-        call.kwargs['message'] == "Looking at existing documentations..."
+        call.kwargs['message'] == "Looking at existing documentation..."
         and call.kwargs['message_type'] == MessageType.COMMENT
         for call in mock_global_manager.user_interactions_dispatcher.send_message.call_args_list
     )
