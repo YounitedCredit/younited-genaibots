@@ -89,49 +89,24 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
     def trigger_genai(self, user_message=None, event: IncomingNotificationDataBase = None):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
-    async def handle_action(self, action_input:ActionInput , event: IncomingNotificationDataBase = None):
+    async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
-        input_param = parameters.get('value', '')
-        result = await self.call_search(message=input_param)
+        query = parameters.get('query', '')  # The query to search for
+        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fall back to default and convert to lower case
+        result = await self.call_search(message=query, index_name=index_name)
         return result
     
-    def prepare_body_headers_with_data(self, message):
+    def prepare_search_body_headers(self, message):
         body = {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": message
-                }
-            ],
-            "temperature": 0,
-            "max_tokens": 4000,
-            "top_p": 0,
-            "stream": "true",
-            "dataSources": []
+            "search": message,
+            "top": self.search_topn_document,
+            "select": "id, title, content",  # Return ID, title, and content
+            "queryType": "simple"  # Use 'simple' for a basic search
         }
-        # Set query type
-        query_type = "vector"
-       
-        body["dataSources"].append(
-            {
-                "type": "AzureCognitiveSearch",
-                "parameters": {
-                    "endpoint": self.search_endpoint,
-                    "key": self.search_key,
-                    "indexName": self.search_index_name,
-                    "topNDocuments": self.search_topn_document,
-                    "queryType": query_type,
-                    "roleInformation": self.search_prompt,
-                    "semanticConfiguration": "default"
-                }
-            })
-
-        body["dataSources"][0]["parameters"]["embeddingDeploymentName"] = self.model_name
 
         headers = {
             'Content-Type': 'application/json',
-            'api-key': self.azure_openai_key,
-            "x-ms-useragent": "GitHubSampleWebApp/PublicAPI/3.0.0"
+            'api-key': self.search_key
         }
 
         return body, headers
@@ -143,51 +118,42 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                 body = await response.read()
                 return status, body
     
-    async def call_search(self, message):
+    async def call_search(self, message, index_name):
         try:
-            body, headers = self.prepare_body_headers_with_data(message)
-            if not self.azure_openai_endpoint.endswith('/'):
-                self.azure_openai_endpoint += '/'
-
-            endpoint = f"{self.azure_openai_endpoint}openai/deployments/{self.search_completion_model_name}/extensions/chat/completions?api-version={self.openai_api_version}"
-            status, body = await self.post_request(endpoint, headers, body)
-            if status != 200:
-                self.logger.error(f"Request failed with status code {status}")
-                self.logger.error(f"Response body: {str(body)}")
-                raise OpenAIRequestError(status, body)
+            # Prepare the search URL dynamically based on index_name
+            search_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
             
-            body = json.loads(body.decode('utf-8'))
-            try:
-                messages = body["choices"][0]["messages"]
-                citations_content = json.loads(messages[0]['content'])
-                citations = {f"[doc{index}]": citation['title'] for index, citation in enumerate(citations_content['citations'])}
+            search_headers = {
+                'Content-Type': 'application/json',
+                'api-key': self.search_key
+            }
 
-                content_to_modify = messages[1]['content']
+            search_body = {
+                "search": message,
+                "select": "id, title, content",  # Fields to return
+                "top": self.search_topn_document
+            }
 
-                # Combine the message and citations into a single string
-                bot_content = f"Message: {content_to_modify}\nCitations: {str(citations)}"
-                return bot_content
+            # Perform the search request
+            async with aiohttp.ClientSession() as session:
+                async with session.post(search_url, headers=search_headers, json=search_body) as response:
+                    status = response.status
+                    body = await response.json()
 
-            except KeyError:
-                # Ce bloc est exécuté si une clé de l'objet message n'est pas trouvée.
-                json_content = json.dumps({
-                    "response": [
-                        {
-                            "Action": {
-                                "ActionName": "UserInteraction",
-                                "Parameters": {
-                                    "value": "I was unable to gather the information in my data, sorry about that."
-                                }
-                            }
-                        }
-                    ]
-                })
-                return json_content
+                    # Check if search was successful
+                    if status != 200:
+                        self.logger.error(f"Search failed with status code {status}")
+                        self.logger.error(f"Search response: {str(body)}")
+                        raise OpenAIRequestError(status, body)
 
+                    # Log and return the search results
+                    search_results = body.get("value", [])
+                    self.logger.info(f"Search returned {len(search_results)} results")
+                    return json.dumps({"search_results": search_results})
+                    
         except Exception as e:
-            # Ce bloc est exécuté pour toute autre exception qui pourrait survenir.
             self.logger.error(f"An error occurred during search: {e}")
-            json_content = json.dumps({
+            return json.dumps({
                 "response": [
                     {
                         "Action": {
@@ -199,4 +165,3 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                     }
                 ]
             })
-            return json_content

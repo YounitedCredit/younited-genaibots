@@ -25,9 +25,8 @@ class BotConfig(BaseModel):
     BREAK_KEYWORD: str
     START_KEYWORD: str
 
-class File(BaseModel):
+class FileSystem(BaseModel):
     PLUGIN_NAME: str
-    LEVEL: str
     FILE_PATH: str
 
 class Azure(BaseModel):
@@ -35,7 +34,7 @@ class Azure(BaseModel):
     APPLICATIONINSIGHTS_CONNECTION_STRING: str
 
 class Logging(BaseModel):
-    FILE: Optional[File] = None
+    FILE_SYSTEM: Optional[FileSystem] = None
     AZURE: Optional[Azure] = None
 
 class Environment(BaseModel):

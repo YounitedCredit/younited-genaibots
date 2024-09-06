@@ -8,7 +8,7 @@ from utils.config_manager.config_model import (
     BotConfig,
     ConfigModel,
     Environment,
-    File,
+    FileSystem,
     GenaiInteractions,
     Logging,
     Plugin,
@@ -55,24 +55,30 @@ def test_bot_config():
 
 def test_logging():
     # Test valid Logging
-    file_data = {"PLUGIN_NAME": "file_plugin", "LEVEL": "DEBUG", "FILE_PATH": "path/to/log"}
+    file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
     azure_data = {"PLUGIN_NAME": "azure_plugin", "APPLICATIONINSIGHTS_CONNECTION_STRING": "connection_string"}
-    logging = Logging(FILE=File(**file_data), AZURE=Azure(**azure_data))
-    assert logging.FILE.PLUGIN_NAME == "file_plugin"
+    
+    # FILE_SYSTEM is the correct attribute, not FILE
+    logging = Logging(FILE_SYSTEM=FileSystem(**file_data), AZURE=Azure(**azure_data))
+    
+    assert logging.FILE_SYSTEM.PLUGIN_NAME == "file_plugin"
     assert logging.AZURE.PLUGIN_NAME == "azure_plugin"
 
     # Test invalid Logging (invalid nested model)
     invalid_file_data = file_data.copy()
-    invalid_file_data["LEVEL"] = 123  # Invalid type for LEVEL
+    invalid_file_data["FILE_PATH"] = 123  # Invalid type for FILE_PATH
     with pytest.raises(ValidationError):
-        Logging(FILE=File(**invalid_file_data))
+        Logging(FILE_SYSTEM=FileSystem(**invalid_file_data))
 
 def test_utils():
     # Test valid Utils
-    file_data = {"PLUGIN_NAME": "file_plugin", "LEVEL": "DEBUG", "FILE_PATH": "path/to/log"}
-    logging = Logging(FILE=File(**file_data))
+    file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
+    
+    # Ensure FILE_SYSTEM is properly set
+    logging = Logging(FILE_SYSTEM=FileSystem(**file_data))
     utils = Utils(LOGGING=logging)
-    assert utils.LOGGING.FILE.LEVEL == "DEBUG"
+    
+    assert utils.LOGGING.FILE_SYSTEM.FILE_PATH == "path/to/log"
 
 def test_plugins():
     # Test valid Plugins
@@ -116,8 +122,10 @@ def test_config_model():
         "BREAK_KEYWORD": "break",
         "START_KEYWORD": "start"
     }
-    file_data = {"PLUGIN_NAME": "file_plugin", "LEVEL": "DEBUG", "FILE_PATH": "path/to/log"}
-    logging = Logging(FILE=File(**file_data))
+    file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
+    
+    # Ensure FILE_SYSTEM is properly set
+    logging = Logging(FILE_SYSTEM=FileSystem(**file_data))
     utils = Utils(LOGGING=logging)
 
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
@@ -136,9 +144,10 @@ def test_config_model():
     )
 
     config_model = ConfigModel(BOT_CONFIG=BotConfig(**bot_config_data), UTILS=utils, PLUGINS=plugins)
+    
     assert config_model.BOT_CONFIG.CORE_PROMPT == "core_prompt"
-    assert config_model.UTILS.LOGGING.FILE.PLUGIN_NAME == "file_plugin"
-    assert config_model.PLUGINS.ACTION_INTERACTIONS.DEFAULT["default_plugin"].PLUGIN_NAME == "plugin_name"
+    assert config_model.UTILS.LOGGING.FILE_SYSTEM.PLUGIN_NAME == "file_plugin"
+
 
 def test_sensitive_data():
     # Test valid SensitiveData

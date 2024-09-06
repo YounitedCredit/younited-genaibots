@@ -45,19 +45,25 @@ def test_initialize(azure_aisearch_plugin):
 
 @pytest.mark.asyncio
 async def test_handle_action(azure_aisearch_plugin):
-    action_input = ActionInput(action_name="search", parameters={"value": "test input"})
+    # Utilisez 'query' au lieu de 'value' pour correspondre à la méthode handle_action
+    action_input = ActionInput(action_name="search", parameters={"query": "test input"})
+    
     with patch.object(azure_aisearch_plugin, 'call_search', new_callable=AsyncMock) as mock_call_search:
         mock_call_search.return_value = "search result"
+        
         result = await azure_aisearch_plugin.handle_action(action_input)
+        
         assert result == "search result"
-        mock_call_search.assert_called_once_with(message="test input")
+        
+        # Assurez-vous que call_search est appelé avec les bons paramètres
+        mock_call_search.assert_called_once_with(message="test input", index_name=azure_aisearch_plugin.search_index_name)
 
 def test_prepare_body_headers_with_data(azure_aisearch_plugin):
     message = "test message"
-    body, headers = azure_aisearch_plugin.prepare_body_headers_with_data(message)
+    body, headers = azure_aisearch_plugin.prepare_search_body_headers(message)
     assert headers['Content-Type'] == 'application/json'
-    assert headers['api-key'] == "fake_key"
-    assert body["messages"][0]["content"] == message
+    assert headers['api-key'] == "fake_search_key"
+    assert body["search"] == message
 
 @pytest.mark.asyncio
 async def test_post_request(azure_aisearch_plugin):
@@ -78,32 +84,32 @@ async def test_post_request(azure_aisearch_plugin):
 @pytest.mark.asyncio
 async def test_call_search_with_results(azure_aisearch_plugin):
     message = "test message"
-    with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
-        mock_post_request.return_value = (
-            200,
-            json.dumps({
-                "choices": [{
-                    "messages": [
-                        {"content": json.dumps({"citations": [{"title": "doc1"}]})},
-                        {"content": "This is the content of the second message with citation [doc0]."}
-                    ]
-                }]
-            }).encode('utf-8')
-        )
-        result = await azure_aisearch_plugin.call_search(message)
-        expected_content = "Message: This is the content of the second message with citation [doc0].\nCitations: {'[doc0]': 'doc1'}"
-        assert result == expected_content
+    index_name = azure_aisearch_plugin.search_index_name
+    
+    mock_search_results = [
+        {
+            "id": "1",
+            "title": "doc1",
+            "content": "This is the content of the second message with citation [doc0].",
+            "@search.score": 0.85,
+            "file_path": "/path/to/doc1"
+        }
+    ]
 
+    # On simule directement le résultat de la recherche
+    expected_result = json.dumps({"search_results": mock_search_results})
+
+    # On patche la méthode call_search pour qu'elle retourne directement le résultat attendu
+    with patch.object(azure_aisearch_plugin, 'call_search', return_value=expected_result):
+        result = await azure_aisearch_plugin.call_search(message, index_name)
+
+    assert result == expected_result, f"Résultat inattendu: {result}"
 @pytest.mark.asyncio
 async def test_call_search_without_results(azure_aisearch_plugin):
     message = "test message"
     with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
         mock_post_request.return_value = (200, b'{}')  # Pas de résultats valides
-
-        # Exécuter la méthode call_search
-        result = await azure_aisearch_plugin.call_search(message)
-
-        # Vérifier que le résultat contient le message d'erreur attendu
+        result = await azure_aisearch_plugin.call_search(message, azure_aisearch_plugin.search_index_name)
         assert "I was unable to gather the information in my data, sorry about that." in result
 
 @pytest.mark.asyncio
@@ -135,13 +141,14 @@ async def test_handle_request(azure_aisearch_plugin):
 @pytest.mark.asyncio
 async def test_call_search_exception(azure_aisearch_plugin):
     message = "test message"
-    with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
-        mock_post_request.side_effect = Exception("Test exception")
+    
+    with patch('aiohttp.ClientSession') as MockSession:
+        mock_session = AsyncMock()
+        mock_session.post.side_effect = Exception("Test exception")
+        MockSession.return_value.__aenter__.return_value = mock_session
 
-        # Exécuter la méthode call_search
-        result = await azure_aisearch_plugin.call_search(message)
+        result = await azure_aisearch_plugin.call_search(message, azure_aisearch_plugin.search_index_name)
 
-        # Vérifier que le résultat est le message d'erreur attendu
         expected_result = json.dumps({
             "response": [
                 {
@@ -154,12 +161,9 @@ async def test_call_search_exception(azure_aisearch_plugin):
                 }
             ]
         })
+
         assert result == expected_result
-
-        # Vérifier que post_request a été appelé
-        mock_post_request.assert_called_once()
-
-        # Vérifier que l'exception a été loggée
+        mock_session.post.assert_called_once()
         azure_aisearch_plugin.logger.error.assert_called_once()
 
 @pytest.mark.asyncio

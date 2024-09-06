@@ -52,7 +52,7 @@ def test_setup_logger_basic_config(mock_config_manager, mock_coloredlogs):
 def test_setup_logger_file_config(mock_config_manager, mock_rotating_file_handler):
     mock_config_manager().get_config.side_effect = [
         'INFO',
-        MagicMock(PLUGIN_NAME='file'),
+        MagicMock(PLUGIN_NAME='file_system'),
         None,  # for log_plugin_azure
         '/path/to/log/file.log'
     ]
