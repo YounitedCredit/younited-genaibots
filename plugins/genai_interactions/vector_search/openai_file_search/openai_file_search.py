@@ -2,20 +2,24 @@ import json
 import numpy as np
 from typing import List
 from pydantic import BaseModel
+from openai import AsyncAzureOpenAI, AsyncOpenAI
 
 from core.action_interactions.action_input import ActionInput
-from core.genai_interactions.genai_interactions_plugin_base import (
-    GenAIInteractionsPluginBase,
-)
+from core.genai_interactions.genai_interactions_plugin_base import GenAIInteractionsPluginBase
 from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
-import inspect 
+import inspect
+
 
 class OpenaiFileSearchConfig(BaseModel):
     PLUGIN_NAME: str
     OPENAI_SEARCH_OPENAI_KEY: str
+    OPENAI_SEARCH_OPENAI_ENDPOINT: str
+    OPENAI_SEARCH_OPENAI_API_VERSION: str
+    OPENAI_SEARCH_MODEL_HOST: str  # Can be "azure" or "openai"
     OPENAI_SEARCH_MODEL_NAME: str
     OPENAI_SEARCH_RESULT_COUNT: int
+
 
 class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -27,6 +31,15 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         self._plugin_name = "openai_file_search"
 
     def initialize(self):
+        # Ensure the correct client is initialized based on the model host type (Azure or OpenAI)
+        if self.openai_search_config.OPENAI_SEARCH_MODEL_HOST.lower() == "azure":
+            self.client = AsyncAzureOpenAI(
+                api_key=self.openai_search_config.OPENAI_SEARCH_OPENAI_KEY,
+                azure_endpoint=self.openai_search_config.OPENAI_SEARCH_OPENAI_ENDPOINT,
+                api_version=self.openai_search_config.OPENAI_SEARCH_OPENAI_API_VERSION
+            )
+        else:
+            self.client = AsyncOpenAI(api_key=self.openai_search_config.OPENAI_SEARCH_OPENAI_KEY)
         self.result_count = self.openai_search_config.OPENAI_SEARCH_RESULT_COUNT
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
@@ -46,9 +59,7 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         result = await self.call_search(query=query, index_name=index_name, result_count=result_count)
         return result
 
-
     async def call_search(self, query, index_name, result_count):
-        # Load local JSON file and search for relevant results based on query
         try:
             # Read JSON data
             file_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container="vectors", data_file=f"{index_name}.json")
@@ -70,12 +81,13 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         # Sort by similarity and get top results
         sorted_data = sorted(data['value'], key=lambda x: x['similarity'], reverse=True)[:result_count]
 
-        # Prepare results
+        # Prepare results with a similarity score
         search_results = [{
             "id": item['id'],
             "title": item.get('title', ''),
             "content": item.get('content', ''),
-            "file_path": item.get('file_path', '')
+            "file_path": item.get('file_path', ''),
+            "@search.score": item['similarity']  # Add similarity as the score
         } for item in sorted_data]
 
         return json.dumps({"search_results": search_results})
