@@ -144,28 +144,53 @@ if args.source_type == 'azure_devops_wiki':
 
 def get_file_path(local_path, source_type, wiki_url, input_dir):
     if source_type == 'filesystem':
-        return local_path
+        # Replace backslashes with forward slashes for filesystem paths
+        file_path = local_path.replace('\\', '/')
+        return file_path
     elif source_type == 'azure_devops_wiki':
+        # For Azure DevOps, generate the Wiki URL
         return create_wiki_url(wiki_url, local_path, input_dir)
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
     
 def create_wiki_url(wiki_base_url, local_file_path, input_dir):
+    # Log the complete local file path before any processing
+    logging.info(f"Local file path received: {local_file_path}")
+
     # Get the relative path from the input directory
     relative_path = os.path.relpath(local_file_path, input_dir)
-    
-    # Replace backslashes with forward slashes (for Windows paths)
-    relative_path = relative_path.replace('\\', '/')
+    logging.info(f"Relative path before processing: {relative_path}")
 
-    # Remove .md extension if present
+    # Replace backslashes with forward slashes for Windows paths
+    relative_path = relative_path.replace('\\', '/')
+    logging.info(f"Relative path after backslash replacement: {relative_path}")
+
+    # Remove the .md extension if present
     if relative_path.lower().endswith('.md'):
         relative_path = os.path.splitext(relative_path)[0]
-    
-    # Encode the relative path
-    encoded_path = urllib.parse.quote(relative_path)
-    
-    # Construct and return the full wiki URL with pagePath parameter
-    return f"{wiki_base_url}?pagePath=/{encoded_path}"
+    logging.info(f"Relative path after removing .md: {relative_path}")
+
+    # Decode any URL-encoded characters from the git clone path
+    decoded_path = urllib.parse.unquote(relative_path)
+    logging.info(f"Decoded path after unquoting: {decoded_path}")
+
+    # Step 1: Replace the encoded hyphens (%2D) with double-encoded hyphens (%252D)
+    decoded_path = re.sub(r'RFC-(\d+)', r'RFC%252D\1', decoded_path)
+    logging.info(f"Path after handling RFC hyphen: {decoded_path}")
+
+    # Step 2: Replace actual hyphens used for spaces with %20
+    decoded_path = decoded_path.replace('-', '%20')
+    logging.info(f"Path after handling hyphens for spaces: {decoded_path}")
+
+    # Step 3: Encode only the remaining special characters
+    final_path = urllib.parse.quote(decoded_path, safe='%20()/')
+    logging.info(f"Final encoded path: {final_path}")
+
+    # Construct the final URL
+    final_url = f"{wiki_base_url}?wikiVersion=GBwikiMaster&pagePath=/{final_path}"
+    logging.info(f"Final generated URL: {final_url}")
+
+    return final_url
 
 file_paths = []
 
