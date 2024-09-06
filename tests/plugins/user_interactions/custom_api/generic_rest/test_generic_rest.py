@@ -19,6 +19,10 @@ from core.user_interactions.outgoing_notification_data_base import (
     OutgoingNotificationDataBase,
 )
 
+from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
+    GenericRestReactions,
+)
+
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
     ROUTE_PATH: str
@@ -40,17 +44,18 @@ def rest_config_data():
 
 @pytest.fixture
 def generic_rest_plugin(mock_global_manager, rest_config_data):
+    print("Setting up generic_rest_plugin fixture")
     mock_global_manager.config_manager.config_model.PLUGINS.USER_INTERACTIONS.CUSTOM_API = {
         "GENERIC_REST": rest_config_data
     }
-    # Créez un mock pour asyncio.get_event_loop()
     mock_loop = AsyncMock()
     mock_loop.create_task = MagicMock()
     
-    # Remplacez asyncio.get_event_loop() par notre mock
     with patch('asyncio.get_event_loop', return_value=mock_loop):
         plugin = GenericRestPlugin(mock_global_manager)
-        yield plugin
+        plugin.initialize()  # Ajout de cette ligne
+        print(f"Plugin initialized: {plugin}")
+        return plugin  # Changement de yield à return
 
 @pytest.mark.asyncio
 async def test_handle_request(generic_rest_plugin):
@@ -60,11 +65,13 @@ async def test_handle_request(generic_rest_plugin):
     request.headers = {}
     request.url.path = "/webhook"
 
-    response = await generic_rest_plugin.handle_request(request)
+    with patch.object(generic_rest_plugin, 'process_event_data') as mock_process:
+        response = await generic_rest_plugin.handle_request(request)
 
-    assert isinstance(response, Response)
-    assert response.status_code == 202
-    assert response.body == b"Request accepted for processing"
+        assert isinstance(response, Response)
+        assert response.status_code == 202
+        assert response.body == b"Request accepted for processing"
+        mock_process.assert_called_once()
 
     # Test case 2: Invalid JSON
     request.body = AsyncMock(return_value=b'{"invalid": "json"')
@@ -82,8 +89,11 @@ async def test_handle_request(generic_rest_plugin):
     assert response.status_code == 500
     assert response.body == b"Internal server error"
 
-    # Verify that create_task was called
-    assert generic_rest_plugin.global_manager.loop.create_task.called
+    # Vérifier que process_event_data est appelé pour une requête valide
+    with patch.object(generic_rest_plugin, 'process_event_data') as mock_process:
+        request.body = AsyncMock(return_value=b'{"user_id": "123", "channel_id": "456"}')
+        await generic_rest_plugin.handle_request(request)
+        mock_process.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_validate_request(generic_rest_plugin):
@@ -96,12 +106,10 @@ async def test_validate_request(generic_rest_plugin):
     headers = {}
     raw_body_str = '{"user_id": "123", "channel_id": "456", "event_type": "test_event", "data": {"key": "value"}}'
 
-    # Mock IncomingNotificationDataBase.from_dict to match the event_data structure
-    IncomingNotificationDataBase.from_dict = MagicMock(return_value=MagicMock())
-
-    is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str)
-
-    assert is_valid is True
+    # Mock IncomingNotificationDataBase.from_dict to return a valid object
+    with patch('core.user_interactions.incoming_notification_data_base.IncomingNotificationDataBase.from_dict', return_value=MagicMock(spec=IncomingNotificationDataBase)):
+        is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str)
+        assert is_valid is True
 
     # Test with missing keys in event_data
     event_data_missing_keys = {
@@ -109,13 +117,11 @@ async def test_validate_request(generic_rest_plugin):
     }
     raw_body_str_missing_keys = '{"user_id": "123"}'
     is_valid = await generic_rest_plugin.validate_request(event_data_missing_keys, headers, raw_body_str_missing_keys)
-    
     assert is_valid is False
 
     # Test with invalid JSON
     raw_body_str_invalid_json = '{"user_id": "123", "channel_id": 456"'
     is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str_invalid_json)
-    
     assert is_valid is False
 
 @pytest.mark.asyncio
@@ -132,10 +138,13 @@ async def test_process_event_data(generic_rest_plugin):
     # Mock the behavior dispatcher
     generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction = AsyncMock()
 
-    await generic_rest_plugin.process_event_data(event_data, headers, raw_body_str)
+    # Test with valid request data
+    with patch.object(generic_rest_plugin, 'validate_request', return_value=True):
+        await generic_rest_plugin.process_event_data(event_data, headers, raw_body_str)
+        assert generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.called
 
-    # Add assertions to verify expected behavior
-    assert generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.called
+    # Reset the mock
+    generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.reset_mock()
 
     # Test with invalid request data
     with patch.object(generic_rest_plugin, 'validate_request', return_value=False):
@@ -219,6 +228,7 @@ async def test_request_to_notification_data(generic_rest_plugin):
 @pytest.mark.asyncio
 async def test_post_notification(generic_rest_plugin):
     notification = MagicMock(spec=OutgoingNotificationDataBase)
+    notification.to_dict.return_value = {"key": "value"}
     url = "http://example.com/post_notification"
 
     # Mock the aiohttp.ClientSession and response
@@ -231,8 +241,12 @@ async def test_post_notification(generic_rest_plugin):
 
         mock_post.assert_called_once()
 
-        # Test case when the response is not successful
+    # Test case when the response is not successful
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        mock_response = MagicMock()
         mock_response.status = 500
+        mock_post.return_value.__aenter__.return_value = mock_response
+
         with pytest.raises(Exception):
             await generic_rest_plugin.post_notification(notification, url)
 
@@ -339,6 +353,7 @@ async def test_process_event_data_exception_handling(generic_rest_plugin):
 @pytest.mark.asyncio
 async def test_post_notification_success(generic_rest_plugin):
     notification = MagicMock(spec=OutgoingNotificationDataBase)
+    notification.to_dict.return_value = {"key": "value"}
     url = "http://example.com/post_notification"
 
     with patch("aiohttp.ClientSession.post") as mock_post:
@@ -347,6 +362,7 @@ async def test_post_notification_success(generic_rest_plugin):
         mock_post.return_value.__aenter__.return_value = mock_response
 
         await generic_rest_plugin.post_notification(notification, url)
+
         mock_post.assert_called_once()
 
 @pytest.mark.asyncio
@@ -354,6 +370,166 @@ async def test_post_notification_failure(generic_rest_plugin):
     notification = MagicMock(spec=OutgoingNotificationDataBase)
     url = "http://example.com/post_notification"
 
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.status = 500
+        mock_post.return_value.__aenter__.return_value = mock_response
+
+        with pytest.raises(Exception):
+            await generic_rest_plugin.post_notification(notification, url)
+
+@pytest.mark.asyncio
+async def test_send_message_with_title_and_flags(generic_rest_plugin):
+    message = "Hello, world!"
+    event = MagicMock()
+    message_type = MessageType.TEXT
+    title = "Greeting"
+    
+    # Test when title, is_internal, and show_ref are set
+    generic_rest_plugin.post_notification = AsyncMock()
+
+    await generic_rest_plugin.send_message(message, event, message_type, title=title, is_internal=True, show_ref=True)
+
+    assert generic_rest_plugin.post_notification.called
+
+@pytest.mark.asyncio
+async def test_upload_file_not_implemented(generic_rest_plugin):
+    event = MagicMock()
+    with pytest.raises(NotImplementedError):
+        await generic_rest_plugin.upload_file(event, b"file_content", "filename.txt", "title")
+
+@pytest.mark.asyncio
+async def test_request_to_notification_data_invalid_data(generic_rest_plugin):
+    invalid_event_data = {"invalid_key": "invalid_value"}
+
+    with patch('core.user_interactions.incoming_notification_data_base.IncomingNotificationDataBase.from_dict', side_effect=KeyError):
+        with pytest.raises(KeyError):
+            await generic_rest_plugin.request_to_notification_data(invalid_event_data)
+
+def test_format_trigger_genai_message_not_implemented(generic_rest_plugin):
+    with pytest.raises(NotImplementedError):
+        generic_rest_plugin.format_trigger_genai_message("Test message")
+
+def test_initialize_complete(generic_rest_plugin):
+    generic_rest_plugin.initialize()
+
+    assert generic_rest_plugin.route_path == "/webhook"
+    assert generic_rest_plugin.route_methods == ["POST"]
+    assert generic_rest_plugin.plugin_name == "generic_rest"
+    assert generic_rest_plugin.reactions is not None
+    assert generic_rest_plugin.genai_interactions_text_dispatcher is not None
+    assert generic_rest_plugin.backend_internal_data_processing_dispatcher is not None
+
+def test_reactions_property(generic_rest_plugin):
+    assert generic_rest_plugin.reactions is not None
+    assert isinstance(generic_rest_plugin.reactions, GenericRestReactions)
+
+@pytest.mark.asyncio
+async def test_handle_request_json_decode_error(generic_rest_plugin):
+    request = MagicMock(spec=Request)
+    request.body = AsyncMock(return_value=b'invalid_json')
+    request.headers = {}
+    request.url.path = "/webhook"
+
+    response = await generic_rest_plugin.handle_request(request)
+    assert response.status_code == 400
+    assert response.body == b"Invalid JSON"
+
+@pytest.mark.asyncio
+async def test_handle_request_general_exception(generic_rest_plugin):
+    request = MagicMock(spec=Request)
+    request.body = AsyncMock(side_effect=Exception("Test exception"))
+    request.headers = {}
+    request.url.path = "/webhook"
+
+    response = await generic_rest_plugin.handle_request(request)
+    assert response.status_code == 500
+    assert response.body == b"Internal server error"
+
+@pytest.mark.asyncio
+async def test_validate_request_json_decode_error(generic_rest_plugin):
+    event_data = None
+    headers = {}
+    raw_body_str = "invalid_json"
+
+    is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str)
+    assert not is_valid
+
+@pytest.mark.asyncio
+async def test_validate_request_conversion_error(generic_rest_plugin):
+    event_data = None
+    headers = {}
+    raw_body_str = '{"user_id": "123"}'  # JSON valide mais incomplet
+
+    # Simuler une exception lors de la conversion en IncomingNotificationDataBase
+    with patch("core.user_interactions.incoming_notification_data_base.IncomingNotificationDataBase.from_dict", side_effect=Exception("Conversion error")):
+        is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str)
+        assert not is_valid
+
+@pytest.mark.asyncio
+async def test_process_event_data_validate_fails(generic_rest_plugin):
+    event_data = {"user_id": "123", "channel_id": "456", "event_type": "test_event"}
+    headers = {}
+    raw_body_str = '{"user_id": "123", "channel_id": "456", "event_type": "test_event"}'
+
+    # Simuler l'échec de la validation de la requête
+    with patch.object(generic_rest_plugin, 'validate_request', return_value=False):
+        await generic_rest_plugin.process_event_data(event_data, headers, raw_body_str)
+        generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_process_event_data_process_interaction_exception(generic_rest_plugin):
+    event_data = {"user_id": "123", "channel_id": "456", "event_type": "test_event"}
+    headers = {}
+    raw_body_str = '{"user_id": "123", "channel_id": "456", "event_type": "test_event"}'
+
+    # Simuler l'échec de la requête pendant le traitement
+    with patch.object(generic_rest_plugin, 'validate_request', return_value=True):
+        with patch.object(generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher, 'process_interaction', side_effect=Exception("Test exception")):
+            with pytest.raises(Exception):
+                await generic_rest_plugin.process_event_data(event_data, headers, raw_body_str)
+
+@pytest.mark.asyncio
+async def test_send_message_exception_during_post(generic_rest_plugin):
+    message = "Test message"
+    event = MagicMock()
+    message_type = MessageType.TEXT
+
+    # Simuler une exception lors de l'appel à post_notification
+    with patch.object(generic_rest_plugin, 'post_notification', side_effect=Exception("Post error")):
+        with pytest.raises(Exception):
+            await generic_rest_plugin.send_message(message, event, message_type)
+
+@pytest.mark.asyncio
+async def test_add_reaction_exception_during_post(generic_rest_plugin):
+    event = MagicMock()
+    channel_id = "123"
+    timestamp = "1234567890"
+    reaction_name = "like"
+
+    # Simuler une exception lors de l'envoi de la notification
+    with patch.object(generic_rest_plugin, 'post_notification', side_effect=Exception("Post error")):
+        with pytest.raises(Exception):
+            await generic_rest_plugin.add_reaction(event, channel_id, timestamp, reaction_name)
+
+@pytest.mark.asyncio
+async def test_remove_reaction_exception_during_post(generic_rest_plugin):
+    event = MagicMock()
+    channel_id = "123"
+    timestamp = "1234567890"
+    reaction_name = "like"
+
+    # Simuler une exception lors de l'envoi de la notification
+    with patch.object(generic_rest_plugin, 'post_notification', side_effect=Exception("Post error")):
+        with pytest.raises(Exception):
+            await generic_rest_plugin.remove_reaction(event, channel_id, timestamp, reaction_name)
+
+@pytest.mark.asyncio
+async def test_post_notification_failure_response(generic_rest_plugin):
+    notification = MagicMock(spec=OutgoingNotificationDataBase)
+    url = "http://example.com/post_notification"
+
+    # Simuler une réponse non réussie
     with patch("aiohttp.ClientSession.post") as mock_post:
         mock_response = MagicMock()
         mock_response.status = 500
