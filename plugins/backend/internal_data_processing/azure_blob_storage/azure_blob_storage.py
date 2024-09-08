@@ -33,6 +33,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
         self.logger =global_manager.logger
         super().__init__(global_manager)
+        self.initialization_failed = False
         self.plugin_manager : PluginManager = global_manager.plugin_manager
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
         config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
@@ -58,7 +59,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             credential = DefaultAzureCredential()
             self.blob_service_client = BlobServiceClient(account_url=self.azure_blob_storage_config.CONNECTION_STRING, credential=credential)
             self.logger.debug("BlobServiceClient successfully created")
-        except AzureError as e:
+        except Exception as e:
             self.initialization_failed = True
             self.logger.exception(f"Failed to create BlobServiceClient: {str(e)}")
 
