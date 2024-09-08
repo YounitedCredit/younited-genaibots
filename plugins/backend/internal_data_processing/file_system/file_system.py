@@ -23,6 +23,7 @@ class FileSystemConfig(BaseModel):
     PROCESSING_CONTAINER: str
     ABORT_CONTAINER: str
     VECTORS_CONTAINER: str
+    CUSTOM_ACTIONS_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -45,6 +46,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.processing_container = None
         self.abort_container = None
         self.vectors_container = None
+        self.custom_actions_container = None
 
     @property
     def plugin_name(self):
@@ -98,6 +100,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def vectors(self):
         # Implement the vectors property
         return self.vectors_container
+    
+    @property
+    def custom_actions(self):
+        # Implement the custom_actions property
+        return self.custom_actions_container
 
     def initialize(self):
         try:
@@ -112,7 +119,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.processing_container = self.file_system_config.PROCESSING_CONTAINER
             self.abort_container = self.file_system_config.ABORT_CONTAINER
             self.vectors_container = self.file_system_config.VECTORS_CONTAINER
-            self.plugin_name = self.file_system_config.PLUGIN_NAME
+            self.custom_actions_container = self.file_system_config.CUSTOM_ACTIONS_CONTAINER
+            self.plugin_name = self.file_system_config.PLUGIN_NAME            
             self.init_shares()
         except KeyError as e:
             self.logger.exception(f"Missing configuration key: {str(e)}")

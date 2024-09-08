@@ -27,6 +27,7 @@ class AzureBlobStorageConfig(BaseModel):
     PROCESSING_CONTAINER: str
     ABORT_CONTAINER: str
     VECTORS_CONTAINER: str
+    CUSTOM_ACTIONS_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -50,6 +51,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.processing_container = self.azure_blob_storage_config.PROCESSING_CONTAINER
         self.abort_container = self.azure_blob_storage_config.ABORT_CONTAINER
         self.vectors_container = self.azure_blob_storage_config.VECTORS_CONTAINER
+        self.custom_actions_container = self.azure_blob_storage_config.CUSTOM_ACTIONS_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
@@ -112,6 +114,11 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def vectors(self):
         # Implement the vectors property
         return self.vectors_container
+    
+    @property
+    def custom_actions(self):
+        # Implement the custom_actions property
+        return self.custom_actions_container
 
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")

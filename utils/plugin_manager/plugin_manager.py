@@ -1,12 +1,12 @@
 import importlib
 import sys
 import traceback
-
+import types
 from fastapi import APIRouter
-
+import asyncio
 from core.plugin_base import PluginBase
 from utils.config_manager.config_model import Plugins
-
+from core.action_interactions.action_base import ActionBase
 
 class PluginManager:
     def __init__(self, base_directory, global_manager):
@@ -25,19 +25,86 @@ class PluginManager:
         self.plugins = {}
 
     def load_plugins(self):
-        for category, subcategories in self.plugin_configs.model_dump().items():
-            for subcategory, plugins in subcategories.items():
-                for plugin_name, plugin_config in plugins.items():
+        """
+        Load plugins based on the configuration.
+        If `LOAD_ACTIONS_FROM_BACKEND` is True, custom actions will be loaded from the backend folder via the dispatcher.
+        Otherwise, actions are loaded from the plugin folders.
+        """
+        loaded_actions = []  # List to keep track of successfully loaded actions
 
-                    plugin_dir = category + '.' + subcategory
-                    plugin_class = self.get_plugin(plugin_name=plugin_name.lower(), subdirectory=plugin_dir.lower())
+        if self.global_manager.bot_config.LOAD_ACTIONS_FROM_BACKEND:
+            self.logger.info("Loading custom actions from backend using the dispatcher...")
 
-                    if hasattr(plugin_class, '__abstractmethods__') and plugin_class.__abstractmethods__:
-                        self.logger.error(f"Class '{plugin_class.__name__}' has not implemented all abstract methods: {', '.join(plugin_class.__abstractmethods__)}")
-                        continue  # Skip this plugin and move to the next one
+            # Planifier la tâche asynchrone sans utiliser asyncio.run() pour éviter l'erreur
+            asyncio.ensure_future(self._load_custom_actions_from_backend(loaded_actions))
+        else:
+            # Classic loading from plugin folders
+            self.logger.info("Loading plugins and actions from plugin folders...")
+            for category, subcategories in self.plugin_configs.model_dump().items():
+                for subcategory, plugins in subcategories.items():
+                    for plugin_name, plugin_config in plugins.items():
+                        plugin_dir = category + '.' + subcategory
+                        self.logger.debug(f"Attempting to load plugin '{plugin_name}' from '{plugin_dir}'...")
 
-        self.logger.debug("initialize plugins...")
+                        try:
+                            plugin_class = self.get_plugin(plugin_name=plugin_name.lower(), subdirectory=plugin_dir.lower())
 
+                            if hasattr(plugin_class, '__abstractmethods__') and plugin_class.__abstractmethods__:
+                                self.logger.error(f"Class '{plugin_class.__name__}' has not implemented all abstract methods: {', '.join(plugin_class.__abstractmethods__)}")
+                                continue
+
+                            # Add the plugin to the list of loaded plugins
+                            loaded_actions.append(plugin_name)
+                        
+                        except Exception as e:
+                            self.logger.error(f"Error while loading plugin '{plugin_name}' from '{plugin_dir}': {e}")
+
+            # Log the loaded plugins and actions
+            if loaded_actions:
+                self.logger.info(f"Plugins and actions loaded from plugin folders: {', '.join(loaded_actions)}")
+            else:
+                self.logger.info("No plugins or actions were loaded from the plugin folders.")
+
+    async def _load_custom_actions_from_backend(self, loaded_actions):
+        """
+        Load custom actions asynchronously from the backend storage using the dispatcher.
+        """
+        custom_actions_container = "custom_actions"
+        self.logger.debug(f"Listing custom action files from backend container '{custom_actions_container}'...")
+
+        try:
+            custom_actions_files = await self.global_manager.backend_internal_data_processing_dispatcher.list_container_files(
+                custom_actions_container
+            )
+
+            if not custom_actions_files:
+                self.logger.warning(f"No custom action files found in backend container '{custom_actions_container}'.")
+            else:
+                self.logger.info(f"Found {len(custom_actions_files)} custom action files in backend container.")
+
+            for action_file in custom_actions_files:
+                self.logger.debug(f"Reading custom action file '{action_file}' from backend...")
+
+                action_content = await self.global_manager.backend_internal_data_processing_dispatcher.read_data_content(
+                    custom_actions_container, f"{action_file}.py"
+                )
+
+                if action_content:
+                    self.logger.debug(f"Successfully read content of custom action file '{action_file}'")
+                    self._load_custom_action_from_content(action_file, action_content)
+                    loaded_actions.append(action_file)
+                else:
+                    self.logger.warning(f"Failed to read content for action file '{action_file}' from backend.")
+        
+        except Exception as e:
+            self.logger.error(f"Error while loading custom actions from backend: {e}")
+
+        # Log the list of loaded actions in one info log
+        if loaded_actions:
+            self.logger.info(f"Custom actions loaded from backend: {', '.join(loaded_actions)}")
+        else:
+            self.logger.info("No custom actions were loaded from the backend.")
+            
     def get_plugin_by_category(self, category, subcategory=None):
         # Check if the category exists in the plugins dictionary
         if category in self.plugins:

@@ -1,8 +1,7 @@
 BOT_CONFIG:
-
   # DEBUG
-  LOG_DEBUG_LEVEL: "info"
-
+  LOG_DEBUG_LEVEL: "debug"
+  LOAD_ACTIONS_FROM_BACKEND: false
   # PROMPT
   PROMPTS_FOLDER: "prompts"
   CORE_PROMPT: "core_prompt"
@@ -59,6 +58,7 @@ PLUGINS:
         PROCESSING_CONTAINER: "processing"
         ABORT_CONTAINER: "abort"
         VECTORS_CONTAINER: "vectors"
+        CUSTOM_ACTIONS_CONTAINER: "custom_actions"
 
   USER_INTERACTIONS:
 
