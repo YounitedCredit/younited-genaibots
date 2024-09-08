@@ -2,6 +2,7 @@ BOT_CONFIG:
   # DEBUG
   LOG_DEBUG_LEVEL: "debug"
   LOAD_ACTIONS_FROM_BACKEND: False
+  
   # PROMPT
   PROMPTS_FOLDER: "prompts"
   CORE_PROMPT: "core_prompt"
