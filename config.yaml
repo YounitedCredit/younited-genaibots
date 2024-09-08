@@ -1,7 +1,7 @@
 BOT_CONFIG:
   # DEBUG
   LOG_DEBUG_LEVEL: "debug"
-  LOAD_ACTIONS_FROM_BACKEND: false
+  LOAD_ACTIONS_FROM_BACKEND: False
   # PROMPT
   PROMPTS_FOLDER: "prompts"
   CORE_PROMPT: "core_prompt"
@@ -42,7 +42,9 @@ PLUGINS:
     DEFAULT:
       MAIN_ACTIONS:
         PLUGIN_NAME: "main_actions"
-    CUSTOM: {}
+    CUSTOM: 
+      AZURE:
+        PLUGIN_NAME: "azure"
 
   BACKEND:
     INTERNAL_DATA_PROCESSING:

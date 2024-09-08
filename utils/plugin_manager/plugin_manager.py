@@ -27,43 +27,52 @@ class PluginManager:
     def load_plugins(self):
         """
         Load plugins based on the configuration.
-        If `LOAD_ACTIONS_FROM_BACKEND` is True, custom actions will be loaded from the backend folder via the dispatcher.
-        Otherwise, actions are loaded from the plugin folders.
+        ACTION_INTERACTIONS plugins (DEFAULT and CUSTOM) are handled dynamically from the backend or from plugin folders.
+        Other plugin categories are loaded from plugin folders.
         """
         loaded_actions = []  # List to keep track of successfully loaded actions
 
+        # Load ALL PLUGIN CATEGORIES except 'ACTION_INTERACTIONS.CUSTOM'
+        self.logger.info("Loading plugins for all categories except 'ACTION_INTERACTIONS.CUSTOM'...")
+        for category, subcategories in self.plugin_configs.model_dump().items():
+            for subcategory, plugins in subcategories.items():
+                if category == 'ACTION_INTERACTIONS' and subcategory == 'CUSTOM':
+                    continue  # Skip ACTION_INTERACTIONS.CUSTOM as we handle it separately
+                for plugin_name, plugin_config in plugins.items():
+                    plugin_dir = category + '.' + subcategory
+                    self.logger.debug(f"Attempting to load plugin '{plugin_name}' from '{plugin_dir}'...")
+
+                    try:
+                        plugin_class = self.get_plugin(plugin_name=plugin_name.lower(), subdirectory=plugin_dir.lower())
+
+                        if hasattr(plugin_class, '__abstractmethods__') and plugin_class.__abstractmethods__:
+                            self.logger.error(f"Class '{plugin_class.__name__}' has not implemented all abstract methods: {', '.join(plugin_class.__abstractmethods__)}")
+                            continue
+
+                        loaded_actions.append(plugin_name)
+                    except Exception as e:
+                        self.logger.error(f"Error while loading plugin '{plugin_name}' from '{plugin_dir}': {e}")
+
+        # Load custom actions (handled separately)
+        self.load_custom_actions(loaded_actions)
+
+        # Log the loaded plugins and actions
+        if loaded_actions:
+            self.logger.info(f"Plugins loaded for all categories except 'ACTION_INTERACTIONS.CUSTOM': {', '.join(loaded_actions)}")
+        else:
+            self.logger.info("No plugins were loaded from plugin folders.")
+
+    def load_custom_actions(self, loaded_actions):
+        """
+        Load custom actions from the backend or plugin folders.
+        """
         if self.global_manager.bot_config.LOAD_ACTIONS_FROM_BACKEND:
             self.logger.info("Loading custom actions from backend using the dispatcher...")
-
-            # Planifier la tâche asynchrone sans utiliser asyncio.run() pour éviter l'erreur
             asyncio.ensure_future(self._load_custom_actions_from_backend(loaded_actions))
         else:
-            # Classic loading from plugin folders
-            self.logger.info("Loading plugins and actions from plugin folders...")
-            for category, subcategories in self.plugin_configs.model_dump().items():
-                for subcategory, plugins in subcategories.items():
-                    for plugin_name, plugin_config in plugins.items():
-                        plugin_dir = category + '.' + subcategory
-                        self.logger.debug(f"Attempting to load plugin '{plugin_name}' from '{plugin_dir}'...")
-
-                        try:
-                            plugin_class = self.get_plugin(plugin_name=plugin_name.lower(), subdirectory=plugin_dir.lower())
-
-                            if hasattr(plugin_class, '__abstractmethods__') and plugin_class.__abstractmethods__:
-                                self.logger.error(f"Class '{plugin_class.__name__}' has not implemented all abstract methods: {', '.join(plugin_class.__abstractmethods__)}")
-                                continue
-
-                            # Add the plugin to the list of loaded plugins
-                            loaded_actions.append(plugin_name)
-                        
-                        except Exception as e:
-                            self.logger.error(f"Error while loading plugin '{plugin_name}' from '{plugin_dir}': {e}")
-
-            # Log the loaded plugins and actions
-            if loaded_actions:
-                self.logger.info(f"Plugins and actions loaded from plugin folders: {', '.join(loaded_actions)}")
-            else:
-                self.logger.info("No plugins or actions were loaded from the plugin folders.")
+            # Load custom actions from plugin folders (similar to how other plugins are loaded)
+            self.logger.info("Loading custom actions from plugin folders...")
+            self._load_custom_actions_from_plugin_folders(loaded_actions)
 
     async def _load_custom_actions_from_backend(self, loaded_actions):
         """
@@ -224,10 +233,52 @@ class PluginManager:
                         # Convert the method to lowercase
                         method = method.lower()
 
-                    # Add the route to the router
+                        # Add the route to the router
                     router.add_api_route(path, plugin_instance.handle_request, methods=[method])
 
                 # Include the router in the FastAPI application
                 app.include_router(router)
                 self.logger.info(f"Route [{methods}] {path} set up with the user interactions plugin <{plugin_instance.__class__.__name__}>")
 
+    def _load_custom_action_from_content(self, action_file, action_content):
+        """
+        Load a custom action from the provided content.
+        """
+        # Create a temporary module to execute the action
+        try:
+            module = types.ModuleType(f"custom_action_{action_file}")
+            exec(action_content, module.__dict__)
+
+            # Find the action class in the module
+            action_class_name = action_file.replace('.py', '').title().replace('_', '') + 'Action'
+            if hasattr(module, action_class_name) and issubclass(getattr(module, action_class_name), ActionBase):
+                action_class = getattr(module, action_class_name)
+                if not hasattr(action_class, '__abstractmethods__') or not action_class.__abstractmethods__:
+                    self.global_manager.register_plugin_actions("custom_actions", {action_class_name: action_class(self.global_manager)})
+                    self.logger.debug(f"Custom action '{action_file}' loaded successfully.")
+                else:
+                    self.logger.error(f"Custom action '{action_file}' failed to load: It has not implemented all abstract methods.")
+            else:
+                self.logger.error(f"Custom action '{action_file}' failed to load: No suitable class found.")
+
+        except Exception as e:
+            self.logger.error(f"Error while loading custom action '{action_file}': {e}", exc_info=True)
+
+    def _load_custom_actions_from_plugin_folders(self, loaded_actions):
+        """
+        Load custom actions from plugin folders.
+        """
+        for plugin_name, plugin_config in self.plugin_configs.ACTION_INTERACTIONS.CUSTOM.items():
+            plugin_dir = "ACTION_INTERACTIONS.CUSTOM"
+            self.logger.debug(f"Attempting to load custom action plugin '{plugin_name}' from '{plugin_dir}'...")
+
+            try:
+                plugin_class = self.get_plugin(plugin_name=plugin_name.lower(), subdirectory=plugin_dir.lower())
+
+                if hasattr(plugin_class, '__abstractmethods__') and plugin_class.__abstractmethods__:
+                    self.logger.error(f"Class '{plugin_class.__name__}' has not implemented all abstract methods: {', '.join(plugin_class.__abstractmethods__)}")
+                    continue
+
+                loaded_actions.append(plugin_name)
+            except Exception as e:
+                self.logger.error(f"Error while loading plugin '{plugin_name}' from '{plugin_dir}': {e}")

@@ -307,8 +307,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
     async def list_container_files(self, container_name):
         try:
             file_names = []
-            for file in os.listdir(container_name):
-                if os.path.isfile(os.path.join(container_name, file)):
+            container_path = os.path.join(self.root_directory, container_name)  # Calculate the container path
+            for file in os.listdir(container_path):
+                if os.path.isfile(os.path.join(container_path, file)):
                     file_name_without_extension = os.path.splitext(file)[0]
                     file_names.append(file_name_without_extension)
             return file_names
