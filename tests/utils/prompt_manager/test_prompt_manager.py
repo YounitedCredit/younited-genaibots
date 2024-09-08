@@ -7,15 +7,18 @@ from utils.prompt_manager.prompt_manager import PromptManager
 # Ensure that loggers and handlers have proper levels
 @pytest.fixture
 def mock_logger():
-    mock_log_handler = MagicMock()
-    mock_log_handler.level = logging.DEBUG  # Set to a valid log level
+    # Crée un vrai logger mais redirige sa sortie vers NullHandler pour éviter de polluer la sortie
+    logger = logging.getLogger('test_logger')
+    logger.setLevel(logging.DEBUG)  # Fixe le niveau de log à DEBUG
+    handler = logging.NullHandler()  # Utilise un NullHandler pour ignorer les logs
+    handler.setLevel(logging.DEBUG)  # Fixe le niveau de handler
+    logger.addHandler(handler)
+    return logger
 
-    mock_logger = MagicMock()
-    mock_logger.handlers = [mock_log_handler]
-    mock_logger.level = logging.DEBUG
-
-    return mock_logger
-
+@pytest.fixture(autouse=True)
+def disable_logging():
+    logging.getLogger('asyncio').setLevel(logging.CRITICAL)
+    
 @pytest.fixture
 def mock_global_manager_with_dispatcher(mock_global_manager):
     mock_global_manager.backend_internal_data_processing_dispatcher = AsyncMock()
@@ -91,27 +94,26 @@ async def test_get_core_prompt(mock_global_manager_with_dispatcher):
     )
 
 @pytest.mark.asyncio
-async def test_get_main_prompt(mock_global_manager_with_dispatcher, mock_logger):
-    # Ensure that the logger in PromptManager uses the mock_logger
+async def test_get_main_prompt(mock_global_manager, mock_logger):
+    # Mocker le logger global pour utiliser le mock_logger
     logging.getLogger = MagicMock(return_value=mock_logger)
 
-    # Mock the config manager and backend dispatcher
-    mock_global_manager_with_dispatcher.config_manager.get_config = MagicMock(return_value='main_prompt_file')
-    mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(
+    # Mocker le config manager et backend dispatcher
+    mock_global_manager.config_manager.get_config = MagicMock(return_value='main_prompt_file')
+    mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(
         return_value='main_prompt_content'
     )
 
-    prompt_manager = PromptManager(mock_global_manager_with_dispatcher)
+    prompt_manager = PromptManager(mock_global_manager)
 
-    # Call the initialize method to set prompt_container
+    # Initialiser pour configurer le prompt_container
     await prompt_manager.initialize()
 
-    # Call the get_main_prompt method
+    # Appeler get_main_prompt et vérifier les résultats
     main_prompt = await prompt_manager.get_main_prompt()
 
-    # Assert that the main prompt was retrieved correctly
     assert main_prompt == 'main_prompt_content'
-    mock_global_manager_with_dispatcher.config_manager.get_config.assert_called_with(['BOT_CONFIG', 'MAIN_PROMPT'])
-    mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.read_data_content.assert_called_with(
+    mock_global_manager.config_manager.get_config.assert_called_with(['BOT_CONFIG', 'MAIN_PROMPT'])
+    mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content.assert_called_with(
         prompt_manager.prompt_container, 'main_prompt_file.txt'
     )
