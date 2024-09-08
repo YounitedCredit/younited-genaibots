@@ -2,7 +2,12 @@
 omit =
     */tests/*
     */__init__.py
-
+    */tests/*
+    */.venv/*
+    */miniconda3/*
+    */site-packages/*
+    */plugins/action_interactions/custom/*
+    
 [report]
 exclude_lines =
     pragma: no cover
