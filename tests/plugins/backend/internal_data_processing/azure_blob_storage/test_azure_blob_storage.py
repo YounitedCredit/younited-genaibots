@@ -27,6 +27,7 @@ def mock_config():
         "PROCESSING_CONTAINER": "processing",
         "ABORT_CONTAINER": "abort",
         "VECTORS_CONTAINER": "vectors",
+        "CUSTOM_ACTIONS_CONTAINER": "custom_actions"
     }
 
 @pytest.fixture
@@ -161,6 +162,21 @@ async def test_update_pricing(azure_blob_storage_plugin):
 
         mock_write.assert_called_once()
 
+class AsyncIterator:
+    def __init__(self, items):
+        self._items = items
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= len(self._items):
+            raise StopAsyncIteration
+        item = self._items[self._index]
+        self._index += 1
+        return item
+    
 @pytest.mark.asyncio
 async def test_list_container_files(azure_blob_storage_plugin):
     with patch.object(BlobServiceClient, 'get_container_client') as mock_get_container_client:
@@ -169,11 +185,12 @@ async def test_list_container_files(azure_blob_storage_plugin):
         mock_blob1.name = "path/to/file1.txt"
         mock_blob2 = MagicMock()
         mock_blob2.name = "another/path/file2.json"
-        mock_container_client.list_blobs = MagicMock(return_value=[mock_blob1, mock_blob2])
+        mock_container_client.list_blobs = MagicMock(return_value=AsyncIterator([mock_blob1, mock_blob2]))
 
         files = await azure_blob_storage_plugin.list_container_files("test_container")
-        print(f"Returned files: {files}")
-        assert sorted(files) == sorted(["file1", "file2"])
+
+        assert files == ["file1.txt", "file2.json"]
+        mock_get_container_client.assert_called_once_with("test_container")
 
 @pytest.mark.asyncio
 async def test_update_prompt_system_message(azure_blob_storage_plugin):

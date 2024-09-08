@@ -1,3 +1,5 @@
+import sys
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -34,6 +36,19 @@ from utils.config_manager.config_model import (
     Utils,
 )
 
+# Utiliser la boucle SelectorEventLoop sur Windows
+if sys.platform == "win32":
+    @pytest.fixture(scope="session")
+    def event_loop():
+        loop = asyncio.SelectorEventLoop()
+        yield loop
+        loop.close()
+else:
+    @pytest.fixture(scope="session")
+    def event_loop():
+        loop = asyncio.get_event_loop_policy().new_event_loop()
+        yield loop
+        loop.close()
 
 @pytest.fixture
 def mock_app():
@@ -105,7 +120,8 @@ def mock_config_manager(mock_utils, mock_plugins):
             GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="genai_vector_search_default_plugin_name",
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
-            START_KEYWORD="stop"
+            START_KEYWORD="stop",
+            LOAD_ACTIONS_FROM_BACKEND = False
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -154,16 +170,13 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
 @pytest.fixture
 def mock_user_interactions_plugin():
     plugin = MagicMock(spec=UserInteractionsPluginBase)
-    plugin.plugin_name = "mock_plugin"
-    plugin.process_interaction = AsyncMock()
-    plugin.process_incoming_notification_data = AsyncMock()
-    plugin.begin_genai_completion = AsyncMock()
-    plugin.end_genai_completion = AsyncMock()
-    plugin.begin_long_action = AsyncMock()
-    plugin.end_long_action = AsyncMock()
-    plugin.begin_wait_backend = AsyncMock()
-    plugin.end_wait_backend = AsyncMock()
-    plugin.mark_error = AsyncMock()
+    plugin.plugin_name = "test_plugin"
+    plugin.send_message = AsyncMock()
+    plugin.upload_file = AsyncMock()
+    plugin.add_reaction = AsyncMock()
+    plugin.remove_reaction = AsyncMock()
+    plugin.request_to_notification_data = AsyncMock()
+    plugin.process_event_data = AsyncMock()
     return plugin
 
 @pytest.fixture
@@ -178,18 +191,6 @@ def mock_user_interactions_dispatcher(mock_global_manager, mock_plugins):
     dispatcher.plugins = {"default_category": [MagicMock(spec=UserInteractionsPluginBase, plugin_name="test_plugin")]}
     dispatcher.initialize(dispatcher.plugins["default_category"])
     return dispatcher
-
-@pytest.fixture
-def mock_user_interactions_plugin():
-    plugin = MagicMock(spec=UserInteractionsPluginBase)
-    plugin.plugin_name = "test_plugin"
-    plugin.send_message = AsyncMock()
-    plugin.upload_file = AsyncMock()
-    plugin.add_reaction = AsyncMock()
-    plugin.remove_reaction = AsyncMock()
-    plugin.request_to_notification_data = AsyncMock()
-    plugin.process_event_data = AsyncMock()
-    return plugin
 
 @pytest.fixture
 def mock_reaction_base():

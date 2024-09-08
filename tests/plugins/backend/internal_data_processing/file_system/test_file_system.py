@@ -22,6 +22,7 @@ def mock_config():
         "PROCESSING_CONTAINER": "processing",
         "ABORT_CONTAINER": "abort",
         "VECTORS_CONTAINER": "vectors",
+        "CUSTOM_ACTIONS_CONTAINER": "custom_actions"
     }
 
 @pytest.fixture

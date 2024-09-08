@@ -331,17 +331,15 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
     async def list_container_files(self, container_name: str):
         try:
-            blob_list = self.blob_service_client.get_container_client(container_name).list_blobs()
             file_names = []
-            for blob in blob_list:
-                base_name = os.path.basename(blob.name)
-                file_name_without_extension = os.path.splitext(base_name)[0]
-                file_names.append(file_name_without_extension)
+            blob_client = self.blob_service_client.get_container_client(container_name)
+            async for blob in blob_client.list_blobs():
+                file_names.append(os.path.basename(blob.name))
             return file_names
-        except AzureError as e:
-            self.logger.error(f"An error occurred while listing blobs: {e}")
-            return []
-
+        except Exception as e:
+            self.logger.error(f"Error listing files in container {container_name}: {e}")
+            raise
+        
     async def update_prompt_system_message(self, channel_id, thread_id, message):
         try:
             self.logger.debug(f"Updating prompt system message for channel {channel_id}, thread {thread_id}")

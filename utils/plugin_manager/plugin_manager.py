@@ -63,15 +63,22 @@ class PluginManager:
             self.logger.info("No plugins were loaded from plugin folders.")
 
     def load_custom_actions(self, loaded_actions):
-        """
-        Load custom actions from the backend or plugin folders.
-        """
         if self.global_manager.bot_config.LOAD_ACTIONS_FROM_BACKEND:
-            self.logger.info("Loading custom actions from backend using the dispatcher...")
-            asyncio.ensure_future(self._load_custom_actions_from_backend(loaded_actions))
+            self.logger.info("Loading custom actions plugin from backend...")
+            
+            # Dynamically import the CustomActionsFromBackendPlugin to avoid circular imports
+            from core.action_interactions.custom_actions_from_backend_plugin import CustomActionsFromBackendPlugin
+            
+            # Instantiate the plugin without initializing it
+            custom_backend_plugin = CustomActionsFromBackendPlugin(self.global_manager)
+            
+            # Add the custom backend plugin to the plugins dictionary under ACTION_INTERACTIONS.CUSTOM
+            self.plugins.setdefault('ACTION_INTERACTIONS', {})['CUSTOM'] = [custom_backend_plugin]
+            
+            # Track the loaded backend plugin
+            loaded_actions.append("CUSTOM_ACTIONS_FROM_BACKEND")
         else:
-            # Load custom actions from plugin folders (similar to how other plugins are loaded)
-            self.logger.info("Loading custom actions from plugin folders...")
+            self.logger.info("Loading custom actions plugin from plugin folders...")
             self._load_custom_actions_from_plugin_folders(loaded_actions)
 
     async def _load_custom_actions_from_backend(self, loaded_actions):
@@ -191,6 +198,7 @@ class PluginManager:
                     self.logger.debug(f"Plugin {module_name}.py installed")
                     if str(plugin_dir) in sys.path:
                         sys.path.remove(str(plugin_dir))
+                    # Return an instance of the plugin class
                     return attribute(self.global_manager)
 
             self.logger.error(f"No suitable class found in module '{module_name}'")
@@ -199,7 +207,6 @@ class PluginManager:
         except Exception as e:
             self.logger.error(f"Error loading plugin '{module_name}': {e}", exc_info=True)
             return None
-
 
     def initialize_plugins(self):
         for category, category_plugins in self.plugins.items():
@@ -247,17 +254,20 @@ class PluginManager:
         # Create a temporary module to execute the action
         try:
             module = types.ModuleType(f"custom_action_{action_file}")
+
+            # Execute the custom action code in the virtual module
             exec(action_content, module.__dict__)
 
             # Find the action class in the module
             action_class_name = action_file.replace('.py', '').title().replace('_', '') + 'Action'
-            if hasattr(module, action_class_name) and issubclass(getattr(module, action_class_name), ActionBase):
+            if hasattr(module, action_class_name):
                 action_class = getattr(module, action_class_name)
-                if not hasattr(action_class, '__abstractmethods__') or not action_class.__abstractmethods__:
-                    self.global_manager.register_plugin_actions("custom_actions", {action_class_name: action_class(self.global_manager)})
+                if issubclass(action_class, ActionBase):
+                    # Register the custom action in the GlobalManager
+                    self.global_manager.register_plugin_actions("custom_actions", {action_class_name: action_class})
                     self.logger.debug(f"Custom action '{action_file}' loaded successfully.")
                 else:
-                    self.logger.error(f"Custom action '{action_file}' failed to load: It has not implemented all abstract methods.")
+                    self.logger.error(f"Custom action '{action_file}' failed to load: It does not inherit from ActionBase.")
             else:
                 self.logger.error(f"Custom action '{action_file}' failed to load: No suitable class found.")
 

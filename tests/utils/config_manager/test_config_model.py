@@ -42,7 +42,9 @@ def test_bot_config():
         "GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME": "default_genai_vector_search_plugin",
         "LLM_CONVERSION_FORMAT": "conversion_format",
         "BREAK_KEYWORD": "break",
-        "START_KEYWORD": "start"
+        "START_KEYWORD": "start",
+        "LOAD_ACTIONS_FROM_BACKEND": True
+
     }
     bot_config = BotConfig(**valid_data)
     assert bot_config.CORE_PROMPT == "core_prompt"
@@ -120,7 +122,8 @@ def test_config_model():
         "GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME": "default_genai_vector_search_plugin",
         "LLM_CONVERSION_FORMAT": "conversion_format",
         "BREAK_KEYWORD": "break",
-        "START_KEYWORD": "start"
+        "START_KEYWORD": "start",
+        "LOAD_ACTIONS_FROM_BACKEND": False
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
     
