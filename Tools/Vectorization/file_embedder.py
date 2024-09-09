@@ -1,10 +1,8 @@
 import os
 import re
-import numpy as np
 import pandas as pd
 import logging
-from bs4 import BeautifulSoup
-from openai import AzureOpenAI, OpenAIError
+from openai import AzureOpenAI
 import tiktoken
 import urllib.parse
 import json
@@ -87,6 +85,7 @@ Examples:
 """
 
 colorama.init(autoreset=True)
+tokenizer = tiktoken.get_encoding('cl100k_base')
 
 # Configure logging with custom formatter for colored output
 class ColoredFormatter(logging.Formatter):
@@ -130,8 +129,20 @@ def get_file_path(local_path, source_type, wiki_url, input_dir):
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
     
-def create_wiki_url(wiki_base_url, local_file_path, input_dir):
-    # Log the complete local file path before any processing
+def create_wiki_url(wiki_base_url, local_file_path, input_dir, subfolder=''):
+    """Creates the correct URL for an Azure DevOps Wiki page from a local file path.
+
+    Args:
+        wiki_base_url (str): The base URL of your Azure DevOps Wiki.
+        local_file_path (str): The full path to the local Markdown file.
+        input_dir (str): The root directory where the Markdown files are located.
+        subfolder (str, optional): The relative path of the subfolder inside the wiki repository. 
+                                   Defaults to ''. 
+
+    Returns:
+        str: The Azure DevOps Wiki URL for the given file.
+    """
+
     logging.info(f"Local file path received: {local_file_path}")
 
     # Get the relative path from the input directory
@@ -147,21 +158,22 @@ def create_wiki_url(wiki_base_url, local_file_path, input_dir):
         relative_path = os.path.splitext(relative_path)[0]
     logging.info(f"Relative path after removing .md: {relative_path}")
 
-    # Decode any URL-encoded characters from the git clone path
-    decoded_path = urllib.parse.unquote(relative_path)
-    logging.info(f"Decoded path after unquoting: {decoded_path}")
+    # 1. Replace hyphens used as spaces with %20
+    relative_path = relative_path.replace('-', '%20')
+    logging.info(f"Path after handling hyphens for spaces: {relative_path}")
 
-    # Step 1: Replace the encoded hyphens (%2D) with double-encoded hyphens (%252D)
-    decoded_path = re.sub(r'RFC-(\d+)', r'RFC%252D\1', decoded_path)
-    logging.info(f"Path after handling RFC hyphen: {decoded_path}")
+    # 2.  Replace %2D with %252D (this was the missing piece!)
+    relative_path = relative_path.replace('%2D', '%252D')
+    logging.info(f"Path after handling encoded hyphens: {relative_path}")
 
-    # Step 2: Replace actual hyphens used for spaces with %20
-    decoded_path = decoded_path.replace('-', '%20')
-    logging.info(f"Path after handling hyphens for spaces: {decoded_path}")
-
-    # Step 3: Encode only the remaining special characters
-    final_path = urllib.parse.quote(decoded_path, safe='%20()/')
+    # 3. Encode the path, preserving already encoded characters and spaces
+    final_path = urllib.parse.quote(relative_path, safe='%20/')
     logging.info(f"Final encoded path: {final_path}")
+
+    # Add the subfolder to the final path
+    if subfolder:
+        final_path = f"{subfolder}/{final_path}"
+    logging.info(f"Final path with subfolder: {final_path}")
 
     # Construct the final URL
     final_url = f"{wiki_base_url}?wikiVersion=GBwikiMaster&pagePath=/{final_path}"
@@ -169,78 +181,36 @@ def create_wiki_url(wiki_base_url, local_file_path, input_dir):
 
     return final_url
 
-file_paths = []
-
-# Main processing logic to determine file paths and process files
-if os.path.isdir(args.input):
-    for root, dirs, files in os.walk(args.input):
-        for file in files:
-            local_file_path = os.path.join(root, file)
-            file_path = get_file_path(local_file_path, args.source_type, args.wiki_url, args.input)
-            
-            logging.info(f"Processing file at: {file_path}")
-            
-            try:
-                with open(local_file_path, 'r', encoding='utf-8') as f:
-                    text = f.read()
-            except Exception as e:
-                logging.error(f"Failed to read file {local_file_path}: {e}")
-                continue
-            # Ensure the correct file_path (DevOps Wiki URL or local path) is stored
-            file_paths.append(file_path)  # Append the correct URL            
-
-else:
-    local_file_path = args.input
-    file_path = get_file_path(local_file_path, args.source_type, args.wiki_url, os.path.dirname(args.input))
-    
-    logging.info(f"Processing single file at: {file_path}")
-    
-    try:
-        with open(local_file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
-    except Exception as e:
-        logging.error(f"Failed to read file {local_file_path}: {e}")
-        raise
-
-    file_paths.append(file_path)
-
-# Create an OpenAI object specifying the endpoint
-try:
-    openai_client = AzureOpenAI(
-        api_key=args.openai_key,
-        azure_endpoint=args.openai_endpoint,
-        api_version=args.openai_api_version
-    )
-except Exception as e:
-    logging.error(f"Failed to create OpenAI client: {e}")
-    raise
-
-# Load encoding locally
-try:
-    tokenizer = tiktoken.get_encoding("cl100k_base")
-except Exception as e:
-    logging.error(f"Failed to load tokenizer: {e}")
-    raise
-
 def clean_text(text):
     """Clean markdown and HTML from the text."""
     try:
-        soup = BeautifulSoup(text, "html.parser")
-        text = soup.get_text()
+        # Remove title markers, keep title text
+        text = re.sub(r'^\s*#+\s', '', text, flags=re.MULTILINE)
         
-        # Remove Markdown URLs
-        text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+        # Remove images
+        text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
         
-        # Remove Markdown images
-        text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', '', text)
+        # Keep only URLs from links
+        text = re.sub(r'\[.*?\]\((.*?)\)', r'\1', text)
         
-        # Remove remaining Markdown syntax, but keep hyphens
-        text = re.sub(r'(?<!\w)[-](?!\w)|[#*_`]+', ' ', text)
+        # Remove bold and italic markers
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'\*(.*?)\*', r'\1', text)
         
-        # Remove consecutive spaces
-        text = re.sub(r'\s+', ' ', text)
+        # Remove list markers
+        text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
         
-        return text.strip()
+        # Remove block code entirely
+        text = re.sub(r'`{3}.*?`{3}', '', text, flags=re.DOTALL)
+        
+        # Remove inline code markers, keep code text
+        text = re.sub(r'`(.*?)`', r'\1', text)
+
+        # Remove extra newlines and clean lines
+        content_lines = [line.strip() for line in text.splitlines() if line.strip()]
+        
+        # Join the cleaned lines with visible line breaks for better readability
+        return '\n'.join(content_lines)
     except Exception as e:
         logging.error(f"Error cleaning text: {e}")
         return ""
@@ -262,30 +232,25 @@ def clean_title(title):
 
 def split_document_by_structure(text, max_tokens, overlap_tokens=50):
     """Split a document into passages by structure with optional overlap."""
-    paragraphs = text.split("\n\n")  # Splitting by double newlines to detect paragraphs
+    paragraphs = text.split("\n\n")
     chunks = []
-    current_chunk = ""
+    current_chunk = []
     current_chunk_tokens = 0
 
     for paragraph in paragraphs:
-        paragraph_tokens = tokenizer.encode(paragraph)
+        paragraph_tokens = len(tokenizer.encode(paragraph))
         
-        # If adding this paragraph exceeds the max_tokens limit, create a chunk
-        if current_chunk_tokens + len(paragraph_tokens) > max_tokens:
-            chunks.append(current_chunk.strip())
-            
-            # Create a sliding window overlap by taking a portion of the previous chunk
-            overlap_chunk = tokenizer.decode(tokenizer.encode(current_chunk)[-overlap_tokens:])
-            current_chunk = overlap_chunk  # Start next chunk with the overlap
-            current_chunk_tokens = len(tokenizer.encode(current_chunk))
-        
-        # Add paragraph to the current chunk
-        current_chunk += " " + paragraph
-        current_chunk_tokens += len(paragraph_tokens)
+        if current_chunk_tokens + paragraph_tokens > max_tokens:
+            chunks.append(" ".join(current_chunk))
+            overlap = current_chunk[-overlap_tokens:]
+            current_chunk = overlap + [paragraph]
+            current_chunk_tokens = sum(len(tokenizer.encode(p)) for p in current_chunk)
+        else:
+            current_chunk.append(paragraph)
+            current_chunk_tokens += paragraph_tokens
     
-    # Add the last chunk
-    if current_chunk.strip():
-        chunks.append(current_chunk.strip())
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
     
     return chunks
 
@@ -307,20 +272,17 @@ def split_document_into_passages(document, max_tokens=None):
         logging.error(f"Error splitting document into passages: {e}")
         return []
 
-def get_text_embedding(text, model=None):
+def get_text_embedding(text, openai_client, model=None):
     """Get the embedding for a given text using the specified model."""
     if text.strip() == '':
         logging.warning("Empty text encountered, returning empty embedding.")
         return []
     
-    model_name = model if model else args.model_name  # Use the provided argument
+    model_name = model if model else "text-embedding-3-large"  # Default model
     try:
         response = openai_client.embeddings.create(input=[text], model=model_name)
         embedding = response.data[0].embedding
         return embedding
-    except OpenAIError as e:
-        logging.error(f"OpenAI error: {e}")
-        return []
     except Exception as e:
         logging.error(f"Error getting text embedding: {e}")
         return []
@@ -473,27 +435,65 @@ def generate_index_definition(index_name, vector_dimension):
         }
     }
 
+def get_file_path_and_url(local_path, source_type, wiki_url, input_dir, subfolder=''):
+    """Return both the local file path and the corresponding Azure DevOps Wiki URL if applicable."""
+    file_path = local_path.replace('\\', '/')
+    if source_type == 'azure_devops_wiki':
+        wiki_url = create_wiki_url(wiki_url, local_path, input_dir, subfolder)
+        return file_path, wiki_url
+    return file_path, file_path
+
+def convert_to_wiki_url(local_path, wiki_url, input_dir):
+    """Convert a local file path to an Azure DevOps Wiki URL."""
+    relative_path = os.path.relpath(local_path, input_dir).replace('\\', '/')
+    if relative_path.lower().endswith('.md'):
+        relative_path = os.path.splitext(relative_path)[0]
+    final_path = urllib.parse.quote(relative_path, safe='%20()/')
+    return f"{wiki_url}?wikiVersion=GBwikiMaster&pagePath=/{final_path}"
+
 # Main execution
 def main(args):
-    # Initialize lists to store data
-    document_ids, passage_ids, embeddings, texts, titles, title_embeddings, file_paths, passage_indices = [], [], [], [], [], [], [], []
+    file_paths = []
+    file_urls = []
 
-    # Determine files to process
-    input_path = args.input
-    if os.path.isfile(input_path):
-        files_to_process = [input_path]
-    elif os.path.isdir(input_path):
-        files_to_process = [os.path.join(root, file) for root, _, files in os.walk(input_path) for file in files]
+    # Create an OpenAI object specifying the endpoint
+    try:
+        openai_client = AzureOpenAI(
+            api_key=args.openai_key,
+            azure_endpoint=args.openai_endpoint,
+            api_version=args.openai_api_version
+        )
+    except Exception as e:
+        logging.error(f"Failed to create OpenAI client: {e}")
+        raise
+
+    # Load encoding locally
+    try:
+        tokenizer = tiktoken.get_encoding("cl100k_base")
+    except Exception as e:
+        logging.error(f"Failed to load tokenizer: {e}")
+        raise
+
+    # Main processing logic to determine file paths and process files
+    if os.path.isdir(args.input):
+        for root, dirs, files in os.walk(args.input):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                file_path, file_url = get_file_path_and_url(local_file_path, args.source_type, args.wiki_url, args.input, args.wiki_subfolder)
+                file_paths.append(file_path)
+                file_urls.append(file_url)
     else:
-        raise ValueError(f"Invalid input path: {input_path}")
+        local_file_path = args.input
+        file_path, file_url = get_file_path_and_url(local_file_path, args.source_type, args.wiki_url, args.input, args.wiki_subfolder)
+        file_paths.append(file_path)
+        file_urls.append(file_url)
 
-    total_files = len(files_to_process)
+    # Initialize lists to store data
+    document_ids, passage_ids, embeddings, texts, titles, title_embeddings, passage_indices = [], [], [], [], [], [], []
 
     # Process files
-    for file_count, local_file_path in enumerate(files_to_process, 1):
-        file_path = get_file_path(local_file_path, args.source_type, args.wiki_url, args.input)
-        
-        logging.info(f"Processing file {file_count}/{total_files}: {file_path}")
+    for file_count, (local_file_path, file_url) in enumerate(zip(file_paths, file_urls), 1):
+        logging.info(f"Processing file {file_count}/{len(file_paths)}: {file_url}")
         
         try:
             with open(local_file_path, 'r', encoding='utf-8') as f:
@@ -504,14 +504,14 @@ def main(args):
         
         cleaned_text = clean_text(text)
         if not cleaned_text:
-            logging.warning(f"Cleaned text from file {file_path} is empty, ignored.")
+            logging.warning(f"Cleaned text from file {local_file_path} is empty, ignored.")
             continue
         
         try:
             num_tokens = len(tokenizer.encode(cleaned_text))
-            logging.info(f"File {file_path} contains {num_tokens} tokens after cleaning")
+            logging.info(f"File {local_file_path} contains {num_tokens} tokens after cleaning")
         except Exception as e:
-            logging.error(f"Failed to calculate tokens for file {file_path}: {e}")
+            logging.error(f"Failed to calculate tokens for file {local_file_path}: {e}")
             continue
         
         if args.dynamic_chunking:
@@ -520,7 +520,7 @@ def main(args):
             document_passages = split_document_into_passages(cleaned_text, args.max_tokens)
 
         if not document_passages:
-            logging.warning(f"No valid passages found for file {file_path}, ignored.")
+            logging.warning(f"No valid passages found for file {local_file_path}, ignored.")
             continue
         
         title = os.path.splitext(os.path.basename(local_file_path))[0]
@@ -529,7 +529,7 @@ def main(args):
             title = os.path.splitext(os.path.basename(local_file_path))[0]
 
         logging.info(f"Cleaned title: {title}")
-        title_embedding = get_text_embedding(title, model=args.model_name)
+        title_embedding = get_text_embedding(title, openai_client, model=args.model_name)
         if not title_embedding:
             logging.warning(f"Failed to get embedding for title: {title}")
         
@@ -537,7 +537,7 @@ def main(args):
         
         # Process passages and store embeddings
         for passage_index, passage in enumerate(document_passages, 1):
-            embedding = get_text_embedding(passage, model=args.model_name)
+            embedding = get_text_embedding(passage, openai_client, model=args.model_name)
             if embedding:
                 document_ids.append(title)
                 passage_ids.append(passage_index)
@@ -545,16 +545,29 @@ def main(args):
                 texts.append(passage)
                 titles.append(title)
                 title_embeddings.append(title_embedding)
-                file_paths.append(file_path)  # This now contains the correct unique path for each file
                 passage_indices.append(passage_index)
                 logging.info(f"    Passage {passage_index}/{len(document_passages)} processed")
+
+    # Ensure all lists have the same length
+    min_length = min(len(document_ids), len(passage_ids), len(file_paths), len(passage_indices),
+                     len(texts), len(titles), len(title_embeddings), len(embeddings))
+
+    # Truncate all lists to the same length
+    document_ids = document_ids[:min_length]
+    passage_ids = passage_ids[:min_length]
+    file_paths = file_paths[:min_length]
+    passage_indices = passage_indices[:min_length]
+    texts = texts[:min_length]
+    titles = titles[:min_length]
+    title_embeddings = title_embeddings[:min_length]
+    embeddings = embeddings[:min_length]
 
     # Create DataFrame
     try:
         df = pd.DataFrame({
             'document_id': document_ids,
             'passage_id': passage_ids,
-            'file_path': file_paths,
+            'file_path': file_urls if args.source_type == 'azure_devops_wiki' else file_paths,
             'passage_index': passage_indices,
             'text': texts,
             'title': titles,
@@ -566,6 +579,7 @@ def main(args):
         raise
 
     # Generate index definition if index_name is provided
+    index_file = None
     if args.index_name:
         vector_dimension = len(embeddings[0]) if embeddings else 1536
         index_definition = generate_index_definition(args.index_name, vector_dimension)
@@ -606,11 +620,13 @@ def main(args):
     else:
         logging.info("No index definition file was generated.")
 
+    return df, output_file, index_file
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=help_description, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--input', required=True, help='Path to input file or directory')
     parser.add_argument('--output', required=True, help='Path to output file (without extension)')
-    parser.add_argument('--output_format', choices=['csv', 'json'], default='csv', help='Output format (csv or json)')
+    parser.add_argument('--output_format', choices=['csv', 'json'], default='json', help='Output format (csv or json)')
     parser.add_argument('--max_tokens', type=int, default=None, help='Maximum number of tokens per segment. If not set, entire documents will be vectorized.')
     parser.add_argument('--index_name', help='Name for the Azure Cognitive Search index. If provided, an index definition will be generated.')
     parser.add_argument('--openai_key', required=True, help='Azure OpenAI API key')
@@ -621,6 +637,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', default="text-embedding-3-large", help="OpenAI model name to be used for generating embeddings. Default is 'text-embedding-3-large'")
     parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki'], default='filesystem', 
                         help="Source type: 'filesystem' (default) or 'azure_devops_wiki'. Specifies how the file path is treated.")
+    parser.add_argument('--wiki_subfolder', default='', help="Relative path of the subfolder inside the wiki repository. Used to adjust file paths in Azure DevOps Wiki URLs.")
     parser.add_argument('--wiki_url', help="Base URL of the Azure DevOps Wiki. Required if 'azure_devops_wiki' is selected as source_type.")
     args = parser.parse_args()
 

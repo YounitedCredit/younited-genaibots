@@ -1,0 +1,2 @@
+document_id,passage_id,file_path,passage_index,text,title,title_embedding,embedding
+test,1,test.txt,1,This is a longer text used for testing the embedding function.,test,"[0.1, 0.2, 0.3]","[0.1, 0.2, 0.3]"

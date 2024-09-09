@@ -16,20 +16,20 @@ import json
 def openai_file_search_plugin(mock_global_manager):
     mock_config = {
         "PLUGIN_NAME": "openai_file_search",
-        "OPENAI_SEARCH_OPENAI_KEY": "fake_key",
-        "OPENAI_SEARCH_OPENAI_ENDPOINT": "https://fake_endpoint",
-        "OPENAI_SEARCH_OPENAI_API_VERSION": "v1",
-        "OPENAI_SEARCH_MODEL_HOST": "openai",
-        "OPENAI_SEARCH_MODEL_NAME": "gpt-35-turbo",
-        "OPENAI_SEARCH_INPUT_TOKEN_PRICE": 0.01,
-        "OPENAI_SEARCH_OUTPUT_TOKEN_PRICE": 0.01,
-        "OPENAI_SEARCH_CONTEXT_EXTRACTION": True,
-        "OPENAI_SEARCH_CONTEXT_EXTRACTION_BEFORE_RATIO": 0.1,
-        "OPENAI_SEARCH_CONTEXT_EXTRACTION_AFTER_RATIO": 0.1,
-        "OPENAI_SEARCH_TEXT_WEIGHT": 0.7,
-        "OPENAI_SEARCH_TITLE_WEIGHT": 0.3,
-        "OPENAI_SEARCH_USE_TITLE_IN_SEARCH": True,
-        "OPENAI_SEARCH_RESULT_COUNT": 5,
+        "OPENAI_FILE_SEARCH_OPENAI_KEY": "fake_key",
+        "OPENAI_FILE_SEARCH_OPENAI_ENDPOINT": "https://fake_endpoint",
+        "OPENAI_FILE_SEARCH_OPENAI_API_VERSION": "v1",
+        "OPENAI_FILE_SEARCH_MODEL_HOST": "openai",
+        "OPENAI_FILE_SEARCH_MODEL_NAME": "gpt-35-turbo",
+        "OPENAI_FILE_SEARCH_INPUT_TOKEN_PRICE": 0.01,
+        "OPENAI_FILE_SEARCH_OUTPUT_TOKEN_PRICE": 0.01,
+        "OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION": True,
+        "OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION_BEFORE_RATIO": 0.1,
+        "OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION_AFTER_RATIO": 0.1,
+        "OPENAI_FILE_SEARCH_TEXT_WEIGHT": 0.7,
+        "OPENAI_FILE_SEARCH_TITLE_WEIGHT": 0.3,
+        "OPENAI_FILE_SEARCH_USE_TITLE_IN_SEARCH": True,
+        "OPENAI_FILE_SEARCH_RESULT_COUNT": 5,
     }
 
     mock_global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.VECTOR_SEARCH = {"OPENAI_FILE_SEARCH": mock_config}
@@ -40,10 +40,10 @@ def openai_file_search_plugin(mock_global_manager):
 
 def test_initialize(openai_file_search_plugin):
     assert openai_file_search_plugin.plugin_name == "openai_file_search"
-    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_OPENAI_KEY == "fake_key"
-    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_OPENAI_ENDPOINT == "https://fake_endpoint"
-    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_OPENAI_API_VERSION == "v1"
-    assert openai_file_search_plugin.openai_search_config.OPENAI_SEARCH_MODEL_NAME == "gpt-35-turbo"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_KEY == "fake_key"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_ENDPOINT == "https://fake_endpoint"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_API_VERSION == "v1"
+    assert openai_file_search_plugin.openai_search_config.OPENAI_FILE_SEARCH_MODEL_NAME == "gpt-35-turbo"
 
 @pytest.mark.asyncio
 async def test_handle_action(openai_file_search_plugin):

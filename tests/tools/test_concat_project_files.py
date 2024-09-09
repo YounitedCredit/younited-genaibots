@@ -32,7 +32,6 @@ def test_clean_markdown():
     # Verify that the cleaned output matches the expected output
     assert cleaned_content == expected_output.strip()
 
-
 # Test for decode_filename function
 def test_decode_filename():
     encoded_filename = "file%20with%20spaces.txt"

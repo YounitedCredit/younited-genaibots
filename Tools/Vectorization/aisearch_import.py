@@ -78,6 +78,7 @@ def validate_document(document, non_nullable_fields):
     return True
 
 def load_index_definition(file_path):
+    """Load the index definition from a JSON file."""
     logger.info(f"Loading index definition from {file_path}")
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -87,6 +88,7 @@ def load_index_definition(file_path):
         raise
 
 def create_index_if_not_exists(index_client, index_definition):
+    """Check if an index exists, and if not, create it."""
     index_name = index_definition['name']
     logger.info(f"Checking if index {index_name} exists")
     try:
@@ -103,6 +105,7 @@ def create_index_if_not_exists(index_client, index_definition):
         raise
 
 def import_data(search_client, json_data_path, non_nullable_fields):
+    """Import data into the Azure Search index."""
     logger.info(f"Importing data from {json_data_path}")
     try:
         with open(json_data_path, 'r', encoding='utf-8') as json_file:
@@ -117,6 +120,7 @@ def import_data(search_client, json_data_path, non_nullable_fields):
             else:
                 logger.error(f"Skipping document {i}/{total_documents} due to null values")
 
+            # Upload every 100 documents or when done
             if len(valid_documents) % 100 == 0 or i == total_documents:
                 logger.info(f"Uploading batch of {len(valid_documents)} documents...")
                 result = search_client.upload_documents(documents=valid_documents)
@@ -130,6 +134,7 @@ def import_data(search_client, json_data_path, non_nullable_fields):
         raise
 
 def main():
+    """Main function to parse arguments and run the import process."""
     parser = argparse.ArgumentParser(description="Import index and data to Azure AI Search")
     parser.add_argument("--service-endpoint", required=True, help="Azure AI Search service endpoint")
     parser.add_argument("--admin-key", required=True, help="Azure AI Search admin key")
