@@ -57,7 +57,7 @@ class SlackInputHandler:
         self.SLACK_BOT_TOKEN = self.slack_config.SLACK_BOT_TOKEN
         self.SLACK_BOT_USER_TOKEN = self.slack_config.SLACK_BOT_USER_TOKEN
         self.client = WebClient(token=self.SLACK_BOT_TOKEN)
-        self.WORKSPACE_NAME = self.slack_config.WORKSPACE_NAME
+        self.WORKSPACE_NAME = self.slack_config.SLACK_WORKSPACE_NAME
 
     def is_message_too_old(self, event_ts):
 

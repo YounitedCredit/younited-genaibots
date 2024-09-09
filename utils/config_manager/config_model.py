@@ -26,17 +26,17 @@ class BotConfig(BaseModel):
     BREAK_KEYWORD: str
     START_KEYWORD: str
 
-class FileSystem(BaseModel):
+class LocalLogging(BaseModel):
     PLUGIN_NAME: str
-    FILE_PATH: str
+    LOCAL_LOGGING_FILE_PATH: str
 
-class Azure(BaseModel):
+class AzureLogging(BaseModel):
     PLUGIN_NAME: str
-    APPLICATIONINSIGHTS_CONNECTION_STRING: str
+    AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING: str
 
 class Logging(BaseModel):
-    FILE_SYSTEM: Optional[FileSystem] = None
-    AZURE: Optional[Azure] = None
+    LOCAL_LOGGING: Optional[LocalLogging] = None
+    AZURE_LOGGING: Optional[AzureLogging] = None
 
 class Environment(BaseModel):
     PLUGIN_NAME: str

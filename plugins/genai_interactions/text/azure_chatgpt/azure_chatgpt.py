@@ -27,9 +27,9 @@ class AzureChatGptConfig(BaseModel):
     PLUGIN_NAME: str
     AZURE_CHATGPT_INPUT_TOKEN_PRICE: float
     AZURE_CHATGPT_OUTPUT_TOKEN_PRICE: float
-    AZURE_OPENAI_KEY: str
-    AZURE_OPENAI_ENDPOINT: str
-    OPENAI_API_VERSION: str
+    AZURE_CHATGPT_OPENAI_KEY: str
+    AZURE_CHATGPT_OPENAI_ENDPOINT: str
+    AZURE_CHATGPT_OPENAI_API_VERSION: str
     AZURE_CHATGPT_MODEL_NAME: str
     AZURE_CHATGPT_VISION_MODEL_NAME: str
     AZURE_CHATGPT_IS_ASSISTANT: bool = False  
@@ -73,9 +73,9 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
     def initialize(self):
         # Client settings
-        self.azure_openai_key = self.azure_chatgpt_config.AZURE_OPENAI_KEY
-        self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_OPENAI_ENDPOINT
-        self.openai_api_version = self.azure_chatgpt_config.OPENAI_API_VERSION
+        self.azure_openai_key = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_KEY
+        self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_ENDPOINT
+        self.openai_api_version = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_API_VERSION
         self.model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
         self.input_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_OUTPUT_TOKEN_PRICE
@@ -94,9 +94,9 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
     def load_client(self):
         try:
             self.gpt_client = AsyncAzureOpenAI(
-                api_key=self.azure_chatgpt_config.AZURE_OPENAI_KEY,
-                azure_endpoint=self.azure_chatgpt_config.AZURE_OPENAI_ENDPOINT,
-                api_version=self.azure_chatgpt_config.OPENAI_API_VERSION
+                api_key=self.azure_openai_key,
+                azure_endpoint=self.azure_openai_endpoint,
+                api_version=self.openai_api_version
             )
         except KeyError as e:
             self.logger.error(f"Missing configuration key: {e}")

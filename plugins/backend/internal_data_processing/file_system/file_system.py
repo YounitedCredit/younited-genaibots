@@ -13,17 +13,17 @@ from typing import NoReturn
 
 class FileSystemConfig(BaseModel):
     PLUGIN_NAME: str
-    DIRECTORY: str
-    SESSIONS_CONTAINER: str
-    MESSAGES_CONTAINER: str
-    FEEDBACKS_CONTAINER: str
-    CONCATENATE_CONTAINER: str
-    PROMPTS_CONTAINER: str
-    COSTS_CONTAINER: str
-    PROCESSING_CONTAINER: str
-    ABORT_CONTAINER: str
-    VECTORS_CONTAINER: str
-    CUSTOM_ACTIONS_CONTAINER: str
+    FILE_SYSTEM_DIRECTORY: str
+    FILE_SYSTEM_SESSIONS_CONTAINER: str
+    FILE_SYSTEM_MESSAGES_CONTAINER: str
+    FILE_SYSTEM_FEEDBACKS_CONTAINER: str
+    FILE_SYSTEM_CONCATENATE_CONTAINER: str
+    FILE_SYSTEM_PROMPTS_CONTAINER: str
+    FILE_SYSTEM_COSTS_CONTAINER: str
+    FILE_SYSTEM_PROCESSING_CONTAINER: str
+    FILE_SYSTEM_ABORT_CONTAINER: str
+    FILE_SYSTEM_VECTORS_CONTAINER: str
+    FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -109,17 +109,17 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def initialize(self):
         try:
             self.logger.debug("Initializing file system")
-            self.root_directory = self.file_system_config.DIRECTORY
-            self.sessions_container = self.file_system_config.SESSIONS_CONTAINER
-            self.messages_container = self.file_system_config.MESSAGES_CONTAINER
-            self.feedbacks_container = self.file_system_config.FEEDBACKS_CONTAINER
-            self.concatenate_container = self.file_system_config.CONCATENATE_CONTAINER
-            self.prompts_container = self.file_system_config.PROMPTS_CONTAINER
-            self.costs_container = self.file_system_config.COSTS_CONTAINER
-            self.processing_container = self.file_system_config.PROCESSING_CONTAINER
-            self.abort_container = self.file_system_config.ABORT_CONTAINER
-            self.vectors_container = self.file_system_config.VECTORS_CONTAINER
-            self.custom_actions_container = self.file_system_config.CUSTOM_ACTIONS_CONTAINER
+            self.root_directory = self.file_system_config.FILE_SYSTEM_DIRECTORY
+            self.sessions_container = self.file_system_config.FILE_SYSTEM_SESSIONS_CONTAINER
+            self.messages_container = self.file_system_config.FILE_SYSTEM_MESSAGES_CONTAINER
+            self.feedbacks_container = self.file_system_config.FILE_SYSTEM_FEEDBACKS_CONTAINER
+            self.concatenate_container = self.file_system_config.FILE_SYSTEM_CONCATENATE_CONTAINER
+            self.prompts_container = self.file_system_config.FILE_SYSTEM_PROMPTS_CONTAINER
+            self.costs_container = self.file_system_config.FILE_SYSTEM_COSTS_CONTAINER
+            self.processing_container = self.file_system_config.FILE_SYSTEM_PROCESSING_CONTAINER
+            self.abort_container = self.file_system_config.FILE_SYSTEM_ABORT_CONTAINER
+            self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
+            self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME            
             self.init_shares()
         except KeyError as e:

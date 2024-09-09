@@ -37,7 +37,7 @@ def setup_logger_and_tracer(global_manager):
 
     # Vérifier si le niveau de log est valide
     if debug_level not in log_levels:
-        logger.warning(f"Niveau de log '{debug_level}' non reconnu, utilisation du niveau 'INFO'.")
+        logger.warning(f"Log level '{debug_level}' not recognized, using 'INFO' level.")
         log_level = logging.INFO
     else:
         log_level = log_levels[debug_level]
@@ -65,13 +65,16 @@ def setup_logger_and_tracer(global_manager):
     file_log_format = '%(asctime)s [%(levelname)s] %(message)s'
     file_formatter = logging.Formatter(file_log_format, datefmt='%H:%M:%S')
 
-    log_plugin_file = config_handler.get_config(['UTILS', 'LOGGING', 'FILE_SYSTEM'])
-    log_plugin_azure = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE'])
+    log_plugin_file = config_handler.get_config(['UTILS', 'LOGGING', 'LOCAL_LOGGING'])
+    log_plugin_azure = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE_LOGGING'])
 
-    if log_plugin_file and log_plugin_file.PLUGIN_NAME == 'file_system':
+    if log_plugin_file is None and log_plugin_azure is None:
+        logger.warning("No Logging confured in UTILS/LOGGING, no logs will be recorded")
+
+    if log_plugin_file and log_plugin_file.PLUGIN_NAME == 'local_logging':
         # File handler setup
         file_handler = RotatingFileHandler(
-            config_handler.get_config(['UTILS', 'LOGGING', 'FILE_SYSTEM', 'FILE_PATH']),
+            config_handler.get_config(['UTILS', 'LOGGING', 'LOCAL_LOGGING', 'LOCAL_LOGGING_FILE_PATH']),
             maxBytes=10000000,
             backupCount=3
         )
@@ -82,8 +85,8 @@ def setup_logger_and_tracer(global_manager):
     elif log_plugin_azure and log_plugin_azure.PLUGIN_NAME == 'azure':
         logging.getLogger('azure').setLevel(logging.WARNING)
         # Azure handler setup for logging
-        azure_config = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE'])
-        connection_string = azure_config.APPLICATIONINSIGHTS_CONNECTION_STRING
+        azure_config = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE_LOGGING'])
+        connection_string = azure_config.AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING
 
         # Set up Azure Monitor Log Exporter
         logger_provider = LoggerProvider()

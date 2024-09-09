@@ -31,9 +31,9 @@ from .utils.slack_reactions import SlackReactions
 
 class SlackConfig(BaseModel):
     PLUGIN_NAME: str
-    ROUTE_PATH: str
-    ROUTE_METHODS: List[str]
-    PLUGIN_DIRECTORY: str
+    SLACK_ROUTE_PATH: str
+    SLACK_ROUTE_METHODS: List[str]
+    SLACK_PLUGIN_DIRECTORY: str
     SLACK_MESSAGE_TTL: int
     SLACK_SIGNING_SECRET: str
     SLACK_BOT_TOKEN: str
@@ -45,10 +45,10 @@ class SlackConfig(BaseModel):
     SLACK_AUTHORIZED_WEBHOOKS: str
     SLACK_FEEDBACK_CHANNEL: str
     SLACK_FEEDBACK_BOT_ID: str
-    MAX_MESSAGE_LENGTH: int
-    INTERNAL_CHANNEL: str
-    WORKSPACE_NAME: str
-    BEHAVIOR_PLUGIN_NAME: str
+    SLACK_MAX_MESSAGE_LENGTH: int
+    SLACK_INTERNAL_CHANNEL: str
+    SLACK_WORKSPACE_NAME: str
+    SLACK_BEHAVIOR_PLUGIN_NAME: str
 
 class SlackPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -88,19 +88,18 @@ class SlackPlugin(UserInteractionsPluginBase):
         self.slack_output_handler = SlackOutputHandler(self.global_manager,self.slack_config)
 
         self.SLACK_MESSAGE_TTL = self.slack_config.SLACK_MESSAGE_TTL
-
         self.SLACK_AUTHORIZED_CHANNELS = self.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
         self.SLACK_AUTHORIZED_APPS = self.slack_config.SLACK_AUTHORIZED_APPS.split(",")
         self.SLACK_AUTHORIZED_WEBHOOKS = self.slack_config.SLACK_AUTHORIZED_WEBHOOKS.split(",")
         self.SLACK_FEEDBACK_CHANNEL = self.slack_config.SLACK_FEEDBACK_CHANNEL
         self.slack_bot_token = self.slack_config.SLACK_BOT_TOKEN
         self.slack_signing_secret = self.slack_config.SLACK_SIGNING_SECRET
-        self._route_path = self.slack_config.ROUTE_PATH
-        self._route_methods = self.slack_config.ROUTE_METHODS
+        self._route_path = self.slack_config.SLACK_ROUTE_PATH
+        self._route_methods = self.slack_config.SLACK_ROUTE_METHODS
         self.bot_user_id = self.slack_config.SLACK_BOT_USER_ID
-        self.MAX_MESSAGE_LENGTH = self.slack_config.MAX_MESSAGE_LENGTH
-        self.INTERNAL_CHANNEL = self.slack_config.INTERNAL_CHANNEL
-        self.WORKSPACE_NAME = self.slack_config.WORKSPACE_NAME
+        self.MAX_MESSAGE_LENGTH = self.slack_config.SLACK_MAX_MESSAGE_LENGTH
+        self.INTERNAL_CHANNEL = self.slack_config.SLACK_INTERNAL_CHANNEL
+        self.WORKSPACE_NAME = self.slack_config.SLACK_WORKSPACE_NAME
         self.plugin_name = self.slack_config.PLUGIN_NAME
         self.FEEDBACK_BOT_USER_ID = self.slack_config.SLACK_FEEDBACK_BOT_ID
 
@@ -221,7 +220,7 @@ class SlackPlugin(UserInteractionsPluginBase):
         await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
             event_data=event_data,
             event_origin=self.plugin_name,
-            plugin_name=self.slack_config.BEHAVIOR_PLUGIN_NAME
+            plugin_name=self.slack_config.SLACK_BEHAVIOR_PLUGIN_NAME
         )
 
     async def validate_request(self, event_data=None, headers=None, raw_body_str=None):

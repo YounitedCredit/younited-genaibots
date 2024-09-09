@@ -13,21 +13,21 @@ from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
 
-AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
+AZURE_BLOB_STORAGE_BACKEND = "AZURE_BLOB_STORAGE_BACKEND"
 
 class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
-    CONNECTION_STRING: str
-    SESSIONS_CONTAINER: str
-    MESSAGES_CONTAINER: str
-    FEEDBACKS_CONTAINER: str
-    CONCATENATE_CONTAINER: str
-    PROMPTS_CONTAINER: str
-    COSTS_CONTAINER: str
-    PROCESSING_CONTAINER: str
-    ABORT_CONTAINER: str
-    VECTORS_CONTAINER: str
-    CUSTOM_ACTIONS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CONNECTION_STRING: str
+    AZURE_BLOB_STORAGE_SESSIONS_CONTAINER: str
+    AZURE_BLOB_STORAGE_MESSAGES_CONTAINER: str
+    AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER: str
+    AZURE_BLOB_STORAGE_PROMPTS_CONTAINER: str
+    AZURE_BLOB_STORAGE_COSTS_CONTAINER: str
+    AZURE_BLOB_STORAGE_PROCESSING_CONTAINER: str
+    AZURE_BLOB_STORAGE_ABORT_CONTAINER: str
+    AZURE_BLOB_STORAGE_VECTORS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -36,28 +36,28 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.initialization_failed = False
         self.plugin_manager : PluginManager = global_manager.plugin_manager
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
-        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
+        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE_BACKEND]
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
         self.plugin_name = None
 
     def initialize(self):
         self.logger.debug("Initializing Azure Blob Storage connection")
-        self.connection_string = self.azure_blob_storage_config.CONNECTION_STRING
-        self.sessions_container = self.azure_blob_storage_config.SESSIONS_CONTAINER
-        self.messages_container = self.azure_blob_storage_config.MESSAGES_CONTAINER
-        self.feedbacks_container = self.azure_blob_storage_config.FEEDBACKS_CONTAINER
-        self.concatenate_container = self.azure_blob_storage_config.CONCATENATE_CONTAINER
-        self.prompts_container = self.azure_blob_storage_config.PROMPTS_CONTAINER
-        self.costs_container = self.azure_blob_storage_config.COSTS_CONTAINER
-        self.processing_container = self.azure_blob_storage_config.PROCESSING_CONTAINER
-        self.abort_container = self.azure_blob_storage_config.ABORT_CONTAINER
-        self.vectors_container = self.azure_blob_storage_config.VECTORS_CONTAINER
-        self.custom_actions_container = self.azure_blob_storage_config.CUSTOM_ACTIONS_CONTAINER
+        self.connection_string = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
+        self.sessions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
+        self.messages_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_CONTAINER
+        self.feedbacks_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER
+        self.concatenate_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER
+        self.prompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_PROMPTS_CONTAINER
+        self.costs_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_COSTS_CONTAINER
+        self.processing_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_PROCESSING_CONTAINER
+        self.abort_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_ABORT_CONTAINER
+        self.vectors_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_VECTORS_CONTAINER
+        self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
             credential = DefaultAzureCredential()
-            self.blob_service_client = BlobServiceClient(account_url=self.azure_blob_storage_config.CONNECTION_STRING, credential=credential)
+            self.blob_service_client = BlobServiceClient(account_url=self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING, credential=credential)
             self.logger.debug("BlobServiceClient successfully created")
         except Exception as e:
             self.initialization_failed = True
