@@ -134,7 +134,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             search_body = {
                 "search": message,
                 "top": self.search_topn_document,
-                "select": "id, title, content, passage_id"  # Fetch required fields including id, content, and passage_id
+                "select": "id, title, content, passage_id, file_path"  # Fetch id, content, passage_id
             }
 
             async with aiohttp.ClientSession() as session:
@@ -146,12 +146,11 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                         self.logger.error(f"Search failed with status code {status}")
                         raise OpenAIRequestError(status, body)
 
-                    # Process the search results
                     search_results = body.get("value", [])
-                    if get_whole_doc and search_results:
-                        # For each result, fetch all passages related to its id
-                        full_documents = await self.fetch_all_documents(search_results, index_name)
-                        return json.dumps({"full_documents": full_documents})
+
+                    # If get_whole_doc is True, replace the content of each result with the full document content
+                    if get_whole_doc:
+                        search_results = await self.replace_with_full_document_content(search_results, index_name)
 
                     return json.dumps({"search_results": search_results})
 
@@ -170,37 +169,28 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                 ]
             })
 
-    async def fetch_all_documents(self, search_results, index_name):
-        """Fetches all content and metadata for each unique document id in the search results."""
-        full_documents = []
+    async def replace_with_full_document_content(self, search_results, index_name):
+        """Replace the content field with full document content for each result."""
         ids_seen = set()
 
         try:
             for result in search_results:
                 document_id = result['id']
 
-                # Skip if we've already fetched this document
-                if document_id in ids_seen:
-                    continue
+                # Fetch all passages for this document id if we haven't processed it yet
+                if document_id not in ids_seen:
+                    full_document_content = await self.fetch_full_document_content(document_id, index_name)
+                    result['content'] = full_document_content  # Replace the content with the full document
+                    ids_seen.add(document_id)  # Mark this document id as processed
 
-                # Fetch all passages for this id
-                full_document_data = await self.fetch_full_document(document_id, index_name)
-                ids_seen.add(document_id)  # Mark this document id as processed
-
-                # Add the full document data to the final result
-                full_documents.append({
-                    "id": document_id,  # Group by id
-                    "passages": full_document_data  # All passages (chunks) for this document
-                })
-
-            return full_documents
+            return search_results
 
         except Exception as e:
-            self.logger.error(f"Error while fetching documents: {e}")
-            return []
+            self.logger.error(f"Error while fetching full document content: {e}")
+            return search_results
 
-    async def fetch_full_document(self, document_id, index_name):
-        """Fetches all the passages for a specific document id."""
+    async def fetch_full_document_content(self, document_id, index_name):
+        """Fetches and concatenates all passages for a specific document id."""
         try:
             fetch_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
             fetch_headers = {
@@ -211,7 +201,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             # Query all passages that share the same id
             fetch_body = {
                 "filter": f"id eq '{document_id}'",  # Fetch all passages by id
-                "select": "id, content, passage_id",  # Fetch content and passage_id
+                "select": "content, passage_id",  # Fetch content and passage_id
                 "top": 1000  # Assuming the document won't exceed 1000 chunks
             }
 
@@ -222,15 +212,13 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
                     if fetch_status != 200:
                         self.logger.error(f"Failed to fetch full document with status {fetch_status}")
-                        return []
+                        return ""
 
-                    # Collect all passages and metadata
+                    # Collect and concatenate all passages by passage_id
                     passages = sorted(fetch_body.get("value", []), key=lambda x: x['passage_id'])
-                    return [{
-                        "passage_id": passage['passage_id'],
-                        "content": passage['content'],
-                    } for passage in passages]
+                    full_document_content = " ".join([passage['content'] for passage in passages])
+                    return full_document_content
 
         except Exception as e:
             self.logger.error(f"Error while fetching full document: {e}")
-            return []
+            return ""

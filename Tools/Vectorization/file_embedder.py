@@ -295,14 +295,18 @@ def get_text_embedding(text, openai_client, model=None):
         logging.error(f"Error getting text embedding: {e}")
         return []
 
+
 def convert_to_azure_search_json(df, key_name='id'):
     """Convert DataFrame to Azure Cognitive Search JSON format."""
     documents = []
     for _, row in df.iterrows():
         # Sanitize the document_id and passage_id before using them
         sanitized_id = sanitize_document_id(f"{row['document_id']}_{row['passage_id']}")
+        document_id = sanitize_document_id(row['title'])  # or use file_path for document-level ID
+        # For each passage, create a new entry with a unique id for the passage and a document_id
         doc = {
-            key_name: sanitized_id,  # Unique ID for the passage
+            "id": f"{document_id}_{row['passage_id']}",  # Combine document_id and passage_id for unique passage ID
+            "document_id": document_id,  # Unique ID for the document (same for all passages)
             "content": row['text'],  # Full content of the passage
             "file_path": row['file_path'],  # Original file path
             "title": row['title'],  # Title of the document
@@ -342,7 +346,7 @@ def generate_index_definition(index_name, vector_dimension):
             {
                 "name": "document_id",  # New field to store the original document ID
                 "type": "Edm.String",
-                "searchable": False,
+                "searchable": True,
                 "filterable": True,
                 "retrievable": True,  # Make the document ID retrievable
                 "sortable": False,
@@ -516,28 +520,34 @@ def main(args):
                 title = clean_title(os.path.splitext(os.path.basename(local_file_path))[0])
                 title_embedding = get_text_embedding(title, openai_client, model=args.model_name)
 
+                # Generate a unique document ID (based on title, file_path, or another attribute)
+                document_id = sanitize_document_id(title)  # Ensure document_id is unique and sanitized
+
                 # Process each passage
                 for passage_index, passage in enumerate(document_passages, 1):
                     embedding = get_text_embedding(passage, openai_client, model=args.model_name)
+                    
                     if embedding:
-                        document_ids.append(title)
-                        passage_ids.append(passage_index)
-                        embeddings.append(embedding)
-                        texts.append(passage)
-                        titles.append(title)
-                        title_embeddings.append(title_embedding)
-                        passage_indices.append(passage_index)
+                        # Append the correct document_id for each passage
+                        document_ids.append(document_id)  # Use the document_id, not the title
+                        
+                        # Track each passage's unique metadata
+                        passage_ids.append(passage_index)  # Track the passage index
+                        embeddings.append(embedding)  # Add the embedding
+                        texts.append(passage)  # Add the passage text
+                        titles.append(title)  # Keep the document's title
+                        title_embeddings.append(title_embedding)  # Add title embedding
+                        passage_indices.append(passage_index)  # Add passage index
 
-                        # At this point, calculate the file path or wiki URL based on the source type
+                        # Calculate file path or wiki URL based on the source type
                         if args.source_type == 'azure_devops_wiki':
                             file_url = create_wiki_url(args.wiki_url, local_file_path, args.input, args.wiki_subfolder)
-                            file_paths.append(file_url)
+                            file_paths.append(file_url)  # Append the generated wiki URL
                             logging.info(f"Generated Azure DevOps Wiki URL: {file_url}")
                         else:
-                            file_path = local_file_path.replace('\\', '/')
-                            file_paths.append(file_path)
+                            file_path = local_file_path.replace('\\', '/')  # Normalize the local file path
+                            file_paths.append(file_path)  # Append the file path
                             logging.info(f"File path: {file_path}")
-
     # Create the DataFrame
     try:
         df = pd.DataFrame({
