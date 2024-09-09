@@ -114,16 +114,41 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         # todo: add validation logic
         return True
 
-    async def handle_request(self, event:IncomingNotificationDataBase):
+    async def handle_request(self, event: IncomingNotificationDataBase):
         """Handles the request."""
-        validate_request = self.validate_request(event)
+        try:
+            validate_request = self.validate_request(event)
 
-        response = await self.input_handler.handle_event_data(event)
-        if validate_request == False:
-            self.logger.error(f"Invalid request: {event}")
-            return None
-        else:
+            if not validate_request:
+                self.logger.error(f"Invalid request: {event}")
+                await self.dispatcher.send_message(
+                    event.user_id,
+                    "Something went wrong. Please try again or contact the bot owner.",
+                    message_type=MessageType.USER
+                )
+                return None
+
+            response = await self.input_handler.handle_event_data(event)
             return response
+
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            self.logger.error(f"An error occurred: {e}\n{error_trace}")
+
+            # Send message to the user
+            await self.user_interaction_dispatcher.send_message(
+                event.user_id,
+                "Something went wrong. Please try again or contact the bot owner.",
+                message_type=MessageType.USER
+            )
+
+            # Send internal message with error details
+            await self.user_interaction_dispatcher.send_message(
+                "genai interaction issue",  # Replace with actual internal channel ID
+                f"An error occurred in the azure_chatgpt module: {e}\n{error_trace}",
+                message_type=MessageType.TEXT, is_internal=True
+            )
+            return None
 
     async def handle_action(self, action_input:ActionInput, event:IncomingNotificationDataBase):
         try:

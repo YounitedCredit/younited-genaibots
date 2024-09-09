@@ -100,7 +100,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
         body = {
             "search": message,
             "top": self.search_topn_document,
-            "select": "id, title, content",  # Return ID, title, and content
+            "select": "id, title, content, file_path",  # Return ID, title, content and file_path
             "queryType": "simple"  # Use 'simple' for a basic search
         }
 
@@ -130,7 +130,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
             search_body = {
                 "search": message,
-                "select": "id, title, content",  # Fields to return
+                "select": "id, title, content, file_path",  # Fields to return
                 "top": self.search_topn_document
             }
 

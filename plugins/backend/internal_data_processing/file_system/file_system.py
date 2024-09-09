@@ -132,7 +132,18 @@ class FileSystemPlugin(InternalDataProcessingBase):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
     def init_shares(self):
-        containers = [self.sessions_container, self.messages_container, self.feedbacks_container, self.concatenate_container, self.prompts_container, self.costs_container, self.processing_container]
+        containers = [
+            self.sessions_container,
+            self.messages_container,
+            self.feedbacks_container,
+            self.concatenate_container,
+            self.prompts_container,
+            self.costs_container,
+            self.processing_container,
+            self.abort_container,
+            self.vectors_container,
+            self.custom_actions_container
+        ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
             os.makedirs(directory_path, exist_ok=True)
