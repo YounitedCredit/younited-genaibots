@@ -102,16 +102,22 @@ logger.addHandler(stream_handler)
 
 # Clean markdown or code content
 def clean_markdown(content):
-    """Remove markdown-specific syntax and clean content."""
-    content = re.sub(r'^\s*#+\s', '', content, flags=re.MULTILINE)  # Remove titles
-    content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)  # Remove links
-    content = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', '', content)  # Remove images
+    """Remove markdown-specific syntax but keep URLs, remove title markers, and clean content with proper line breaks."""
+    content = re.sub(r'^\s*#+\s', '', content, flags=re.MULTILINE)  # Remove title markers, keep title text
+    content = re.sub(r'!\[.*?\]\(.*?\)', '', content)  # Remove images
+    content = re.sub(r'\[.*?\]\((.*?)\)', r'\1', content)  # Keep only URLs from links
     content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)  # Remove bold
     content = re.sub(r'\*(.*?)\*', r'\1', content)  # Remove italics
-    content = re.sub(r'^\s*[-*+]\s+', '', content, flags=re.MULTILINE)  # Remove lists
-    content = re.sub(r'`(.*?)`', r'\1', content)  # Remove inline code
-    content = re.sub(r'```.*?```', '', content, flags=re.DOTALL)  # Remove code blocks
-    return content
+    content = re.sub(r'^\s*[-*+]\s+', '', content, flags=re.MULTILINE)  # Remove list markers
+    content = re.sub(r'`{3}.*?`{3}', '', content, flags=re.DOTALL)  # Remove block code entirely
+    content = re.sub(r'`(.*?)`', r'\1', content)  # Remove inline code markers, keep code text
+
+    # Remove extra newlines and clean lines
+    content_lines = [line.strip() for line in content.splitlines() if line.strip()]
+    
+    # Join the cleaned lines with visible line breaks for better readability
+    return '\n'.join(content_lines)
+
 
 def decode_filename(filename):
     """Decode any URL-encoded characters in a filename."""
@@ -222,26 +228,27 @@ def concat_files(directory, output_file, exclude_empty, bypass_dirs, file_types,
 
     logger.info(f"Concatenation complete. Processed {file_count} files. Output written to {output_file}.")
 
-# Parse command-line arguments
-parser = argparse.ArgumentParser(description=help_description, formatter_class=argparse.RawTextHelpFormatter)
+if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description=help_description, formatter_class=argparse.RawTextHelpFormatter)
 
-parser.add_argument('--input', required=True, help='Path to the project directory (required)')
-parser.add_argument('--output', required=True, help='Path to the output file (required)')
-parser.add_argument('--exclude_empty', action='store_true', help='Exclude empty files from concatenation')
-parser.add_argument('--bypass_dirs', nargs='*', help='List of directories to bypass (optional)')
-parser.add_argument('--include_files', nargs='*', help='List of file extensions to include (e.g., .md .py .js)')
-parser.add_argument('--ignore-patterns', nargs='*', help='List of custom ignore patterns (e.g., __pycache__, .* for hidden files)')
-parser.add_argument('--use-gitignore', action='store_true', help='Use the .gitignore file as an additional filter')
+    parser.add_argument('--input', required=True, help='Path to the project directory (required)')
+    parser.add_argument('--output', required=True, help='Path to the output file (required)')
+    parser.add_argument('--exclude_empty', action='store_true', help='Exclude empty files from concatenation')
+    parser.add_argument('--bypass_dirs', nargs='*', help='List of directories to bypass (optional)')
+    parser.add_argument('--include_files', nargs='*', help='List of file extensions to include (e.g., .md .py .js)')
+    parser.add_argument('--ignore-patterns', nargs='*', help='List of custom ignore patterns (e.g., __pycache__, .* for hidden files)')
+    parser.add_argument('--use-gitignore', action='store_true', help='Use the .gitignore file as an additional filter')
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-# Run the concatenation function with the provided arguments
-concat_files(
-    args.input,
-    args.output,
-    args.exclude_empty,
-    args.bypass_dirs,
-    args.include_files or ['.md', '.py', '.js', '.java', '.cpp'],
-    args.ignore_patterns,
-    args.use_gitignore
-)
+    # Run the concatenation function with the provided arguments
+    concat_files(
+        args.input,
+        args.output,
+        args.exclude_empty,
+        args.bypass_dirs,
+        args.include_files or ['.md', '.py', '.js', '.java', '.cpp'],
+        args.ignore_patterns,
+        args.use_gitignore
+    )

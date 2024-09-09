@@ -13,12 +13,12 @@ import inspect
 
 class OpenaiFileSearchConfig(BaseModel):
     PLUGIN_NAME: str
-    OPENAI_SEARCH_OPENAI_KEY: str
-    OPENAI_SEARCH_OPENAI_ENDPOINT: str
-    OPENAI_SEARCH_OPENAI_API_VERSION: str
-    OPENAI_SEARCH_MODEL_HOST: str  # Can be "azure" or "openai"
-    OPENAI_SEARCH_MODEL_NAME: str
-    OPENAI_SEARCH_RESULT_COUNT: int
+    OPENAI_FILE_SEARCH_OPENAI_KEY: str
+    OPENAI_FILE_SEARCH_OPENAI_ENDPOINT: str
+    OPENAI_FILE_SEARCH_OPENAI_API_VERSION: str
+    OPENAI_FILE_SEARCH_MODEL_HOST: str  # Can be "azure" or "openai"
+    OPENAI_FILE_SEARCH_MODEL_NAME: str
+    OPENAI_FILE_SEARCH_RESULT_COUNT: int
 
 
 class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
@@ -32,15 +32,15 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
 
     def initialize(self):
         # Ensure the correct client is initialized based on the model host type (Azure or OpenAI)
-        if self.openai_search_config.OPENAI_SEARCH_MODEL_HOST.lower() == "azure":
+        if self.openai_search_config.OPENAI_FILE_SEARCH_MODEL_HOST.lower() == "azure":
             self.client = AsyncAzureOpenAI(
-                api_key=self.openai_search_config.OPENAI_SEARCH_OPENAI_KEY,
-                azure_endpoint=self.openai_search_config.OPENAI_SEARCH_OPENAI_ENDPOINT,
-                api_version=self.openai_search_config.OPENAI_SEARCH_OPENAI_API_VERSION
+                api_key=self.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_KEY,
+                azure_endpoint=self.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_ENDPOINT,
+                api_version=self.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_API_VERSION
             )
         else:
-            self.client = AsyncOpenAI(api_key=self.openai_search_config.OPENAI_SEARCH_OPENAI_KEY)
-        self.result_count = self.openai_search_config.OPENAI_SEARCH_RESULT_COUNT
+            self.client = AsyncOpenAI(api_key=self.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_KEY)
+        self.result_count = self.openai_search_config.OPENAI_FILE_SEARCH_RESULT_COUNT
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
     def validate_request(self, event: IncomingNotificationDataBase):
@@ -72,7 +72,7 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
             return json.dumps({"search_results": []})
 
         # Get query embedding
-        query_embedding = await self.get_embedding(query, model=self.openai_search_config.OPENAI_SEARCH_MODEL_NAME)
+        query_embedding = await self.get_embedding(query, model=self.openai_search_config.OPENAI_FILE_SEARCH_MODEL_NAME)
 
         # Compute cosine similarity between query embedding and document vectors
         for item in data['value']:

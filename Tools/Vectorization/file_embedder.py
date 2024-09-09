@@ -119,29 +119,6 @@ stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(ColoredFormatter())
 logger.addHandler(stream_handler)
 
-# Parse command-line arguments
-parser = argparse.ArgumentParser(description=help_description, formatter_class=argparse.RawTextHelpFormatter)
-
-parser.add_argument('--input', required=True, help='Path to input file or directory')
-parser.add_argument('--output', required=True, help='Path to output file (without extension)')
-parser.add_argument('--output_format', choices=['csv', 'json'], default='csv', help='Output format (csv or json)')
-parser.add_argument('--max_tokens', type=int, default=None, help='Maximum number of tokens per segment. If not set, entire documents will be vectorized.')
-parser.add_argument('--index_name', help='Name for the Azure Cognitive Search index. If provided, an index definition will be generated.')
-parser.add_argument('--openai_key', required=True, help='Azure OpenAI API key')
-parser.add_argument('--openai_endpoint', required=True, help='Azure OpenAI endpoint')
-parser.add_argument('--openai_api_version', default="2023-06-01-preview", help='Azure OpenAI API version')
-parser.add_argument('--dynamic_chunking', action='store_true', help='Enable chunking based on document structure such as paragraphs or headings')
-parser.add_argument('--overlap_tokens', type=int, default=50, help='Number of tokens to overlap between chunks')
-parser.add_argument('--model_name', default="text-embedding-3-large", help="OpenAI model name to be used for generating embeddings. Default is 'text-embedding-3-large'")
-parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki'], default='filesystem', 
-                    help="Source type: 'filesystem' (default) or 'azure_devops_wiki'. Specifies how the file path is treated.")
-parser.add_argument('--wiki_url', help="Base URL of the Azure DevOps Wiki. Required if 'azure_devops_wiki' is selected as source_type.")
-args = parser.parse_args()
-
-if args.source_type == 'azure_devops_wiki':
-    if not args.wiki_url:
-        raise ValueError("You must provide --wiki_url when using 'azure_devops_wiki' as source_type")
-
 def get_file_path(local_path, source_type, wiki_url, input_dir):
     if source_type == 'filesystem':
         # Replace backslashes with forward slashes for filesystem paths
@@ -497,7 +474,7 @@ def generate_index_definition(index_name, vector_dimension):
     }
 
 # Main execution
-if __name__ == "__main__":
+def main(args):
     # Initialize lists to store data
     document_ids, passage_ids, embeddings, texts, titles, title_embeddings, file_paths, passage_indices = [], [], [], [], [], [], [], []
 
@@ -628,3 +605,26 @@ if __name__ == "__main__":
         logging.info(f"Index definition file: {index_file}")
     else:
         logging.info("No index definition file was generated.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=help_description, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--input', required=True, help='Path to input file or directory')
+    parser.add_argument('--output', required=True, help='Path to output file (without extension)')
+    parser.add_argument('--output_format', choices=['csv', 'json'], default='csv', help='Output format (csv or json)')
+    parser.add_argument('--max_tokens', type=int, default=None, help='Maximum number of tokens per segment. If not set, entire documents will be vectorized.')
+    parser.add_argument('--index_name', help='Name for the Azure Cognitive Search index. If provided, an index definition will be generated.')
+    parser.add_argument('--openai_key', required=True, help='Azure OpenAI API key')
+    parser.add_argument('--openai_endpoint', required=True, help='Azure OpenAI endpoint')
+    parser.add_argument('--openai_api_version', default="2023-06-01-preview", help='Azure OpenAI API version')
+    parser.add_argument('--dynamic_chunking', action='store_true', help='Enable chunking based on document structure such as paragraphs or headings')
+    parser.add_argument('--overlap_tokens', type=int, default=50, help='Number of tokens to overlap between chunks')
+    parser.add_argument('--model_name', default="text-embedding-3-large", help="OpenAI model name to be used for generating embeddings. Default is 'text-embedding-3-large'")
+    parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki'], default='filesystem', 
+                        help="Source type: 'filesystem' (default) or 'azure_devops_wiki'. Specifies how the file path is treated.")
+    parser.add_argument('--wiki_url', help="Base URL of the Azure DevOps Wiki. Required if 'azure_devops_wiki' is selected as source_type.")
+    args = parser.parse_args()
+
+    if args.source_type == 'azure_devops_wiki' and not args.wiki_url:
+        parser.error("You must provide --wiki_url when using 'azure_devops_wiki' as source_type")
+
+    main(args)
