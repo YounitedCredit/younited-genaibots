@@ -91,9 +91,12 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
-        query = parameters.get('query', '')  # The query to search for
-        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fall back to default and convert to lower case
-        result = await self.call_search(message=query, index_name=index_name)
+        query = parameters.get('query', '')  # The search query
+        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fallback to default
+        get_whole_doc = parameters.get('get_whole_doc', False)  # New flag for fetching full document
+
+        # Call search and handle fetching full document based on document_id
+        result = await self.call_search(message=query, index_name=index_name, get_whole_doc=get_whole_doc)
         return result
     
     def prepare_search_body_headers(self, message):
@@ -118,9 +121,9 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                 body = await response.read()
                 return status, body
     
-    async def call_search(self, message, index_name):
+    async def call_search(self, message, index_name, get_whole_doc=False):
         try:
-            # Prepare the search URL dynamically based on index_name
+            # Perform the initial search query to retrieve passages
             search_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
             
             search_headers = {
@@ -130,27 +133,28 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
             search_body = {
                 "search": message,
-                "select": "id, title, content, file_path",  # Fields to return
-                "top": self.search_topn_document
+                "top": self.search_topn_document,
+                "select": "id, title, content, file_path, document_id, passage_id"  # Fetch required fields
             }
 
-            # Perform the search request
             async with aiohttp.ClientSession() as session:
                 async with session.post(search_url, headers=search_headers, json=search_body) as response:
                     status = response.status
                     body = await response.json()
 
-                    # Check if search was successful
                     if status != 200:
                         self.logger.error(f"Search failed with status code {status}")
-                        self.logger.error(f"Search response: {str(body)}")
                         raise OpenAIRequestError(status, body)
 
-                    # Log and return the search results
+                    # Process the search results
                     search_results = body.get("value", [])
-                    self.logger.info(f"Search returned {len(search_results)} results")
+                    if get_whole_doc and search_results:
+                        # For each result, fetch all passages related to its document_id
+                        full_documents = await self.fetch_all_documents(search_results, index_name)
+                        return json.dumps({"full_documents": full_documents})
+
                     return json.dumps({"search_results": search_results})
-                    
+
         except Exception as e:
             self.logger.error(f"An error occurred during search: {e}")
             return json.dumps({
@@ -159,9 +163,75 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                         "Action": {
                             "ActionName": "UserInteraction",
                             "Parameters": {
-                                "value": "I was unable to gather the information in my data, sorry about that."
+                                "value": "I was unable to retrieve the information."
                             }
                         }
                     }
                 ]
             })
+
+    async def fetch_all_documents(self, search_results, index_name):
+        """Fetches all content and metadata for each unique document_id in the search results."""
+        full_documents = []
+        document_ids_seen = set()
+
+        try:
+            for result in search_results:
+                document_id = result['document_id']
+
+                # Skip if we've already fetched this document
+                if document_id in document_ids_seen:
+                    continue
+
+                # Fetch all passages for this document_id
+                full_document_data = await self.fetch_full_document(document_id, index_name)
+                document_ids_seen.add(document_id)  # Mark this document_id as processed
+
+                # Add the full document data to the final result
+                full_documents.append({
+                    "document_id": document_id,
+                    "file_path": result['file_path'],  # Assuming all passages share the same file_path
+                    "passages": full_document_data  # All passages (chunks) for this document
+                })
+
+            return full_documents
+
+        except Exception as e:
+            self.logger.error(f"Error while fetching documents: {e}")
+            return []
+
+    async def fetch_full_document(self, document_id, index_name):
+        """Fetches all the passages for a specific document_id."""
+        try:
+            fetch_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
+            fetch_headers = {
+                'Content-Type': 'application/json',
+                'api-key': self.search_key
+            }
+
+            fetch_body = {
+                "filter": f"document_id eq '{document_id}'",  # Fetch all passages by document_id
+                "select": "id, content, passage_id, file_path",  # Fetch content, passage_id, and file_path
+                "top": 1000  # Assuming the document won't exceed 1000 chunks
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(fetch_url, headers=fetch_headers, json=fetch_body) as response:
+                    fetch_status = response.status
+                    fetch_body = await response.json()
+
+                    if fetch_status != 200:
+                        self.logger.error(f"Failed to fetch full document with status {fetch_status}")
+                        return []
+
+                    # Collect all passages and metadata
+                    passages = sorted(fetch_body.get("value", []), key=lambda x: x['passage_id'])
+                    return [{
+                        "passage_id": passage['passage_id'],
+                        "content": passage['content'],
+                        "file_path": passage['file_path']  # Assuming this is the same for all passages of the document
+                    } for passage in passages]
+
+        except Exception as e:
+            self.logger.error(f"Error while fetching full document: {e}")
+            return []
