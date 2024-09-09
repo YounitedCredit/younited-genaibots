@@ -134,7 +134,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             search_body = {
                 "search": message,
                 "top": self.search_topn_document,
-                "select": "id, title, content, file_path, document_id, passage_id"  # Fetch required fields
+                "select": "id, title, content, passage_id"  # Fetch required fields including id, content, and passage_id
             }
 
             async with aiohttp.ClientSession() as session:
@@ -149,7 +149,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                     # Process the search results
                     search_results = body.get("value", [])
                     if get_whole_doc and search_results:
-                        # For each result, fetch all passages related to its document_id
+                        # For each result, fetch all passages related to its id
                         full_documents = await self.fetch_all_documents(search_results, index_name)
                         return json.dumps({"full_documents": full_documents})
 
@@ -171,26 +171,25 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             })
 
     async def fetch_all_documents(self, search_results, index_name):
-        """Fetches all content and metadata for each unique document_id in the search results."""
+        """Fetches all content and metadata for each unique document id in the search results."""
         full_documents = []
-        document_ids_seen = set()
+        ids_seen = set()
 
         try:
             for result in search_results:
-                document_id = result['document_id']
+                document_id = result['id']
 
                 # Skip if we've already fetched this document
-                if document_id in document_ids_seen:
+                if document_id in ids_seen:
                     continue
 
-                # Fetch all passages for this document_id
+                # Fetch all passages for this id
                 full_document_data = await self.fetch_full_document(document_id, index_name)
-                document_ids_seen.add(document_id)  # Mark this document_id as processed
+                ids_seen.add(document_id)  # Mark this document id as processed
 
                 # Add the full document data to the final result
                 full_documents.append({
-                    "document_id": document_id,
-                    "file_path": result['file_path'],  # Assuming all passages share the same file_path
+                    "id": document_id,  # Group by id
                     "passages": full_document_data  # All passages (chunks) for this document
                 })
 
@@ -201,7 +200,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             return []
 
     async def fetch_full_document(self, document_id, index_name):
-        """Fetches all the passages for a specific document_id."""
+        """Fetches all the passages for a specific document id."""
         try:
             fetch_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
             fetch_headers = {
@@ -209,9 +208,10 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                 'api-key': self.search_key
             }
 
+            # Query all passages that share the same id
             fetch_body = {
-                "filter": f"document_id eq '{document_id}'",  # Fetch all passages by document_id
-                "select": "id, content, passage_id, file_path",  # Fetch content, passage_id, and file_path
+                "filter": f"id eq '{document_id}'",  # Fetch all passages by id
+                "select": "id, content, passage_id",  # Fetch content and passage_id
                 "top": 1000  # Assuming the document won't exceed 1000 chunks
             }
 
@@ -229,7 +229,6 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                     return [{
                         "passage_id": passage['passage_id'],
                         "content": passage['content'],
-                        "file_path": passage['file_path']  # Assuming this is the same for all passages of the document
                     } for passage in passages]
 
         except Exception as e:
