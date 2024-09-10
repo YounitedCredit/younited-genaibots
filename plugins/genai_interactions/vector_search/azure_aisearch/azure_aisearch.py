@@ -134,7 +134,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             search_body = {
                 "search": message,
                 "top": self.search_topn_document,
-                "select": "id, title, content, passage_id, file_path"  # Fetch id, content, passage_id
+                "select": "id, document_id, title, content, passage_id, file_path" 
             }
 
             async with aiohttp.ClientSession() as session:
@@ -175,7 +175,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
         try:
             for result in search_results:
-                document_id = result['id']
+                document_id = result['document_id']
 
                 # Fetch all passages for this document id if we haven't processed it yet
                 if document_id not in ids_seen:
@@ -200,7 +200,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
             # Query all passages that share the same id
             fetch_body = {
-                "filter": f"id eq '{document_id}'",  # Fetch all passages by id
+                "filter": f"document_id eq '{document_id}'",  # Fetch all passages by id
                 "select": "content, passage_id",  # Fetch content and passage_id
                 "top": 1000  # Assuming the document won't exceed 1000 chunks
             }
