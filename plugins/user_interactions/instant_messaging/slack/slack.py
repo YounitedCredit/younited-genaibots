@@ -49,6 +49,7 @@ class SlackConfig(BaseModel):
     SLACK_INTERNAL_CHANNEL: str
     SLACK_WORKSPACE_NAME: str
     SLACK_BEHAVIOR_PLUGIN_NAME: str
+    SLACK_AUTHORIZE_DIRECT_MESSAGE: bool
 
 class SlackPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -102,7 +103,7 @@ class SlackPlugin(UserInteractionsPluginBase):
         self.WORKSPACE_NAME = self.slack_config.SLACK_WORKSPACE_NAME
         self.plugin_name = self.slack_config.PLUGIN_NAME
         self.FEEDBACK_BOT_USER_ID = self.slack_config.SLACK_FEEDBACK_BOT_ID
-
+        self.SLACK_AUTHORIZE_DIRECT_MESSAGE = self.slack_config.SLACK_AUTHORIZE_DIRECT_MESSAGE
         # Dispatchers
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
@@ -295,10 +296,15 @@ class SlackPlugin(UserInteractionsPluginBase):
             if app_id not in self.SLACK_AUTHORIZED_APPS and app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized app: {app_id}")
                 return False
-
-        if channel_id not in self.SLACK_AUTHORIZED_CHANNELS and channel_id != self.SLACK_FEEDBACK_CHANNEL:
-            self.logger.info(f"Discarding request: ignoring event from unauthorized channel: {channel_id}")
-            return False
+        
+        if channel_id.startswith('D'):
+            if not self.SLACK_AUTHORIZE_DIRECT_MESSAGE:
+                self.logger.info(f"Discarding request: ignoring direct message from unauthorized channel: {channel_id}")
+                return False
+        else:
+            if channel_id not in self.SLACK_AUTHORIZED_CHANNELS and channel_id != self.SLACK_FEEDBACK_CHANNEL:
+                self.logger.info(f"Discarding request: ignoring event from unauthorized channel: {channel_id}")
+                return False
 
         if channel_id == self.SLACK_FEEDBACK_CHANNEL and user_id != self.FEEDBACK_BOT_USER_ID:
             self.logger.info(f"Discarding request: ignoring event from unauthorized user in feedback channel: {user_id}")
