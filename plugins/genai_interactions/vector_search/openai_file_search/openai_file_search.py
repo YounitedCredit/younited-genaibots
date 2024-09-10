@@ -19,7 +19,8 @@ class OpenaiFileSearchConfig(BaseModel):
     OPENAI_FILE_SEARCH_MODEL_HOST: str  # Can be "azure" or "openai"
     OPENAI_FILE_SEARCH_MODEL_NAME: str
     OPENAI_FILE_SEARCH_RESULT_COUNT: int
-
+    OPENAI_FILE_SEARCH_INDEX_NAME: str
+    
 
 class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -53,9 +54,19 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
         query = parameters.get('query', '')
-        index_name = parameters.get('index_name', 'default')
+        index_name = parameters.get('index_name', '').lower()
         result_count = parameters.get('result_count', self.result_count)
         get_whole_doc = parameters.get('get_whole_doc', False)  # New flag for fetching full document
+
+        # Retrieve default index name from configuration if index_name is empty
+        if not index_name:
+            index_name = self.openai_search_config.OPENAI_FILE_SEARCH_INDEX_NAME.lower()
+
+        # Check if index_name is still empty
+        if not index_name:
+            error_message = "Index name is required but not provided."
+            self.logger.error(error_message)
+            raise ValueError(error_message)
 
         result = await self.call_search(query=query, index_name=index_name, result_count=result_count, get_whole_doc=get_whole_doc)
         return result

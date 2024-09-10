@@ -3,7 +3,7 @@ import inspect
 import json
 import traceback
 from typing import Any
-
+import re
 import vertexai
 from google.oauth2 import service_account
 from pydantic import BaseModel
@@ -179,7 +179,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
                 "max_tokens": self.vertexai_gemini_max_output_tokens
             }
 
-            # Convert messages to JSON format for API consumption
+            # Prepare the request payload
             request_payload = {
                 "messages": messages,
                 "parameters": generation_params
@@ -190,33 +190,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             # Send the JSON data to the AI model and await the completion
             completion = await self.client.generate_content_async(messages_json)
 
-
-            # Assuming the 'completion' object has a structure similar to what you've shown
             # Get the first candidate's response text from the 'parts' field
             first_candidate = completion.candidates[0]
             response_text = first_candidate.content.parts[0].text
-            if first_candidate.content.parts[0].text:
-                try:
-                    # Try to parse the JSON and access 'content'
-                    escaped_text = first_candidate.content.parts[0].text.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-                    cleaned_text = escaped_text.rstrip(' \\n')
-                    content_object = json.loads(cleaned_text)
-                    # Check if 'content' is in content_object
-                    if 'content' in content_object:
-                        response_text = content_object['content']
-                    elif 'messages' in content_object and len(content_object['messages']) > 0 and 'content' in content_object['messages'][0]:
-                        response_text = content_object['messages'][0]['content']
-                    else:
-                        raise ValueError
-                except (json.JSONDecodeError):
-                    # If parsing the JSON fails or 'content' is not in the object,
-                    # set content_object to first_candidate.content.parts[0]
-                    response_text = first_candidate.content.parts[0].text
-            else:
-                self.logger.error("No content found in completion")
-                return None
 
-            # Extract the token usage details from the usage metadata
+            # Calculate token usage details before any return statement
             usage_metadata = completion.usage_metadata
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = usage_metadata.total_token_count
@@ -225,7 +203,45 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             self.genai_cost_base.input_token_price = self.vertexai_gemini_input_token_price
             self.genai_cost_base.output_token_price = self.vertexai_gemini_output_token_price
 
-            # Return the response text and the GenAICostBase instance
+            if response_text:
+                try:
+                    # Remove only the unwanted [BEGINIMDETECT], [ENDIMDETECT], and code blocks
+                    cleaned_text = re.sub(r'\[BEGINIMDETECT\]|\[ENDIMDETECT\]|\`\`\`json|```', '', response_text).strip()
+
+                    # Parse the cleaned text into a JSON object
+                    content_object = json.loads(cleaned_text)
+
+                    # Ensure that newlines and Unicode characters in the "value" field are preserved properly
+                    def preserve_formatting(obj):
+                        if isinstance(obj, dict):
+                            for key, value in obj.items():
+                                if isinstance(value, str) and key == "value":
+                                    # Convert escaped newlines (\\n) to real newlines (\n)
+                                    obj[key] = value.replace("\\n", "\n")
+                                    # Decode double-encoded Unicode sequences like \\u00e2\\u0080\\u00a2
+                                    obj[key] = obj[key].encode('utf-8').decode('unicode_escape')
+                                elif isinstance(value, (dict, list)):
+                                    preserve_formatting(value)
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                preserve_formatting(item)
+
+                    # Apply the function to preserve newlines and decode any wrongly encoded text
+                    preserve_formatting(content_object)
+
+                    # Format the final response with [BEGINIMDETECT] and [ENDIMDETECT]
+                    json_content = json.dumps(content_object, indent=2)
+                    formatted_response = f'[BEGINIMDETECT]\n{json_content}\n[ENDIMDETECT]'
+
+                    # Return both the formatted response and genai_cost_base
+                    return formatted_response, self.genai_cost_base
+
+                except json.JSONDecodeError as e:
+                    # If JSON parsing fails, return the raw response text and genai_cost_base
+                    self.logger.error(f"JSON parsing failed: {e}")
+                    return response_text, self.genai_cost_base
+
+            # Return the response text and the GenAICostBase instance if no formatted response is needed
             return response_text, self.genai_cost_base
 
         except asyncio.exceptions.CancelledError:
@@ -233,10 +249,12 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
+
         except Exception as e:
             # Handle other exceptions that may occur
             self.logger.error(f"An error occurred: {str(e)}")
             raise
+
 
     async def trigger_genai(self, event :IncomingNotificationDataBase):
             event_copy = event

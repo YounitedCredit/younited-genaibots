@@ -185,7 +185,7 @@ class ChatInputHandler():
         costs = self.backend_internal_data_processing_dispatcher.costs
 
         await self.calculate_and_update_costs(genai_cost_base, costs, blob_name, event_data)
-
+    
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
         # Log Genai response to appropriate channel

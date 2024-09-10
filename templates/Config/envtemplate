@@ -26,7 +26,7 @@ INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="file_system"
 # ====================================================
 # LOGGING - LOCAL LOGGING
 # ====================================================
-LOCAL_LOGGING_FILE_PATH="C:\LOGS\GENAI_BOT.log"
+LOCAL_LOGGING_FILE_PATH="C:\LOGS\GENAI_BOT.log" # Your path to where you want to record logs
 
 # ====================================================
 # LOGGING - AZURE LOGGING
@@ -36,17 +36,17 @@ LOCAL_LOGGING_FILE_PATH="C:\LOGS\GENAI_BOT.log"
 # ====================================================
 # BACKEND - FILE SYSTEM CONFIGURATION
 # ====================================================
-FILE_SYSTEM_DIRECTORY=C:\\GenAI
-FILE_SYSTEM_SESSIONS_CONTAINER=sessions
-FILE_SYSTEM_MESSAGES_CONTAINER=messages
-FILE_SYSTEM_FEEDBACKS_CONTAINER=feedbacks
-FILE_SYSTEM_CONCATENATE_CONTAINER=concatenate
-FILE_SYSTEM_PROMPTS_CONTAINER=prompts
-FILE_SYSTEM_COSTS_CONTAINER=costs
-FILE_SYSTEM_PROCESSING_CONTAINER=processing
-FILE_SYSTEM_ABORT_CONTAINER=abort
-FILE_SYSTEM_VECTORS_CONTAINER=vectors
-FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER=custom_actions
+FILE_SYSTEM_DIRECTORY="C:\\GenAI" # Your path to the local storage folder
+FILE_SYSTEM_SESSIONS_CONTAINER="sessions"
+FILE_SYSTEM_MESSAGES_CONTAINER="messages"
+FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"
+FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"
+FILE_SYSTEM_PROMPTS_CONTAINER="prompts"
+FILE_SYSTEM_COSTS_CONTAINER="costs"
+FILE_SYSTEM_PROCESSING_CONTAINER="processing"
+FILE_SYSTEM_ABORT_CONTAINER="abort"
+FILE_SYSTEM_VECTORS_CONTAINER="vectors"
+FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"
 
 # ====================================================
 # BACKEND - Azure Blob Storage
@@ -69,91 +69,93 @@ SLACK_SIGNING_SECRET=your_slack_signing_secret
 SLACK_BOT_TOKEN=your_slack_bot_token
 SLACK_BOT_USER_TOKEN=your_slack_bot_user_token
 SLACK_BOT_USER_ID=your_slack_bot_user_id
-SLACK_AUTHORIZED_CHANNELS=your_authorized_channels
-SLACK_AUTHORIZED_APPS=your_authorized_apps
-SLACK_AUTHORIZED_WEBHOOKS=your_authorized_webhooks
-SLACK_FEEDBACK_CHANNEL=your_feedback_channel
-SLACK_FEEDBACK_BOT_ID=your_feedback_bot_id
-SLACK_INTERNAL_CHANNEL=your_internal_channel
-SLACK_WORKSPACE_NAME=your_workspace_name
+SLACK_AUTHORIZED_CHANNELS=your_slack_authorized_channels
+SLACK_AUTHORIZED_APPS=your_slack_authorized_apps
+SLACK_AUTHORIZED_WEBHOOKS=your_slack_authorized_webhooks
+SLACK_FEEDBACK_CHANNEL=your_slack_feedback_channel
+SLACK_FEEDBACK_BOT_ID=your_slack_feedback_bot_id
+SLACK_INTERNAL_CHANNEL=your_slack_internal_channel
+SLACK_WORKSPACE_NAME=your_slack_workspace_name
 
 # ====================================================
 # USER INTERACTIONS - INSTANT MESSAGING (TEAMS) CONFIGURATION
 # ====================================================
-TEAMS_BEHAVIOR_PLUGIN_NAME=your_teams_behavior_plugin_name
-TEAMS_ROUTE_PATH=your_teams_route_path
-TEAMS_ROUTE_METHODS=POST
-TEAMS_PLUGIN_DIRECTORY=your_teams_plugin_directory
-TEAMS_MESSAGE_TTL=3600
-TEAMS_SIGNING_SECRET=your_teams_signing_secret
-TEAMS_BOT_TOKEN=your_teams_bot_token
-TEAMS_BOT_USER_ID=your_teams_bot_user_id
-TEAMS_API_URL=https://api.teams.microsoft.com/
-TEAMS_AUTHORIZED_CHANNELS=your_teams_authorized_channels
-TEAMS_AUTHORIZED_APPS=your_teams_authorized_apps
-TEAMS_FEEDBACK_CHANNEL=your_teams_feedback_channel
-TEAMS_FEEDBACK_BOT_ID=your_teams_feedback_bot_id
-TEAMS_INTERNAL_CHANNEL=your_teams_internal_channel
-TEAMS_WORKSPACE_NAME=your_teams_workspace_name
+#TEAMS_BEHAVIOR_PLUGIN_NAME=your_teams_behavior_plugin_name
+#TEAMS_ROUTE_PATH=your_teams_route_path
+#TEAMS_ROUTE_METHODS=your_teams_route_methods
+#TEAMS_PLUGIN_DIRECTORY=your_teams_plugin_directory
+#TEAMS_MESSAGE_TTL=your_teams_message_ttl
+#TEAMS_SIGNING_SECRET=your_teams_signing_secret
+#TEAMS_BOT_TOKEN=your_teams_bot_token
+#TEAMS_BOT_USER_ID=your_teams_bot_user_id
+#TEAMS_API_URL=your_teams_api_url
+#TEAMS_AUTHORIZED_CHANNELS=your_teams_authorized_channels
+#TEAMS_AUTHORIZED_APPS=your_teams_authorized_apps
+#TEAMS_FEEDBACK_CHANNEL=your_teams_feedback_channel
+#TEAMS_FEEDBACK_BOT_ID=your_teams_feedback_bot_id
+#TEAMS_INTERNAL_CHANNEL=your_teams_internal_channel
+#TEAMS_WORKSPACE_NAME=your_teams_workspace_name
 
 # ====================================================
 # GENAI INTERACTIONS - TEXT (Azure ChatGPT)
 # ====================================================
-AZURE_CHATGPT_INPUT_TOKEN_PRICE=your_chatgpt_input_token_price
-AZURE_CHATGPT_OUTPUT_TOKEN_PRICE=your_chatgpt_output_token_price
-AZURE_CHATGPT_OPENAI_KEY=your_chatgpt_openai_key
-AZURE_CHATGPT_OPENAI_ENDPOINT=your_chatgpt_openai_endpoint
-AZURE_CHATGPT_OPENAI_API_VERSION=your_chatgpt_openai_api_version
-AZURE_CHATGPT_MODEL_NAME=your_chatgpt_model_name
-AZURE_CHATGPT_VISION_MODEL_NAME=your_chatgpt_vision_model_name
+AZURE_CHATGPT_INPUT_TOKEN_PRICE=your_azure_chatgpt_input_token_price
+AZURE_CHATGPT_OUTPUT_TOKEN_PRICE=your_azure_chatgpt_output_token_price
+AZURE_CHATGPT_OPENAI_KEY=your_azure_chatgpt_openai_key
+AZURE_CHATGPT_OPENAI_ENDPOINT=your_azure_chatgpt_openai_endpoint
+AZURE_CHATGPT_OPENAI_API_VERSION=your_azure_chatgpt_openai_api_version
+AZURE_CHATGPT_MODEL_NAME=your_azure_chatgpt_model_name
+AZURE_CHATGPT_VISION_MODEL_NAME=your_azure_chatgpt_vision_model_name
 
 # ====================================================
 # GENAI INTERACTIONS - TEXT (Azure Mistral)
 # ====================================================
-AZURE_MISTRAL_INPUT_TOKEN_PRICE=your_mistral_input_token_price
-AZURE_MISTRAL_OUTPUT_TOKEN_PRICE=your_mistral_output_token_price
-AZURE_MISTRAL_KEY=your_mistral_key
-AZURE_MISTRAL_ENDPOINT=your_mistral_endpoint
-AZURE_MISTRAL_MODELNAME=Mistral-large-bbnwu
+#AZURE_MISTRAL_INPUT_TOKEN_PRICE=your_azure_mistral_input_token_price
+#AZURE_MISTRAL_OUTPUT_TOKEN_PRICE=your_azure_mistral_output_token_price
+#AZURE_MISTRAL_KEY=your_azure_mistral_key
+#AZURE_MISTRAL_ENDPOINT=your_azure_mistral_endpoint
+#AZURE_MISTRAL_MODELNAME=your_azure_mistral_modelname
 
 # ====================================================
 # GENAI INTERACTIONS - TEXT (VertexAI Gemini)
 # ====================================================
-VERTEXAI_GEMINI_INPUT_TOKEN_PRICE=your_gemini_input_token_price
-VERTEXAI_GEMINI_OUTPUT_TOKEN_PRICE=your_gemini_output_token_price
-VERTEXAI_GEMINI_KEY=your_gemini_key
-VERTEXAI_GEMINI_LOCATION=your_gemini_location
-VERTEXAI_GEMINI_MAX_OUTPUT_TOKENS=your_gemini_max_output_tokens
-VERTEXAI_GEMINI_MODELNAME=your_gemini_model_name
-VERTEXAI_GEMINI_PROJECTNAME=your_gemini_projectname
-VERTEXAI_GEMINI_TEMPERATURE=your_gemini_temperature
-VERTEXAI_GEMINI_TOP_P=your_gemini_top_p
+#VERTEXAI_GEMINI_INPUT_TOKEN_PRICE=your_vertexai_gemini_input_token_price
+#VERTEXAI_GEMINI_OUTPUT_TOKEN_PRICE=your_vertexai_gemini_output_token_price
+#VERTEXAI_GEMINI_KEY=your_vertexai_gemini_key
+#VERTEXAI_GEMINI_LOCATION=your_vertexai_gemini_location
+#VERTEXAI_GEMINI_MAX_OUTPUT_TOKENS=your_vertexai_gemini_max_output_tokens
+#VERTEXAI_GEMINI_MODELNAME=your_vertexai_gemini_modelname
+#VERTEXAI_GEMINI_PROJECTNAME=your_vertexai_gemini_projectname
+#VERTEXAI_GEMINI_TEMPERATURE=your_vertexai_gemini_temperature
+#VERTEXAI_GEMINI_TOP_P=your_vertexai_gemini_top_p
 
 # ====================================================
 # GENAI INTERACTIONS - TEXT (Azure LLaMA 370B)
 # ====================================================
-AZURE_LLAMA370B_INPUT_TOKEN_PRICE=your_llama370b_input_token_price
-AZURE_LLAMA370B_OUTPUT_TOKEN_PRICE=your_llama370b_output_token_price
-AZURE_LLAMA370B_KEY=your_llama370b_key
-AZURE_LLAMA370B_ENDPOINT=your_llama370b_endpoint
-AZURE_LLAMA370B_MODELNAME=your_llama370b_modelname
+#AZURE_LLAMA370B_INPUT_TOKEN_PRICE=your_azure_llama370b_input_token_price
+#AZURE_LLAMA370B_OUTPUT_TOKEN_PRICE=your_azure_llama370b_output_token_price
+#AZURE_LLAMA370B_KEY=your_azure_llama370b_key
+#AZURE_LLAMA370B_ENDPOINT=your_azure_llama370b_endpoint
+#AZURE_LLAMA370B_MODELNAME=your_azure_llama370b_modelname
 
 # ====================================================
 # GENAI INTERACTIONS - TEXT (Azure CommandR)
 # ====================================================
-AZURE_COMMANDR_INPUT_TOKEN_PRICE=your_commandr_input_token_price
-AZURE_COMMANDR_OUTPUT_TOKEN_PRICE=your_commandr_output_token_price
-AZURE_COMMANDR_KEY=your_commandr_key
-AZURE_COMMANDR_ENDPOINT=your_commandr_endpoint
-AZURE_COMMANDR_MODELNAME=your_commandr_modelname
+#AZURE_COMMANDR_INPUT_TOKEN_PRICE=your_azure_commandr_input_token_price
+#AZURE_COMMANDR_OUTPUT_TOKEN_PRICE=your_azure_commandr_output_token_price
+#AZURE_COMMANDR_KEY=your_azure_commandr_key
+#AZURE_COMMANDR_ENDPOINT=your_azure_commandr_endpoint
+#AZURE_COMMANDR_MODELNAME=your_azure_commandr_modelname
 
 # ====================================================
 # GENAI INTERACTIONS - IMAGE (Azure DALL-E)
 # ====================================================
-AZURE_DALLE_OPENAI_KEY=your_dalle_openai_key
-AZURE_DALLE_OPENAI_ENDPOINT=your_dalle_openai_endpoint
-AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME=your_dalle_model_name
-AZURE_DALLE_OPENAI_API_VERSION=your_dalle_openai_api_version
+AZURE_DALLE_INPUT_TOKEN_PRICE=your_azure_dalle_input_token_price
+AZURE_DALLE_OUTPUT_TOKEN_PRICE=your_azure_dalle_output_token_price
+AZURE_DALLE_OPENAI_KEY=your_azure_dalle_openai_key
+AZURE_DALLE_OPENAI_ENDPOINT=your_azure_dalle_openai_endpoint
+AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME=your_azure_dalle_image_generator_model_name
+AZURE_DALLE_OPENAI_API_VERSION=your_azure_dalle_openai_api_version
 
 # ====================================================
 # GENAI INTERACTIONS - VECTORSEARCH (OpenAI File Search)
@@ -163,25 +165,22 @@ OPENAI_FILE_SEARCH_OPENAI_ENDPOINT=your_openai_file_search_endpoint
 OPENAI_FILE_SEARCH_OPENAI_API_VERSION=your_openai_file_search_api_version
 OPENAI_FILE_SEARCH_MODEL_HOST=your_openai_file_search_model_host
 OPENAI_FILE_SEARCH_MODEL_NAME=your_openai_file_search_model_name
-OPENAI_FILE_SEARCH_INPUT_TOKEN_PRICE=your_openai_file_search_input_token_price
-OPENAI_FILE_SEARCH_OUTPUT_TOKEN_PRICE=your_openai_file_search_output_token_price
 OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION=your_openai_file_search_context_extraction
 OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION_BEFORE_RATIO=your_openai_file_search_context_extraction_before_ratio
 OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION_AFTER_RATIO=your_openai_file_search_context_extraction_after_ratio
 OPENAI_FILE_SEARCH_RESULT_COUNT=your_openai_file_search_result_count
+OPENAI_FILE_SEARCH_INDEX_NAME=your_openai_file_search_index_name
 
 # ====================================================
 # GENAI INTERACTIONS - VECTORSEARCH (Azure AI Search)
 # ====================================================
-AZURE_AISEARCH_INPUT_TOKEN_PRICE=your_azure_aisearch_input_token_price
-AZURE_AISEARCH_OUTPUT_TOKEN_PRICE=your_azure_aisearch_output_token_price
-AZURE_AISEARCH_AZURE_OPENAI_KEY=your_azure_aisearch_openai_key
-AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT=your_azure_aisearch_openai_endpoint
-AZURE_AISEARCH_OPENAI_API_VERSION=your_azure_aisearch_api_version
-AZURE_AISEARCH_MODEL_NAME=your_azure_aisearch_model_name
-AZURE_AISEARCH_SEARCH_ENDPOINT=your_azure_aisearch_search_endpoint
-AZURE_AISEARCH_KEY=your_azure_aisearch_key
-AZURE_AISEARCH_INDEX_NAME=your_azure_aisearch_index_name
-AZURE_AISEARCH_TOPN_DOCUMENT=your_azure_aisearch_topn_document
-AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME=your_azure_aisearch_text_completion_model_name
-AZURE_AISEARCH_PROMPT=your_azure_aisearch_prompt
+#AZURE_AISEARCH_AZURE_OPENAI_KEY=your_azure_aisearch_openai_key
+#AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT=your_azure_aisearch_openai_endpoint
+#AZURE_AISEARCH_OPENAI_API_VERSION=your_azure_aisearch_api_version
+#AZURE_AISEARCH_MODEL_NAME=your_azure_aisearch_model_name
+#AZURE_AISEARCH_SEARCH_ENDPOINT=your_azure_aisearch_search_endpoint
+#AZURE_AISEARCH_KEY=your_azure_aisearch_key
+#AZURE_AISEARCH_INDEX_NAME=your_azure_aisearch_index_name
+#AZURE_AISEARCH_TOPN_DOCUMENT=your_azure_aisearch_topn_document
+#AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME=your_azure_aisearch_text_completion_model_name
+#AZURE_AISEARCH_PROMPT=your_azure_aisearch_prompt

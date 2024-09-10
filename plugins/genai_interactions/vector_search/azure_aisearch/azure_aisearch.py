@@ -22,8 +22,6 @@ class OpenAIRequestError(Exception):
         
 class AzureAisearchConfig(BaseModel):
     PLUGIN_NAME: str
-    AZURE_AISEARCH_INPUT_TOKEN_PRICE: float
-    AZURE_AISEARCH_OUTPUT_TOKEN_PRICE: float
     AZURE_AISEARCH_AZURE_OPENAI_KEY: str
     AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT: str
     AZURE_AISEARCH_OPENAI_API_VERSION: str
@@ -94,6 +92,12 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
         query = parameters.get('query', '')  # The search query
         index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fallback to default
         get_whole_doc = parameters.get('get_whole_doc', False)  # New flag for fetching full document
+
+        # Check if index_name is empty
+        if not index_name:
+            error_message = "Index name is required but not provided."
+            self.logger.error(error_message)
+            raise ValueError(error_message)
 
         # Call search and handle fetching full document based on document_id
         result = await self.call_search(message=query, index_name=index_name, get_whole_doc=get_whole_doc)
