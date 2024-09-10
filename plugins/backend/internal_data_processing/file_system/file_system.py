@@ -163,20 +163,21 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to append data to the file: {e}")
 
     async def read_data_content(self, data_container, data_file):
-
         self.logger.debug(f"Reading data content from {data_file} in {data_container}")
         file_path = os.path.join(self.root_directory, data_container, data_file)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r') as file:
+                # Utiliser 'errors="ignore"' pour ignorer les caractères non valides
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:  
                     data = file.read()
                 self.logger.debug("Data successfully read")
                 return data
+            except UnicodeDecodeError as e:
+                self.logger.error(f"Unicode decode error: {str(e)}")
             except Exception as e:
                 self.logger.error(f"Failed to read file: {str(e)}")
                 return None
         else:
-
             self.logger.debug(f"File not found: {data_file}")
             return None
 

@@ -31,7 +31,6 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         self._plugin_name = "openai_file_search"
 
     def initialize(self):
-        # Ensure the correct client is initialized based on the model host type (Azure or OpenAI)
         if self.openai_search_config.OPENAI_FILE_SEARCH_MODEL_HOST.lower() == "azure":
             self.client = AsyncAzureOpenAI(
                 api_key=self.openai_search_config.OPENAI_FILE_SEARCH_OPENAI_KEY,
@@ -56,12 +55,13 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         query = parameters.get('query', '')
         index_name = parameters.get('index_name', 'default')
         result_count = parameters.get('result_count', self.result_count)
-        result = await self.call_search(query=query, index_name=index_name, result_count=result_count)
+        get_whole_doc = parameters.get('get_whole_doc', False)  # New flag for fetching full document
+
+        result = await self.call_search(query=query, index_name=index_name, result_count=result_count, get_whole_doc=get_whole_doc)
         return result
 
-    async def call_search(self, query, index_name, result_count):
+    async def call_search(self, query, index_name, result_count, get_whole_doc=False):
         try:
-            # Read JSON data
             file_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container="vectors", data_file=f"{index_name}.json")
             data = json.loads(file_content)
         except Exception as e:
@@ -71,29 +71,63 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         if not data.get('value', []):
             return json.dumps({"search_results": []})
 
-        # Get query embedding
         query_embedding = await self.get_embedding(query, model=self.openai_search_config.OPENAI_FILE_SEARCH_MODEL_NAME)
 
-        # Compute cosine similarity between query embedding and document vectors
         for item in data['value']:
             item['similarity'] = self.cosine_similarity(np.array(item['vector']), query_embedding)
 
-        # Sort by similarity and get top results
         sorted_data = sorted(data['value'], key=lambda x: x['similarity'], reverse=True)[:result_count]
 
-        # Prepare results with a similarity score
+        # Fetch the whole document content if needed
+        if get_whole_doc:
+            sorted_data = await self.replace_with_full_document_content(sorted_data, index_name)
+
         search_results = [{
             "id": item['id'],
+            "document_id": item['document_id'],
             "title": item.get('title', ''),
             "content": item.get('content', ''),
             "file_path": item.get('file_path', ''),
-            "@search.score": item['similarity']  # Add similarity as the score
+            "@search.score": item['similarity']
         } for item in sorted_data]
 
         return json.dumps({"search_results": search_results})
 
+    async def replace_with_full_document_content(self, search_results, index_name):
+        """Replace the content field with full document content for each result."""
+        ids_seen = set()
+
+        try:
+            for result in search_results:
+                document_id = result['document_id']
+
+                if document_id not in ids_seen:
+                    full_document_content = await self.fetch_full_document_content(document_id, index_name)
+                    result['content'] = full_document_content  # Replace the content with the full document
+                    ids_seen.add(document_id)
+
+            return search_results
+
+        except Exception as e:
+            self.logger.error(f"Error while fetching full document content: {e}")
+            return search_results
+
+    async def fetch_full_document_content(self, document_id, index_name):
+        """Fetches and concatenates all passages for a specific document id."""
+        try:
+            file_content = await self.backend_internal_data_processing_dispatcher.read_data_content("vectors", f"{index_name}.json")
+            data = json.loads(file_content)
+
+            passages = [item for item in data['value'] if item['document_id'] == document_id]
+            passages = sorted(passages, key=lambda x: x['passage_id'])
+            full_document_content = " ".join([passage['content'] for passage in passages])
+            return full_document_content
+
+        except Exception as e:
+            self.logger.error(f"Error while fetching full document: {e}")
+            return ""
+
     async def get_embedding(self, text: str, model: str) -> List[float]:
-        # Generate embedding for the query using the specified model
         text = text.replace("\n", " ")
         response = await self.client.embeddings.create(input=[text], model=model)
         return response.data[0].embedding

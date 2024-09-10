@@ -148,33 +148,33 @@ def create_wiki_url(wiki_base_url, local_file_path, input_dir, subfolder=''):
 
     # Get the relative path from the input directory
     relative_path = os.path.relpath(local_file_path, input_dir)
-    logging.info(f"Relative path before processing: {relative_path}")
+    #logging.info(f"Relative path before processing: {relative_path}")
 
     # Replace backslashes with forward slashes for Windows paths
     relative_path = relative_path.replace('\\', '/')
-    logging.info(f"Relative path after backslash replacement: {relative_path}")
+    #logging.info(f"Relative path after backslash replacement: {relative_path}")
 
     # Remove the .md extension if present
     if relative_path.lower().endswith('.md'):
         relative_path = os.path.splitext(relative_path)[0]
-    logging.info(f"Relative path after removing .md: {relative_path}")
+    #logging.info(f"Relative path after removing .md: {relative_path}")
 
     # 1. Replace hyphens used as spaces with %20
     relative_path = relative_path.replace('-', '%20')
-    logging.info(f"Path after handling hyphens for spaces: {relative_path}")
+    #logging.info(f"Path after handling hyphens for spaces: {relative_path}")
 
     # 2.  Replace %2D with %252D (this was the missing piece!)
     relative_path = relative_path.replace('%2D', '%252D')
-    logging.info(f"Path after handling encoded hyphens: {relative_path}")
+    #logging.info(f"Path after handling encoded hyphens: {relative_path}")
 
     # 3. Encode the path, preserving already encoded characters and spaces
     final_path = urllib.parse.quote(relative_path, safe='%20/')
-    logging.info(f"Final encoded path: {final_path}")
+    #logging.info(f"Final encoded path: {final_path}")
 
     # Add the subfolder to the final path
     if subfolder:
         final_path = f"{subfolder}/{final_path}"
-    logging.info(f"Final path with subfolder: {final_path}")
+    #logging.info(f"Final path with subfolder: {final_path}")
 
     # Construct the final URL
     final_url = f"{wiki_base_url}?wikiVersion=GBwikiMaster&pagePath=/{final_path}"
