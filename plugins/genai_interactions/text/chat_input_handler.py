@@ -3,7 +3,7 @@ import asyncio
 import json
 import re
 import traceback
-
+import codecs
 import yaml
 
 from core.backend.pricing_data import PricingData
@@ -19,7 +19,6 @@ from core.user_interactions.incoming_notification_data_base import (
 
 from utils.config_manager.config_model import BotConfig
 from utils.plugin_manager.plugin_manager import PluginManager
-
 
 class ChatInputHandler():
     def __init__(self, global_manager: GlobalManager, chat_plugin: GenAIInteractionsTextPluginBase):
@@ -165,7 +164,7 @@ class ChatInputHandler():
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-
+    
     async def call_completion(self, channel_id, thread_id, messages, event_data: IncomingNotificationDataBase):
         # Define blob_name for session storage
         blob_name = f"{channel_id}-{thread_id}.txt"
@@ -186,24 +185,36 @@ class ChatInputHandler():
 
         await self.calculate_and_update_costs(genai_cost_base, costs, blob_name, event_data)
     
+        # Step 1: Remove markers
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
-        # Log Genai response to appropriate channel
+        # Step 2: Log the raw GenAI response for debugging purposes
         await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response YAML", is_internal=True)
 
         try:
+            # Step 3: Handle JSON conversion
             if self.conversion_format == "json":
-                gpt_response = gpt_response.replace("\\\\n", "\\n")
+                # Strip leading/trailing newlines
+                gpt_response = gpt_response.strip("\n")
+                
+                # Try to parse the response as JSON
                 response_json = json.loads(gpt_response)
+                
+            # Step 4b: Handle YAML conversion if needed
             elif self.conversion_format == "yaml":
                 sanitized_yaml = self.adjust_yaml_structure(gpt_response)
                 response_json = await self.yaml_to_json(event_data=event_data, yaml_string=sanitized_yaml)
+            
             else:
+                # Log warning and try JSON as a fallback
                 self.logger.warning(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
                 response_json = json.loads(gpt_response)
 
-        except Exception as e:
+        except json.JSONDecodeError as e:
+            # Step 5: Handle and report JSON decoding errors
             await self.user_interaction_dispatcher.send_message(event=event_data, message=f"An error occurred while converting the completion: {e}", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message=f"Oops something went wrong, try again or contact the bot owner", message_type=MessageType.COMMENT)
+            self.logger.error(f"Failed to parse JSON: {e}")
             return None
 
         # Save the entire conversation to the session blob

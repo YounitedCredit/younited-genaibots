@@ -37,13 +37,14 @@ class VertexaiGeminiConfig(BaseModel):
     VERTEXAI_GEMINI_TEMPERATURE: float
     VERTEXAI_GEMINI_TOP_P: float
 
+
 class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = self.global_manager.logger
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
-        self.config_manager : ConfigManager = global_manager.config_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
+        self.config_manager: ConfigManager = global_manager.config_manager
         vertexai_gemini_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT["VERTEXAI_GEMINI"]
         self.vertexai_gemini_config = VertexaiGeminiConfig(**vertexai_gemini_config_dict)
         self.plugin_name = None
@@ -100,12 +101,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         vertexai.init(project=self.vertexai_gemini_projectname, location=self.vertexai_gemini_location, credentials=credentials)
         self.client = GenerativeModel(self.vertexai_gemini_modelname)
 
-    def validate_request(self, event:IncomingNotificationDataBase):
+    def validate_request(self, event: IncomingNotificationDataBase):
         """Determines whether the plugin can handle the given request."""
-        # Check if the request is a valid request for this plugin
         return True
 
-    async def handle_request(self, event:IncomingNotificationDataBase):
+    async def handle_request(self, event: IncomingNotificationDataBase):
         """Handles the request."""
         validate_request = self.validate_request(event)
 
@@ -116,7 +116,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         else:
             return response
 
-    async def handle_action(self, action_input:ActionInput, event:IncomingNotificationDataBase):
+    async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
             parameters = action_input.parameters
             input_param: str = parameters.get('input', '')
@@ -126,16 +126,17 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
             if main_prompt:
                 self.logger.debug(f"Main prompt: {main_prompt}")
-                init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
+                init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                    data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
                 if init_prompt is None:
-                    self.logger.warning("No specific instructionsfirst_candidate.content.parts[0].text")
+                    self.logger.warning("No specific instructions")
 
                 messages = [{"role": "system", "content": init_prompt}]
             else:
                 messages = [{"role": "system", "content": "No specific instruction provided."}]
 
             if context:
-                context_content = f"Here is aditionnal context relevant to the following request: {context}"
+                context_content = f"Here is additional context relevant to the following request: {context}"
                 messages.append({"role": "user", "content": context_content})
 
             if conversation_data:
@@ -203,46 +204,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             self.genai_cost_base.input_token_price = self.vertexai_gemini_input_token_price
             self.genai_cost_base.output_token_price = self.vertexai_gemini_output_token_price
 
-            if response_text:
-                try:
-                    # Remove only the unwanted [BEGINIMDETECT], [ENDIMDETECT], and code blocks
-                    cleaned_text = re.sub(r'\[BEGINIMDETECT\]|\[ENDIMDETECT\]|\`\`\`json|```', '', response_text).strip()
+            # Process the response text to preserve newlines and Unicode characters
+            formatted_response = self.process_response_text(response_text)
 
-                    # Parse the cleaned text into a JSON object
-                    content_object = json.loads(cleaned_text)
-
-                    # Ensure that newlines and Unicode characters in the "value" field are preserved properly
-                    def preserve_formatting(obj):
-                        if isinstance(obj, dict):
-                            for key, value in obj.items():
-                                if isinstance(value, str) and key == "value":
-                                    # Convert escaped newlines (\\n) to real newlines (\n)
-                                    obj[key] = value.replace("\\n", "\n")
-                                    # Decode double-encoded Unicode sequences like \\u00e2\\u0080\\u00a2
-                                    obj[key] = obj[key].encode('utf-8').decode('unicode_escape')
-                                elif isinstance(value, (dict, list)):
-                                    preserve_formatting(value)
-                        elif isinstance(obj, list):
-                            for item in obj:
-                                preserve_formatting(item)
-
-                    # Apply the function to preserve newlines and decode any wrongly encoded text
-                    preserve_formatting(content_object)
-
-                    # Format the final response with [BEGINIMDETECT] and [ENDIMDETECT]
-                    json_content = json.dumps(content_object, indent=2)
-                    formatted_response = f'[BEGINIMDETECT]\n{json_content}\n[ENDIMDETECT]'
-
-                    # Return both the formatted response and genai_cost_base
-                    return formatted_response, self.genai_cost_base
-
-                except json.JSONDecodeError as e:
-                    # If JSON parsing fails, return the raw response text and genai_cost_base
-                    self.logger.error(f"JSON parsing failed: {e}")
-                    return response_text, self.genai_cost_base
-
-            # Return the response text and the GenAICostBase instance if no formatted response is needed
-            return response_text, self.genai_cost_base
+            # Return both the formatted response and genai_cost_base
+            return formatted_response, self.genai_cost_base
 
         except asyncio.exceptions.CancelledError:
             # Handle task cancellation
@@ -255,37 +221,40 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error(f"An error occurred: {str(e)}")
             raise
 
+    def process_response_text(self, response_text):
+        """Function to clean and format the response text by preserving newlines and Unicode characters."""
+        if response_text:
+            try:
+                # Step 1: Remove the tags [BEGINIMDETECT], [ENDIMDETECT], ```json and ```.
+                cleaned_text = re.sub(r'\[BEGINIMDETECT\]|\[ENDIMDETECT\]|```json|```', '', response_text).strip()
 
-    async def trigger_genai(self, event :IncomingNotificationDataBase):
-            event_copy = event
-            AUTOMATED_RESPONSE_TRIGGER = "Automated response"
-            if event.thread_id == '':
-                response_id = event_copy.timestamp
-            else:
-                response_id = event_copy.thread_id
+                # Step 2: Replace the \n characters in the JSON structure, but keep those inside string values.
+                # To do this, we need to isolate valid JSON parts and process them separately.
+                try:
+                    # Extract the JSON block from the cleaned text
+                    json_text = re.search(r'{.*}', cleaned_text, re.DOTALL).group(0)
 
-            event_copy.user_id = AUTOMATED_RESPONSE_TRIGGER
-            event_copy.user_name =  AUTOMATED_RESPONSE_TRIGGER
-            event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
-            event_copy.event_label = "thread_message"
-            user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event, message=event_copy.text)
-            event_copy.text = user_message
-            event_copy.is_mention = True
-            event_copy.thread_id = response_id
+                    # Remove newlines inside the JSON except for those inside strings
+                    json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n', lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '', json_text)
+                    formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
+                    return formatted_response
+                except (json.JSONDecodeError, AttributeError):
+                    return "Error: The JSON text does not seem to be valid."
 
-            self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message= "Processing incoming data, please wait...", message_type=MessageType.COMMENT)
+            except json.JSONDecodeError as e:
+                # If JSON parsing fails, return the raw response text
+                raise ValueError(f"JSON parsing failed: {e}")
+        return response_text
 
-            # Count the number of words in event_copy.text
-            word_count = len(event_copy.text.split())
-
-            # If there are more than 300 words, call plugin.file_upload
-            if word_count > 300:
-                await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text, filename="Bot reply.txt", title=":zap::robot_face: Automated User Input", is_internal=True)
-            else:
-                await self.user_interaction_dispatcher.send_message(event=event_copy, message= f":zap::robot_face: *AutomatedUserInput*: {event_copy.text}", message_type=MessageType.TEXT, is_internal= True)
-
-            await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
+    async def trigger_genai(self, event: IncomingNotificationDataBase):
+        """Triggers an automated response for Generative AI."""
+        try:
+            self.logger.debug("Automated response triggered for Generative AI.")
+            await self.handle_request(event)
+        except Exception as e:
+            self.logger.error(f"Error in trigger_genai: {str(e)}")
 
     async def trigger_feedback(self, event: IncomingNotificationDataBase) -> Any:
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        """Trigger feedback process (currently a placeholder)."""
+        self.logger.info(f"Feedback triggered for event: {event}")
+        return {"status": "Feedback triggered successfully"}
