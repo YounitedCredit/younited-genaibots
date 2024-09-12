@@ -125,7 +125,7 @@ def test_config_model():
         "START_KEYWORD": "start",
         "LOAD_ACTIONS_FROM_BACKEND": False
     }
-    file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
+    file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
     
     # Ensure FILE_SYSTEM is properly set
     logging = Logging(FILE_SYSTEM=LocalLogging(**file_data))

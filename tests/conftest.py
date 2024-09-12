@@ -61,11 +61,11 @@ def mock_utils():
             LOCAL_LOGGING=LocalLogging(
                 PLUGIN_NAME="local_logging",
                 LEVEL="DEBUG",
-                FILE_PATH="log.txt"
+                LOCAL_LOGGING_FILE_PATH="log.txt"  # Ajoutez ce champ requis
             ),
             AZURE_LOGGING=AzureLogging(
                 PLUGIN_NAME="azure_logging",
-                APPLICATIONINSIGHTS_CONNECTION_STRING="connection_string"
+                AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING="connection_string"
             )
         )
     )

@@ -30,8 +30,8 @@ def slack_config():
         SLACK_BOT_TOKEN = "xoxb-1234"
         SLACK_BOT_USER_TOKEN = "xoxp-5678"
         PLUGIN_NAME = "slack_plugin"
-        WORKSPACE_NAME = "workspace_name"
-
+        SLACK_WORKSPACE_NAME = "workspace_name"
+        SLACK_BEHAVIOR_PLUGIN_NAME = "behavior_plugin"  # Add this missing field
     return MockSlackConfig()
 
 @pytest.fixture

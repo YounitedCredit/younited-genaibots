@@ -7,7 +7,7 @@ import pytest
 from fastapi import Request
 from pydantic import BaseModel
 from starlette.responses import Response
-
+import asyncio
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
@@ -38,6 +38,14 @@ class SlackConfig(BaseModel):
     INTERNAL_CHANNEL: str
     WORKSPACE_NAME: str
     BEHAVIOR_PLUGIN_NAME: str
+    SLACK_ROUTE_PATH: str
+    SLACK_ROUTE_METHODS: List[str]
+    SLACK_PLUGIN_DIRECTORY: str
+    SLACK_MAX_MESSAGE_LENGTH: int
+    SLACK_INTERNAL_CHANNEL: str
+    SLACK_WORKSPACE_NAME: str
+    SLACK_BEHAVIOR_PLUGIN_NAME: str
+    SLACK_AUTHORIZE_DIRECT_MESSAGE: bool
 
 @pytest.fixture
 def slack_config_data():
@@ -60,8 +68,16 @@ def slack_config_data():
         "MAX_MESSAGE_LENGTH": 40000,
         "INTERNAL_CHANNEL": "C45678901",
         "WORKSPACE_NAME": "workspace_name",
-        "BEHAVIOR_PLUGIN_NAME": "behavior_plugin"
+        "SLACK_BEHAVIOR_PLUGIN_NAME": "behavior_plugin",  # Update this key
+        "SLACK_ROUTE_PATH": "/api/get_slacknotification",
+        "SLACK_ROUTE_METHODS": ["POST"],
+        "SLACK_PLUGIN_DIRECTORY": "plugins.user_interactions.plugins",
+        "SLACK_MAX_MESSAGE_LENGTH": 2900,
+        "SLACK_INTERNAL_CHANNEL": "your_internal_channel_id",
+        "SLACK_WORKSPACE_NAME": "your_workspace_name",
+        "SLACK_AUTHORIZE_DIRECT_MESSAGE": True
     }
+
 
 @pytest.fixture
 def slack_plugin(mock_global_manager, slack_config_data):
@@ -278,8 +294,9 @@ async def test_process_interaction(slack_plugin):
         mock_process.assert_called_once_with(
             event_data=event_data,
             event_origin=slack_plugin.plugin_name,
-            plugin_name=slack_plugin.slack_config.BEHAVIOR_PLUGIN_NAME
+            plugin_name=slack_plugin.slack_config.SLACK_BEHAVIOR_PLUGIN_NAME 
         )
+
 @pytest.mark.asyncio
 async def test_validate_headers(slack_plugin):
     valid_headers = {
@@ -830,12 +847,12 @@ def test_initialize(slack_plugin):
     assert slack_plugin.SLACK_FEEDBACK_CHANNEL == slack_plugin.slack_config.SLACK_FEEDBACK_CHANNEL
     assert slack_plugin.slack_bot_token == slack_plugin.slack_config.SLACK_BOT_TOKEN
     assert slack_plugin.slack_signing_secret == slack_plugin.slack_config.SLACK_SIGNING_SECRET
-    assert slack_plugin._route_path == slack_plugin.slack_config.ROUTE_PATH
-    assert slack_plugin._route_methods == slack_plugin.slack_config.ROUTE_METHODS
+    assert slack_plugin._route_path == slack_plugin.slack_config.SLACK_ROUTE_PATH  
+    assert slack_plugin._route_methods == slack_plugin.slack_config.SLACK_ROUTE_METHODS  
     assert slack_plugin.bot_user_id == slack_plugin.slack_config.SLACK_BOT_USER_ID
-    assert slack_plugin.MAX_MESSAGE_LENGTH == slack_plugin.slack_config.MAX_MESSAGE_LENGTH
-    assert slack_plugin.INTERNAL_CHANNEL == slack_plugin.slack_config.INTERNAL_CHANNEL
-    assert slack_plugin.WORKSPACE_NAME == slack_plugin.slack_config.WORKSPACE_NAME
+    assert slack_plugin.MAX_MESSAGE_LENGTH == slack_plugin.slack_config.SLACK_MAX_MESSAGE_LENGTH  
+    assert slack_plugin.INTERNAL_CHANNEL == slack_plugin.slack_config.SLACK_INTERNAL_CHANNEL 
+    assert slack_plugin.WORKSPACE_NAME == slack_plugin.slack_config.SLACK_WORKSPACE_NAME 
     assert slack_plugin.plugin_name == slack_plugin.slack_config.PLUGIN_NAME
     assert slack_plugin.FEEDBACK_BOT_USER_ID == slack_plugin.slack_config.SLACK_FEEDBACK_BOT_ID
 
@@ -1269,7 +1286,7 @@ async def test_handle_internal_channel(slack_plugin):
     assert slack_plugin.wait_for_internal_message.called
 
 @pytest.mark.asyncio
-async def test_wait_for_internal_message(slack_plugin):
+async def test_wait_for_internal_message(slack_plugin, monkeypatch):
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         converted_timestamp="1234567890.123456",
@@ -1288,6 +1305,9 @@ async def test_wait_for_internal_message(slack_plugin):
         origin="slack"
     )
     event_copy = copy.deepcopy(event)
+
+    # Mock the sleep to return instantly
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
 
     # Test when internal message is found
     slack_plugin.slack_input_handler.search_message_in_thread = AsyncMock(return_value="1234567890.123457")
@@ -1472,3 +1492,95 @@ async def test_wait_for_internal_message_timeout(slack_plugin):
         await slack_plugin.wait_for_internal_message(event, event_copy)
     
     assert event_copy.thread_id == event.thread_id 
+
+@pytest.mark.asyncio
+async def test_fetch_conversation_history(slack_plugin, mocker):
+    # Create a mock event for the method input
+    mock_event = mocker.MagicMock()
+    mock_event.channel_id = None
+    mock_event.thread_id = None
+
+    # Mock the output of slack_output_handler.fetch_conversation_history
+    mock_messages = [
+        {"text": "Hello, world!", "user": "U123456", "ts": "1234567890.123456"},
+        {"text": "How are you?", "user": "U654321", "ts": "1234567891.123456"}
+    ]
+
+    slack_plugin.slack_output_handler.fetch_conversation_history = AsyncMock(return_value=mock_messages)
+
+    # Mock the request_to_notification_data to return IncomingNotificationDataBase objects
+    mock_notification_data_1 = AsyncMock()
+    mock_notification_data_2 = AsyncMock()
+
+    slack_plugin.request_to_notification_data = AsyncMock(side_effect=[mock_notification_data_1, mock_notification_data_2])
+
+    # Call the method under test without channel_id and thread_id
+    result = await slack_plugin.fetch_conversation_history(mock_event, channel_id=None, thread_id=None)
+
+    # Assert that fetch_conversation_history was called with the correct arguments
+    slack_plugin.slack_output_handler.fetch_conversation_history.assert_called_once_with(channel_id=None, thread_id=None)
+    
+    # Assert that request_to_notification_data was called for each message
+    assert slack_plugin.request_to_notification_data.call_count == 2
+    
+    # Assert that the method returned the list of event data objects
+    assert result == [mock_notification_data_1, mock_notification_data_2]
+
+    # Check if the logger.info was called with the correct message
+    slack_plugin.logger.info.assert_called_with("Fetched 2 events from the conversation history.")
+
+@pytest.mark.asyncio
+async def test_fetch_conversation_history_with_channel_and_thread(slack_plugin, mocker):
+    # Create a mock event for the method input
+    mock_event = mocker.MagicMock()
+
+    # Mock the output of slack_output_handler.fetch_conversation_history
+    mock_messages = [
+        {"text": "Hello, world!", "user": "U123456", "ts": "1234567890.123456"},
+        {"text": "How are you?", "user": "U654321", "ts": "1234567891.123456"}
+    ]
+
+    slack_plugin.slack_output_handler.fetch_conversation_history = AsyncMock(return_value=mock_messages)
+
+    # Mock the request_to_notification_data to return IncomingNotificationDataBase objects
+    mock_notification_data_1 = AsyncMock()
+    mock_notification_data_2 = AsyncMock()
+
+    slack_plugin.request_to_notification_data = AsyncMock(side_effect=[mock_notification_data_1, mock_notification_data_2])
+
+    # Call the method under test with a specific channel_id and thread_id
+    result = await slack_plugin.fetch_conversation_history(mock_event, channel_id="C123", thread_id="T456")
+
+    # Assert that fetch_conversation_history was called with the correct channel_id and thread_id
+    slack_plugin.slack_output_handler.fetch_conversation_history.assert_called_once_with(channel_id="C123", thread_id="T456")
+    
+    # Assert that request_to_notification_data was called for each message
+    assert slack_plugin.request_to_notification_data.call_count == 2
+    
+    # Assert that the method returned the list of event data objects
+    assert result == [mock_notification_data_1, mock_notification_data_2]
+
+    # Check if the logger.info was called with the correct message
+    slack_plugin.logger.info.assert_called_with("Fetched 2 events from the conversation history.")
+
+@pytest.mark.asyncio
+async def test_fetch_conversation_history_exception_handling(slack_plugin, mocker):
+    # Create a mock event for the method input
+    mock_event = mocker.MagicMock()
+    mock_event.channel_id = None
+    mock_event.thread_id = None
+
+    # Make fetch_conversation_history raise an exception
+    slack_plugin.slack_output_handler.fetch_conversation_history = AsyncMock(side_effect=Exception("Test error"))
+
+    # Call the method under test
+    result = await slack_plugin.fetch_conversation_history(mock_event)
+
+    # Assert that fetch_conversation_history was called with no channel_id/thread_id
+    slack_plugin.slack_output_handler.fetch_conversation_history.assert_called_once_with(channel_id=None, thread_id=None)
+    
+    # Assert that the method returns an empty list on exception
+    assert result == []
+
+    # Assert that the error was logged
+    slack_plugin.logger.error.assert_called_once_with("Error fetching conversation history: Test error")

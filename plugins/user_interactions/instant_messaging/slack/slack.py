@@ -5,7 +5,7 @@ import hmac
 import json
 import time
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 from urllib.parse import parse_qs
 
 import requests
@@ -534,18 +534,25 @@ class SlackPlugin(UserInteractionsPluginBase):
         formatted_message = f"<@{bot_id}> {message}"
         return formatted_message
 
-    async def fetch_conversation_history(self, event: IncomingNotificationDataBase) -> List[IncomingNotificationDataBase]:
+    async def fetch_conversation_history(
+        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+    ) -> List[IncomingNotificationDataBase]:
         """
         Fetch the conversation history via SlackOutputHandler.
+        If channel_id and thread_id are provided, they will be used instead of the event's channel and thread IDs.
         """
         try:
+            # Use provided channel_id and thread_id, or fallback to the event values
+            final_channel_id = channel_id if channel_id else event.channel_id
+            final_thread_id = thread_id if thread_id else event.thread_id
+
             # Use SlackOutputHandler to fetch conversation history
-            messages = await self.slack_output_handler.fetch_conversation_history(event=event)
+            messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id, thread_id=final_thread_id)
             
             # Convert each message into IncomingNotificationDataBase
             event_data_list = []
             for message in messages:
-                # Convert each Slack message into an IncomingNotificationDataBase object                
+                # Convert each Slack message into an IncomingNotificationDataBase object
                 event_data = await self.request_to_notification_data({"event": message})
                 if event_data:
                     event_data_list.append(event_data)
