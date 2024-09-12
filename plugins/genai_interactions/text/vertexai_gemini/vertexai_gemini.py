@@ -163,8 +163,13 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             await self.backend_internal_data_processing_dispatcher.write_data_content(sessions, blob_name, completion_json)
             return completion
 
+        except ValueError as ve:
+            self.logger.error(f"JSON parsing failed: {ve}")
+            return "Error: The JSON text does not seem to be valid."
         except Exception as e:
             self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
+            return None
+
 
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
 
@@ -239,6 +244,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
                     formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
                     return formatted_response
                 except (json.JSONDecodeError, AttributeError):
+                    self.logger.error(f"Invalid JSON response: {e}")
                     return "Error: The JSON text does not seem to be valid."
 
             except json.JSONDecodeError as e:

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import List
+from typing import List, Optional
 
 import aiohttp
 from fastapi import Request
@@ -193,3 +193,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                     self.logger.error(f"Failed to post notification: {await response.text()}")
                 else:
                     self.logger.info("Notification posted successfully.")
+
+    async def fetch_conversation_history(
+        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+    ) -> List[IncomingNotificationDataBase]:
+        # NOT IMPLEMENTED YET
+        pass

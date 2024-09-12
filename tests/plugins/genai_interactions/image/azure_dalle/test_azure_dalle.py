@@ -1,6 +1,5 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 from core.action_interactions.action_input import ActionInput
@@ -9,18 +8,20 @@ from plugins.genai_interactions.image.azure_dalle.azure_dalle import AzureDalleP
 
 @pytest.fixture
 def mock_config():
+    # Ensure all required fields for Azure Dalle are included and the structure matches the real config
     return {
-        "PLUGIN_NAME": "azure_dalle",  # Use the actual plugin name
-        "AZURE_OPENAI_KEY": "fake_key",
-        "AZURE_OPENAI_ENDPOINT": "https://fake_endpoint",
-        "OPENAI_API_VERSION": "v1",
-        "IMAGE_GENERATOR_MODEL_NAME": "dall-e-3",
-        "INPUT_TOKEN_PRICE": 0.01,
-        "OUTPUT_TOKEN_PRICE": 0.01,
+        "PLUGIN_NAME": "azure_dalle",  # Plugin name
+        "AZURE_DALLE_INPUT_TOKEN_PRICE": 0.01,
+        "AZURE_DALLE_OUTPUT_TOKEN_PRICE": 0.01,
+        "AZURE_DALLE_OPENAI_KEY": "fake_key",
+        "AZURE_DALLE_OPENAI_ENDPOINT": "https://fake_endpoint",
+        "AZURE_DALLE_OPENAI_API_VERSION": "v1",
+        "AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME": "dall-e-3",
     }
 
 @pytest.fixture
 def extended_mock_global_manager(mock_global_manager, mock_config):
+    # Make sure the mock configuration matches the structure in the real configuration
     mock_global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.IMAGE = {
         "AZURE_DALLE": mock_config
     }
@@ -28,11 +29,13 @@ def extended_mock_global_manager(mock_global_manager, mock_config):
 
 @pytest.fixture
 def azure_dalle_plugin(extended_mock_global_manager):
+    # Initialize the plugin
     plugin = AzureDallePlugin(global_manager=extended_mock_global_manager)
     plugin.initialize()
     return plugin
 
 def test_initialize(azure_dalle_plugin):
+    # Ensure that all config values are correctly set during initialization
     assert azure_dalle_plugin.azure_openai_key == "fake_key"
     assert azure_dalle_plugin.azure_openai_endpoint == "https://fake_endpoint"
     assert azure_dalle_plugin.openai_api_version == "v1"
@@ -41,6 +44,7 @@ def test_initialize(azure_dalle_plugin):
 
 @pytest.mark.asyncio
 async def test_handle_action(azure_dalle_plugin):
+    # Mock the Azure OpenAI image generation process
     with patch.object(azure_dalle_plugin.client.images, 'generate', new_callable=AsyncMock) as mock_generate:
         # Mock the result of generate to return a MagicMock with model_dump_json returning the expected JSON string
         mock_result = MagicMock()

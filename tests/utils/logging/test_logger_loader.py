@@ -117,11 +117,15 @@ def test_setup_logger_file_config(mock_config_manager, caplog):
 
 def test_setup_logger_azure_config(mock_config_manager, mock_azure_monitor_log_exporter,
                                    mock_azure_monitor_trace_exporter, mock_azure_monitor_metric_exporter):
+    # Set up mock return values
+    mock_azure_config = MagicMock()
+    mock_azure_config.AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING = 'connection_string'
+
     mock_config_manager().get_config.side_effect = [
         'INFO',
         None,  # for log_plugin_file
         MagicMock(PLUGIN_NAME='azure'),
-        MagicMock(APPLICATIONINSIGHTS_CONNECTION_STRING='connection_string'),
+        mock_azure_config  # Return a mock object with the required attribute
     ]
 
     with patch('utils.logging.logger_loader.LoggerProvider') as mock_logger_provider, \
@@ -136,15 +140,19 @@ def test_setup_logger_azure_config(mock_config_manager, mock_azure_monitor_log_e
          patch('utils.logging.logger_loader.metrics.set_meter_provider') as mock_set_meter_provider, \
          patch('utils.logging.logger_loader.trace.get_tracer') as mock_get_tracer:
 
+        # Call the setup_logger_and_tracer function
         logger, tracer = setup_logger_and_tracer(MagicMock())
 
+        # Validate the calls to the mock Azure exporters
         mock_azure_monitor_log_exporter.assert_called_once_with(connection_string='connection_string')
         mock_azure_monitor_trace_exporter.assert_called_once_with(connection_string='connection_string')
         mock_azure_monitor_metric_exporter.assert_called_once_with(connection_string='connection_string')
 
+        # Ensure other necessary mocks are used
         assert mock_set_logger_provider.called
         assert mock_set_tracer_provider.called
         assert mock_set_meter_provider.called
 
+        # Verify that the logger was configured with handlers
         assert any(isinstance(handler, MagicMock) for handler in logger.handlers)
         assert tracer is not None

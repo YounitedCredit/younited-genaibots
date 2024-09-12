@@ -36,7 +36,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.initialization_failed = False
         self.plugin_manager : PluginManager = global_manager.plugin_manager
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
-        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGED]
+        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
         self.plugin_name = None
 

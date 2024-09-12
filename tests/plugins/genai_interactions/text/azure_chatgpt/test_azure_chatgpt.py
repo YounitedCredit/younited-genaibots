@@ -22,18 +22,19 @@ from core.genai_interactions.genai_cost_base import GenAICostBase
 @pytest.fixture
 def mock_config():
     return {
-        "PLUGIN_NAME": "azure_chatgpt",
-        "AZURE_CHATGPT_INPUT_TOKEN_PRICE": 0.01,
-        "AZURE_CHATGPT_OUTPUT_TOKEN_PRICE": 0.01,
-        "AZURE_OPENAI_KEY": "fake_key",
-        "AZURE_OPENAI_ENDPOINT": "https://fake_endpoint",
-        "OPENAI_API_VERSION": "v1",
-        "AZURE_CHATGPT_MODEL_NAME": "gpt-35-turbo",
-        "AZURE_CHATGPT_VISION_MODEL_NAME": "gpt-35-vision",
+        "PLUGIN_NAME": "azure_chatgpt",  # Plugin name
+        "AZURE_CHATGPT_INPUT_TOKEN_PRICE": 0.01,  # Input token price
+        "AZURE_CHATGPT_OUTPUT_TOKEN_PRICE": 0.01,  # Output token price
+        "AZURE_CHATGPT_OPENAI_KEY": "fake_key",  # OpenAI key
+        "AZURE_CHATGPT_OPENAI_ENDPOINT": "https://fake_endpoint",  # OpenAI endpoint
+        "AZURE_CHATGPT_OPENAI_API_VERSION": "v1",  # OpenAI API version
+        "AZURE_CHATGPT_MODEL_NAME": "gpt-35-turbo",  # GPT model name
+        "AZURE_CHATGPT_VISION_MODEL_NAME": "gpt-35-vision",  # Vision model name
     }
 
 @pytest.fixture
 def extended_mock_global_manager(mock_global_manager, mock_config):
+    # Update the mock global manager configuration to match the real one
     mock_global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT = {
         "AZURE_CHATGPT": mock_config
     }

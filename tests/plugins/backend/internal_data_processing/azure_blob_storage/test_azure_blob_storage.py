@@ -16,18 +16,18 @@ from plugins.backend.internal_data_processing.azure_blob_storage.azure_blob_stor
 @pytest.fixture
 def mock_config():
     return {
-        "PLUGIN_NAME": "test_plugin",
-        "CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=account;AccountKey=key;EndpointSuffix=core.windows.net",
-        "SESSIONS_CONTAINER": "sessions",
-        "MESSAGES_CONTAINER": "messages",
-        "FEEDBACKS_CONTAINER": "feedbacks",
-        "CONCATENATE_CONTAINER": "concatenate",
-        "PROMPTS_CONTAINER": "prompts",
-        "COSTS_CONTAINER": "costs",
-        "PROCESSING_CONTAINER": "processing",
-        "ABORT_CONTAINER": "abort",
-        "VECTORS_CONTAINER": "vectors",
-        "CUSTOM_ACTIONS_CONTAINER": "custom_actions"
+        "PLUGIN_NAME": "azure_blob_storage",
+        "AZURE_BLOB_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=account;AccountKey=key;EndpointSuffix=core.windows.net",
+        "AZURE_BLOB_STORAGE_SESSIONS_CONTAINER": "sessions",
+        "AZURE_BLOB_STORAGE_MESSAGES_CONTAINER": "messages",
+        "AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER": "feedbacks",
+        "AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER": "concatenate",
+        "AZURE_BLOB_STORAGE_PROMPTS_CONTAINER": "prompts",
+        "AZURE_BLOB_STORAGE_COSTS_CONTAINER": "costs",
+        "AZURE_BLOB_STORAGE_PROCESSING_CONTAINER": "processing",
+        "AZURE_BLOB_STORAGE_ABORT_CONTAINER": "abort",
+        "AZURE_BLOB_STORAGE_VECTORS_CONTAINER": "vectors",
+        "AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER": "custom_actions"
     }
 
 @pytest.fixture
@@ -50,9 +50,9 @@ def test_initialize(azure_blob_storage_plugin):
     with patch.object(DefaultAzureCredential, '__init__', return_value=None):
         with patch.object(BlobServiceClient, '__init__', return_value=None):
             azure_blob_storage_plugin.initialize()
-            assert azure_blob_storage_plugin.connection_string == azure_blob_storage_plugin.azure_blob_storage_config.CONNECTION_STRING
-            assert azure_blob_storage_plugin.sessions_container == azure_blob_storage_plugin.azure_blob_storage_config.SESSIONS_CONTAINER
-            assert azure_blob_storage_plugin.messages_container == azure_blob_storage_plugin.azure_blob_storage_config.MESSAGES_CONTAINER
+            assert azure_blob_storage_plugin.connection_string == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
+            assert azure_blob_storage_plugin.sessions_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
+            assert azure_blob_storage_plugin.messages_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_CONTAINER
 
 def test_initialize_blob_service_client_error(mock_config, extended_mock_global_manager):
     with patch.object(BlobServiceClient, '__init__', side_effect=AzureError("Azure error")):

@@ -4,7 +4,7 @@ import inspect
 import json
 from datetime import datetime
 from typing import List
-
+from typing import Optional, List
 import requests
 from botbuilder.core import (
     BotFrameworkAdapter,
@@ -389,5 +389,11 @@ class TeamsPlugin(UserInteractionsPluginBase):
         pass
 
     async def remove_reaction(self, event, channel_id, timestamp, reaction_name):
+        # NOT IMPLEMENTED YET
+        pass
+
+    async def fetch_conversation_history(
+        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+    ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
         pass

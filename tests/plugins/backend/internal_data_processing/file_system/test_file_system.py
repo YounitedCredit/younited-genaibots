@@ -11,18 +11,18 @@ from plugins.backend.internal_data_processing.file_system.file_system import (
 @pytest.fixture
 def mock_config():
     return {
-        "PLUGIN_NAME": "test_plugin",
-        "DIRECTORY": "/test_directory",
-        "SESSIONS_CONTAINER": "sessions",
-        "MESSAGES_CONTAINER": "messages",
-        "FEEDBACKS_CONTAINER": "feedbacks",
-        "CONCATENATE_CONTAINER": "concatenate",
-        "PROMPTS_CONTAINER": "prompts",
-        "COSTS_CONTAINER": "costs",
-        "PROCESSING_CONTAINER": "processing",
-        "ABORT_CONTAINER": "abort",
-        "VECTORS_CONTAINER": "vectors",
-        "CUSTOM_ACTIONS_CONTAINER": "custom_actions"
+        "PLUGIN_NAME": "file_system",
+        "FILE_SYSTEM_DIRECTORY": "/test_directory",
+        "FILE_SYSTEM_SESSIONS_CONTAINER": "sessions",
+        "FILE_SYSTEM_MESSAGES_CONTAINER": "messages",
+        "FILE_SYSTEM_FEEDBACKS_CONTAINER": "feedbacks",
+        "FILE_SYSTEM_CONCATENATE_CONTAINER": "concatenate",
+        "FILE_SYSTEM_PROMPTS_CONTAINER": "prompts",
+        "FILE_SYSTEM_COSTS_CONTAINER": "costs",
+        "FILE_SYSTEM_PROCESSING_CONTAINER": "processing",
+        "FILE_SYSTEM_ABORT_CONTAINER": "abort",
+        "FILE_SYSTEM_VECTORS_CONTAINER": "vectors",
+        "FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER": "custom_actions"
     }
 
 @pytest.fixture
@@ -45,7 +45,10 @@ async def test_read_data_content(file_system_plugin):
     with patch("builtins.open", m), patch("os.path.exists", return_value=True):
         content = await file_system_plugin.read_data_content('container', 'file')
         assert content == '{"key": "value"}'
-        m.assert_called_once_with(os.path.join(file_system_plugin.root_directory, 'container', 'file'), 'r')
+        m.assert_called_once_with(
+            os.path.join(file_system_plugin.root_directory, 'container', 'file'), 
+            'r', encoding='utf-8', errors='ignore'
+        )
 
 @pytest.mark.asyncio
 async def test_read_data_content_file_not_exists(file_system_plugin):
@@ -76,7 +79,7 @@ async def test_remove_data_content_file_not_exists(file_system_plugin):
 @patch('os.makedirs')
 def test_init_shares(mock_makedirs, file_system_plugin):
     file_system_plugin.init_shares()
-    assert mock_makedirs.call_count == 7
+    assert mock_makedirs.call_count == 10
 
 @pytest.mark.asyncio
 async def test_append_data(file_system_plugin):

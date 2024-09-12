@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-
+from typing import List, Optional
 import pytest
 
 from core.user_interactions.incoming_notification_data_base import (
@@ -67,6 +67,12 @@ class TestUserInteractionsPlugin(UserInteractionsPluginBase):
 
     def initialize(self, plugins):
         pass  # Implementation of initialize method
+       
+    async def fetch_conversation_history(
+        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+    ) -> List[IncomingNotificationDataBase]:
+        # Returning a mocked conversation history for testing purposes
+        return [event]  # Mocked list with the event as the conversation history.
 
     @property
     def plugin_name(self):

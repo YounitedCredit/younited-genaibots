@@ -17,3 +17,4 @@ coverage.xml
 codebase.md
 *.log
 plugins/action_interactions/custom/*
+/output.csv

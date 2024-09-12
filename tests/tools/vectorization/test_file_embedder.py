@@ -1,21 +1,23 @@
 import os
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, mock_open, MagicMock
 import pandas as pd
+import logging
+from unittest.mock import call
+import json
 
-# Ajoutez le chemin du répertoire racine du projet au sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.insert(0, project_root)
 
-# Maintenant, importez le module
 try:
     from tools.vectorization.file_embedder import (
         clean_text, clean_title, split_document_by_structure, split_document_into_passages,
         get_text_embedding, convert_to_azure_search_json, sanitize_document_id,
         generate_index_definition, main, get_file_path, create_wiki_url
     )
+
 except ImportError as e:
     print(f"Error importing file_embedder: {e}")
     print(f"sys.path: {sys.path}")
@@ -23,7 +25,30 @@ except ImportError as e:
     print(f"Content of {os.path.join(project_root, 'tools')}: {os.listdir(os.path.join(project_root, 'tools'))}")
     raise
 
-# Test pour clean_text
+@pytest.fixture
+def mock_azure_openai():
+    with patch('tools.vectorization.file_embedder.AzureOpenAI') as mock:
+        client = mock.return_value
+        client.embeddings.create.return_value.data = [type('obj', (object,), {'embedding': [0.1, 0.2, 0.3]})()]
+        yield mock
+
+@pytest.fixture
+def test_data():
+    return "This is a test document.\nIt has multiple lines.\nAnd some content."
+
+@pytest.fixture
+def mock_file_system(test_data):
+    def mock_open_file(*args, **kwargs):
+        file_mock = MagicMock()
+        file_mock.read.return_value = test_data
+        return file_mock
+
+    with patch('builtins.open', mock_open_file):
+        with patch('os.path.isfile', return_value=True):
+            with patch('os.path.isdir', return_value=True):
+                with patch('os.walk', return_value=[('/fake/path', [], ['test_file.txt'])]):
+                    yield
+
 def test_clean_text():
     input_text = """
     # Markdown Title
@@ -127,23 +152,15 @@ def test_create_wiki_url():
     expected_url = f"{wiki_base_url}?wikiVersion=GBwikiMaster&pagePath=/file"
     assert create_wiki_url(wiki_base_url, local_file_path, input_dir) == expected_url
 
-# Test pour main function
-@patch('tools.vectorization.file_embedder.AzureOpenAI')
-@patch('tools.vectorization.file_embedder.get_text_embedding')
-@patch('tools.vectorization.file_embedder.os.path.isfile')
-@patch('tools.vectorization.file_embedder.open', new_callable=MagicMock)
-def test_main(mock_open, mock_isfile, mock_get_embedding, mock_azure_openai):
-    mock_isfile.return_value = True
-    mock_open.return_value.__enter__.return_value.read.return_value = "This is a longer text used for testing the embedding function."
-    mock_get_embedding.return_value = [0.1, 0.2, 0.3]
-    mock_client = MagicMock()
-    mock_azure_openai.return_value = mock_client
+def test_main(mock_azure_openai, mock_file_system, tmp_path, caplog):
+    caplog.set_level(logging.DEBUG)
 
+    # Prepare test arguments
     class Args:
-        input = 'test.txt'
-        output = 'output'
+        input = '/fake/path'
+        output = os.path.join(str(tmp_path), 'output')  # Use os.path.join for path construction
         output_format = 'csv'
-        max_tokens = 100  # Ensure segmentation occurs
+        max_tokens = 100
         index_name = None
         openai_key = 'test_key'
         openai_endpoint = 'test_endpoint'
@@ -155,10 +172,60 @@ def test_main(mock_open, mock_isfile, mock_get_embedding, mock_azure_openai):
         wiki_url = None
         wiki_subfolder = None
 
-    df, output_file, index_file = main(Args())
+    # Run the main function
+    m = mock_open(read_data="This is a test document.\nIt has multiple lines.\nAnd some content.")
+    m.return_value.__enter__.return_value.write = MagicMock()
+    with patch('tools.vectorization.file_embedder.get_text_embedding', return_value=[0.1, 0.2, 0.3]) as mock_get_embedding:
+        with patch('builtins.open', m):
+            with patch('pandas.DataFrame.to_csv') as mock_to_csv:
+                df, output_file, index_file = main(Args())
 
-    assert isinstance(df, pd.DataFrame)
-    assert output_file == 'output.csv'
-    assert index_file is None
-    mock_azure_openai.assert_called_once()
-    mock_get_embedding.assert_called()  # Ensure embedding function is called
+    # After running main, print the expected output file path
+    print(f"Expected output file: {output_file}")
+
+    # Check if the file exists in the temporary directory
+    files_in_tmp = os.listdir(tmp_path)
+    print(f"Files in tmp_path: {files_in_tmp}")
+
+    # Print debug information
+    print("=== Debug Info ===")
+    print(f"DataFrame contents:\n{df}")
+    print(f"DataFrame info:\n{df.info()}")
+    print("Logs:")
+    print(caplog.text)
+    print("Mock get_text_embedding calls:")
+    for call in mock_get_embedding.mock_calls:
+        print(f"  {call}")
+    print("Mock AzureOpenAI calls:")
+    for call in mock_azure_openai.mock_calls:
+        print(f"  {call}")
+    print("Mock to_csv calls:")
+    for call in mock_to_csv.mock_calls:
+        print(f"  {call}")
+    print("==================")
+
+    # Assertions
+    assert isinstance(df, pd.DataFrame), "The result should be a DataFrame"
+    assert not df.empty, "The DataFrame should not be empty"
+    assert len(df) >= 1, "The DataFrame should have at least one row"
+    assert set(df.columns) == {'document_id', 'passage_id', 'file_path', 'passage_index', 'text', 'title', 'title_embedding', 'embedding'}, "The DataFrame should have the expected columns"
+
+    # Check if AzureOpenAI was called correctly
+    mock_azure_openai.assert_called_once_with(
+        api_key='test_key',
+        azure_endpoint='test_endpoint',
+        api_version='2023-05-15'
+    )
+
+    # Check if get_text_embedding was called
+    assert mock_get_embedding.called, "get_text_embedding should have been called"
+
+    # Check if to_csv was called
+    mock_to_csv.assert_called_once()
+    
+    # Instead of checking if the file exists (which it won't due to mocking),
+    # we'll check if to_csv was called with the correct filename
+    to_csv_args, to_csv_kwargs = mock_to_csv.call_args
+    assert to_csv_args[0] == output_file, f"to_csv should have been called with {output_file}"
+
+    assert index_file is None, "No index file should be generated in this test case"

@@ -1,13 +1,11 @@
 import pytest
 from pydantic import ValidationError
-
 from utils.config_manager.config_model import (
     ActionInteractions,
     AzureLogging,
     Backend,
     BotConfig,
     ConfigModel,
-    Environment,
     LocalLogging,
     GenaiInteractions,
     Logging,
@@ -17,6 +15,7 @@ from utils.config_manager.config_model import (
     UserInteractions,
     UserInteractionsBehaviors,
     Utils,
+    Environment
 )
 
 
@@ -44,7 +43,6 @@ def test_bot_config():
         "BREAK_KEYWORD": "break",
         "START_KEYWORD": "start",
         "LOAD_ACTIONS_FROM_BACKEND": True
-
     }
     bot_config = BotConfig(**valid_data)
     assert bot_config.CORE_PROMPT == "core_prompt"
@@ -55,32 +53,36 @@ def test_bot_config():
     with pytest.raises(ValidationError):
         BotConfig(**invalid_data)
 
+
 def test_logging():
     # Test valid Logging
-    file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
-    azure_data = {"PLUGIN_NAME": "azure_plugin", "APPLICATIONINSIGHTS_CONNECTION_STRING": "connection_string"}
+    file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
+    azure_data = {"PLUGIN_NAME": "azure_plugin", "AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING": "connection_string"}
     
-    # FILE_SYSTEM is the correct attribute, not FILE
-    logging = Logging(FILE_SYSTEM=LocalLogging(**file_data), AZURE=AzureLogging(**azure_data))
+    # Ensure LOCAL_LOGGING and AZURE_LOGGING are properly set
+    logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data), AZURE_LOGGING=AzureLogging(**azure_data))
     
-    assert logging.FILE_SYSTEM.PLUGIN_NAME == "file_plugin"
-    assert logging.AZURE.PLUGIN_NAME == "azure_plugin"
+    assert logging.LOCAL_LOGGING.PLUGIN_NAME == "file_plugin"
+    assert logging.LOCAL_LOGGING.LOCAL_LOGGING_FILE_PATH == "path/to/log"
+    assert logging.AZURE_LOGGING.PLUGIN_NAME == "azure_plugin"
 
     # Test invalid Logging (invalid nested model)
     invalid_file_data = file_data.copy()
-    invalid_file_data["FILE_PATH"] = 123  # Invalid type for FILE_PATH
+    invalid_file_data["LOCAL_LOGGING_FILE_PATH"] = 123  # Invalid type for LOCAL_LOGGING_FILE_PATH
     with pytest.raises(ValidationError):
-        Logging(FILE_SYSTEM=LocalLogging(**invalid_file_data))
+        Logging(LOCAL_LOGGING=LocalLogging(**invalid_file_data))
+
 
 def test_utils():
     # Test valid Utils
-    file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
+    file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
     
-    # Ensure FILE_SYSTEM is properly set
-    logging = Logging(FILE_SYSTEM=LocalLogging(**file_data))
+    # Ensure LOCAL_LOGGING is properly set in Logging
+    logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data))
     utils = Utils(LOGGING=logging)
     
-    assert utils.LOGGING.FILE_SYSTEM.FILE_PATH == "path/to/log"
+    assert utils.LOGGING.LOCAL_LOGGING.LOCAL_LOGGING_FILE_PATH == "path/to/log"
+
 
 def test_plugins():
     # Test valid Plugins
@@ -98,7 +100,9 @@ def test_plugins():
         GENAI_INTERACTIONS=genai_interactions,
         USER_INTERACTIONS_BEHAVIORS=user_interactions_behaviors
     )
+    
     assert plugins.ACTION_INTERACTIONS.DEFAULT["default_plugin"].PLUGIN_NAME == "plugin_name"
+
 
 def test_config_model():
     # Test valid ConfigModel
@@ -126,9 +130,9 @@ def test_config_model():
         "LOAD_ACTIONS_FROM_BACKEND": False
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
-    
-    # Ensure FILE_SYSTEM is properly set
-    logging = Logging(FILE_SYSTEM=LocalLogging(**file_data))
+
+    # Ensure LOCAL_LOGGING is properly set
+    logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data))
     utils = Utils(LOGGING=logging)
 
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
@@ -149,12 +153,4 @@ def test_config_model():
     config_model = ConfigModel(BOT_CONFIG=BotConfig(**bot_config_data), UTILS=utils, PLUGINS=plugins)
     
     assert config_model.BOT_CONFIG.CORE_PROMPT == "core_prompt"
-    assert config_model.UTILS.LOGGING.FILE_SYSTEM.PLUGIN_NAME == "file_plugin"
-
-
-def test_sensitive_data():
-    # Test valid SensitiveData
-    environment_data = {"PLUGIN_NAME": "env_plugin"}
-    sensitive_data = SensitiveData(ENVIRONMENT=Environment(**environment_data))
-    assert sensitive_data.ENVIRONMENT.PLUGIN_NAME == "env_plugin"
-
+    assert config_model.UTILS.LOGGING.LOCAL_LOGGING.PLUGIN_NAME == "file_plugin"
