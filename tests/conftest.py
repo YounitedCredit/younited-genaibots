@@ -22,11 +22,11 @@ from core.user_interactions.user_interactions_plugin_base import (
 )
 from utils.config_manager.config_model import (
     ActionInteractions,
-    Azure,
+    AzureLogging,
     Backend,
     BotConfig,
     ConfigModel,
-    FileSystem,
+    LocalLogging,
     GenaiInteractions,
     Logging,
     Plugin,
@@ -58,12 +58,12 @@ def mock_app():
 def mock_utils():
     return Utils(
         LOGGING=Logging(
-            FILE=FileSystem(
-                PLUGIN_NAME="file_logging",
+            LOCAL_LOGGING=LocalLogging(
+                PLUGIN_NAME="local_logging",
                 LEVEL="DEBUG",
                 FILE_PATH="log.txt"
             ),
-            AZURE=Azure(
+            AZURE_LOGGING=AzureLogging(
                 PLUGIN_NAME="azure_logging",
                 APPLICATIONINSIGHTS_CONNECTION_STRING="connection_string"
             )

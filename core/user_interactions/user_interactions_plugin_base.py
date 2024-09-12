@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+from typing import List
 from core.plugin_base import PluginBase
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
@@ -94,8 +94,6 @@ class UserInteractionsPluginBase(PluginBase, ABC):
         """
         raise NotImplementedError
 
-
-
     @abstractmethod
     def format_trigger_genai_message(self, message):
         """
@@ -121,5 +119,12 @@ class UserInteractionsPluginBase(PluginBase, ABC):
 
         Raises:
             NotImplementedError: _description_
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def fetch_conversation_history(self, event: IncomingNotificationDataBase) -> List[IncomingNotificationDataBase]:
+        """
+        Fetches the conversation history for a given channel and thread. Each plugin must implement this method.
         """
         raise NotImplementedError

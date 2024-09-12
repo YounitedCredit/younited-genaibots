@@ -129,3 +129,11 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             plugin_name = event.origin_plugin_name
         plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return await plugin.process_event_data(event_data=event, headers=headers, raw_body_str=raw_body_str)
+    
+    async def fetch_conversation_history(self, event: IncomingNotificationDataBase, plugin_name=None):
+        """
+        Fetch conversation history from the plugin for a given channel and thread.
+        """
+        plugin_name = event.origin_plugin_name
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
+        return await plugin.fetch_conversation_history(event=event)

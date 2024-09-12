@@ -5,6 +5,7 @@ import re
 import traceback
 import codecs
 import yaml
+from typing import List
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -97,10 +98,58 @@ class ChatInputHandler():
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
 
-            # Add new message to the JSON
+            # If no messages are found in storage, fetch conversation from Slack
+            if not messages:
+                self.logger.info(f"No conversation history found for thread {event_data.thread_id}, fetching from Slack.")
+                fetched_messages = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+
+                # Add system instructions for core and main prompt
+                await self.global_manager.prompt_manager.initialize()
+                init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+                
+                # Insert the system instructions at the beginning of the conversation
+                messages.append({"role": "system", "content": init_prompt})
+
+                # Process and convert each fetched message, including handling images and files
+                for fetched_event_data in fetched_messages:
+                    user_content_text = [{
+                        "type": "text", 
+                        "text": f"Timestamp: {str(fetched_event_data.converted_timestamp)}, "
+                                f"[Slack username]: {str(fetched_event_data.user_name)}, "
+                                f"[Slack user id]: {str(fetched_event_data.user_id)}, "
+                                f"[Slack user email]: {fetched_event_data.user_email}, "
+                                f"[Directly mentioning you]: {str(fetched_event_data.is_mention)}, "
+                                f"[message]: {str(fetched_event_data.text)}"
+                    }]
+
+                    # Handle images if present
+                    user_content_images = []
+                    if fetched_event_data.images:
+                        for base64_image in fetched_event_data.images:
+                            image_message = {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}",
+                                    "detail": "high"
+                                }
+                            }
+                            user_content_images.append(image_message)
+
+                    # Handle file content if present
+                    if fetched_event_data.files_content:
+                        for file_content in fetched_event_data.files_content:
+                            file_message = {"type": "text", "text": file_content}
+                            user_content_text.append(file_message)
+
+                    user_content = user_content_text + user_content_images
+                    messages.append({"role": "user", "content": user_content})
+
+            # Add the new incoming message to the conversation
             constructed_message = {
                 "role": "user",
-                "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, [Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+                "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
+                        f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
+                        f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
             }
 
             user_content_text = [{"type": "text", "text": constructed_message["content"]}]
@@ -125,21 +174,21 @@ class ChatInputHandler():
             user_content = user_content_text + user_content_images
             messages.append({"role": "user", "content": user_content})
 
+            # Handle unmentioned or mentioned thread messages based on the configuration
             if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # If bot is mentioned or require_mention_thread_message is true, retrieve and extend with previously stored messages
+                # If bot is mentioned, retrieve previously stored unmentioned messages and extend
                 messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
             elif event_data.is_mention == False and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # If bot is not mentioned, store the message for later
+                # If bot is not mentioned, store the message for later processing
                 await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
                 return None
 
-            if not event_data.images and not event_data.files_content:
-                messages.append(constructed_message)
-
+            # Generate response based on updated messages
             return await self.generate_response(event_data, messages)
         except Exception as e:
             self.logger.error(f"Error while handling thread message event: {e}")
             raise
+
 
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
         try:
@@ -364,3 +413,18 @@ class ChatInputHandler():
 
         return total_cost, input_cost, output_cost
 
+    async def trigger_genai_with_thread(self, event_data: IncomingNotificationDataBase, messages: List[dict]):
+        """
+        Trigger the Generative AI to generate a response for the entire conversation thread.
+        """
+        try:
+            self.logger.info("Triggering GenAI with the reconstructed conversation thread...")
+            
+            # Call GenAI using the full thread's messages
+            completion = await self.call_completion(event_data.channel_id, event_data.thread_id, messages, event_data)
+
+            return completion
+
+        except Exception as e:
+            self.logger.error(f"Error while triggering GenAI for thread: {e}")
+            raise

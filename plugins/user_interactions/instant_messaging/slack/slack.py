@@ -533,3 +533,27 @@ class SlackPlugin(UserInteractionsPluginBase):
         bot_id = self.bot_user_id
         formatted_message = f"<@{bot_id}> {message}"
         return formatted_message
+
+    async def fetch_conversation_history(self, event: IncomingNotificationDataBase) -> List[IncomingNotificationDataBase]:
+        """
+        Fetch the conversation history via SlackOutputHandler.
+        """
+        try:
+            # Use SlackOutputHandler to fetch conversation history
+            messages = await self.slack_output_handler.fetch_conversation_history(event=event)
+            
+            # Convert each message into IncomingNotificationDataBase
+            event_data_list = []
+            for message in messages:
+                # Convert each Slack message into an IncomingNotificationDataBase object                
+                event_data = await self.request_to_notification_data({"event": message})
+                if event_data:
+                    event_data_list.append(event_data)
+
+            # Log the number of events found
+            self.logger.info(f"Fetched {len(event_data_list)} events from the conversation history.")
+
+            return event_data_list
+        except Exception as e:
+            self.logger.error(f"Error fetching conversation history: {e}")
+            return []

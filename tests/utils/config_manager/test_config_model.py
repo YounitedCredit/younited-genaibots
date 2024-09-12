@@ -3,12 +3,12 @@ from pydantic import ValidationError
 
 from utils.config_manager.config_model import (
     ActionInteractions,
-    Azure,
+    AzureLogging,
     Backend,
     BotConfig,
     ConfigModel,
     Environment,
-    FileSystem,
+    LocalLogging,
     GenaiInteractions,
     Logging,
     Plugin,
@@ -61,7 +61,7 @@ def test_logging():
     azure_data = {"PLUGIN_NAME": "azure_plugin", "APPLICATIONINSIGHTS_CONNECTION_STRING": "connection_string"}
     
     # FILE_SYSTEM is the correct attribute, not FILE
-    logging = Logging(FILE_SYSTEM=FileSystem(**file_data), AZURE=Azure(**azure_data))
+    logging = Logging(FILE_SYSTEM=LocalLogging(**file_data), AZURE=AzureLogging(**azure_data))
     
     assert logging.FILE_SYSTEM.PLUGIN_NAME == "file_plugin"
     assert logging.AZURE.PLUGIN_NAME == "azure_plugin"
@@ -70,14 +70,14 @@ def test_logging():
     invalid_file_data = file_data.copy()
     invalid_file_data["FILE_PATH"] = 123  # Invalid type for FILE_PATH
     with pytest.raises(ValidationError):
-        Logging(FILE_SYSTEM=FileSystem(**invalid_file_data))
+        Logging(FILE_SYSTEM=LocalLogging(**invalid_file_data))
 
 def test_utils():
     # Test valid Utils
     file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
     
     # Ensure FILE_SYSTEM is properly set
-    logging = Logging(FILE_SYSTEM=FileSystem(**file_data))
+    logging = Logging(FILE_SYSTEM=LocalLogging(**file_data))
     utils = Utils(LOGGING=logging)
     
     assert utils.LOGGING.FILE_SYSTEM.FILE_PATH == "path/to/log"
@@ -128,7 +128,7 @@ def test_config_model():
     file_data = {"PLUGIN_NAME": "file_plugin", "FILE_PATH": "path/to/log"}
     
     # Ensure FILE_SYSTEM is properly set
-    logging = Logging(FILE_SYSTEM=FileSystem(**file_data))
+    logging = Logging(FILE_SYSTEM=LocalLogging(**file_data))
     utils = Utils(LOGGING=logging)
 
     plugin_data = {"PLUGIN_NAME": "plugin_name"}

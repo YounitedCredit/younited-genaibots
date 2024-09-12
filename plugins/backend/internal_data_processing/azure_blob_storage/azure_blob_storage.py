@@ -13,7 +13,7 @@ from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
 
-AZURE_BLOB_STORAGE_BACKEND = "AZURE_BLOB_STORAGE_BACKEND"
+AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
 
 class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
@@ -36,7 +36,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.initialization_failed = False
         self.plugin_manager : PluginManager = global_manager.plugin_manager
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
-        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE_BACKEND]
+        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGED]
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
         self.plugin_name = None
 

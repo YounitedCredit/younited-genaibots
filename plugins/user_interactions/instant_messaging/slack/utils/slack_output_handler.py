@@ -1,7 +1,7 @@
 import json
 import re
 import traceback
-
+from typing import List
 import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -12,7 +12,6 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 from utils.plugin_manager.plugin_manager import PluginManager
-
 
 class SlackOutputHandler:
     def __init__(self, global_manager : GlobalManager, slack_config):
@@ -186,3 +185,27 @@ class SlackOutputHandler:
             error_message = f":interrobang: Error uploading file: {str(error_traceback)}"
             self.logger.exception(f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
             await self.send_slack_message(channel_id, thread_id, error_message)
+
+    async def fetch_conversation_history(self, event: IncomingNotificationDataBase) -> List[IncomingNotificationDataBase]:
+        """
+        Fetches the conversation history for a Slack thread and converts each message into an IncomingNotificationDataBase object.
+        """
+        channel_id = event.channel_id
+        thread_id = event.thread_id        
+
+        try:
+            # Use Slack's WebClient instance for authenticated requests
+            response = self.client.conversations_replies(channel=channel_id, ts=thread_id, inclusive=True)
+
+            if not response["ok"]:
+                self.logger.error(f"Error retrieving conversation history from Slack: {response['error']}")
+                return []
+
+            return response.get("messages", [])
+
+        except SlackApiError as e:
+            self.logger.error(f"Slack API error fetching conversation history: {e.response['error']}")
+            return []
+        except Exception as e:
+            self.logger.error(f"Error fetching conversation history: {e}")
+            return []
