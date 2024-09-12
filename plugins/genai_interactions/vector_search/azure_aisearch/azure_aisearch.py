@@ -194,34 +194,40 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             return search_results
 
     async def fetch_full_document_content(self, document_id, index_name):
-        """Fetches and concatenates all passages for a specific document id."""
         try:
             fetch_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
             fetch_headers = {
                 'Content-Type': 'application/json',
                 'api-key': self.search_key
             }
-
-            # Query all passages that share the same id
             fetch_body = {
-                "filter": f"document_id eq '{document_id}'",  # Fetch all passages by id
-                "select": "content, passage_id",  # Fetch content and passage_id
-                "top": 1000  # Assuming the document won't exceed 1000 chunks
+                "filter": f"document_id eq '{document_id}'",
+                "select": "content, passage_id",
+                "top": 1000
             }
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(fetch_url, headers=fetch_headers, json=fetch_body) as response:
-                    fetch_status = response.status
-                    fetch_body = await response.json()
+            status, response_body = await self.post_request(fetch_url, fetch_headers, fetch_body)
+            
+            self.logger.debug(f"Fetch status: {status}")
+            self.logger.debug(f"Response body: {response_body}")
 
-                    if fetch_status != 200:
-                        self.logger.error(f"Failed to fetch full document with status {fetch_status}")
-                        return ""
+            if status != 200:
+                self.logger.error(f"Failed to fetch full document with status {status}")
+                return ""
 
-                    # Collect and concatenate all passages by passage_id
-                    passages = sorted(fetch_body.get("value", []), key=lambda x: x['passage_id'])
-                    full_document_content = " ".join([passage['content'] for passage in passages])
-                    return full_document_content
+            # Parse the JSON response
+            fetch_body = json.loads(response_body)
+            
+            self.logger.debug(f"Parsed fetch body: {fetch_body}")
+
+            # Collect and concatenate all passages by passage_id
+            passages = sorted(fetch_body.get("value", []), key=lambda x: x['passage_id'])
+            self.logger.debug(f"Sorted passages: {passages}")
+            
+            full_document_content = " ".join([passage['content'] for passage in passages])
+            self.logger.debug(f"Full document content: {full_document_content}")
+            
+            return full_document_content
 
         except Exception as e:
             self.logger.error(f"Error while fetching full document: {e}")

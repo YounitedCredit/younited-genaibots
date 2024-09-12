@@ -9,7 +9,7 @@ from core.user_interactions.incoming_notification_data_base import (
 from plugins.genai_interactions.vector_search.azure_aisearch.azure_aisearch import (
     AzureAisearchPlugin,
 )
-
+import aiohttp
 
 @pytest.fixture
 def azure_aisearch_plugin(mock_global_manager):
@@ -165,3 +165,86 @@ async def test_handle_request_exception(azure_aisearch_plugin):
 
         assert result is None
         azure_aisearch_plugin.logger.error.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_handle_action_missing_index_name(azure_aisearch_plugin):
+    action_input = ActionInput(action_name="search", parameters={"query": "test input", "index_name": ""})
+    
+    with pytest.raises(ValueError) as exc_info:
+        await azure_aisearch_plugin.handle_action(action_input)
+        
+    assert "Index name is required but not provided." in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_fetch_full_document_content_success(azure_aisearch_plugin):
+    document_id = "doc123"
+    index_name = "test_index"
+    
+    mock_passages = [
+        {"content": "First part of document", "passage_id": 1},
+        {"content": "Second part of document", "passage_id": 2}
+    ]
+    
+    with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
+        mock_post_request.return_value = (200, {"value": mock_passages})
+        
+        result = await azure_aisearch_plugin.fetch_full_document_content(document_id, index_name)
+        assert result == "First part of document Second part of document"
+
+@pytest.mark.asyncio
+async def test_fetch_full_document_content_error(azure_aisearch_plugin):
+    document_id = "doc123"
+    index_name = "test_index"
+    
+    with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
+        mock_post_request.return_value = (500, {})  # Simulate an error response
+        
+        result = await azure_aisearch_plugin.fetch_full_document_content(document_id, index_name)
+        assert result == ""  # Expect an empty string on error
+
+@pytest.mark.asyncio
+async def test_fetch_full_document_content_success(azure_aisearch_plugin, caplog):
+    document_id = "doc123"
+    index_name = "test_index"
+    mock_passages = [
+        {"content": "First part of document", "passage_id": 1},
+        {"content": "Second part of document", "passage_id": 2}
+    ]
+    
+    with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
+        mock_post_request.return_value = (200, json.dumps({"value": mock_passages}))
+        
+        result = await azure_aisearch_plugin.fetch_full_document_content(document_id, index_name)
+        
+        assert result == "First part of document Second part of document", f"Unexpected result. Logs:\n{caplog.text}"
+
+@pytest.mark.asyncio
+async def test_post_request_error(azure_aisearch_plugin):
+    endpoint = "https://fake_endpoint"
+    headers = {"header_key": "header_value"}
+    body = {"body_key": "body_value"}
+
+    # Simulez l'appel à post pour lever une exception ClientError
+    with patch('aiohttp.ClientSession.post', side_effect=aiohttp.ClientError("Request error")):
+        # Vérifiez que l'exception est levée lorsque la requête échoue
+        with pytest.raises(aiohttp.ClientError):
+            await azure_aisearch_plugin.post_request(endpoint, headers, body)
+
+@pytest.mark.asyncio
+async def test_post_request_success(azure_aisearch_plugin):
+    endpoint = "https://fake_endpoint"
+    headers = {"header_key": "header_value"}
+    body = {"body_key": "body_value"}
+
+    # Créez un mock plus fidèle d'une réponse aiohttp
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.read.return_value = b'{"key": "value"}'
+    mock_response.__aenter__.return_value = mock_response
+
+    with patch('aiohttp.ClientSession.post', return_value=mock_response):
+        # Appelez la méthode et vérifiez que le résultat est correct
+        status, response_body = await azure_aisearch_plugin.post_request(endpoint, headers, body)
+
+        assert status == 200
+        assert response_body == b'{"key": "value"}'
