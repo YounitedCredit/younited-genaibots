@@ -1,11 +1,10 @@
+import logging
 import os
 import sys
-import pytest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import MagicMock, mock_open, patch
+
 import pandas as pd
-import logging
-from unittest.mock import call
-import json
+import pytest
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
@@ -13,9 +12,17 @@ sys.path.insert(0, project_root)
 
 try:
     from tools.vectorization.file_embedder import (
-        clean_text, clean_title, split_document_by_structure, split_document_into_passages,
-        get_text_embedding, convert_to_azure_search_json, sanitize_document_id,
-        generate_index_definition, main, get_file_path, create_wiki_url
+        clean_text,
+        clean_title,
+        convert_to_azure_search_json,
+        create_wiki_url,
+        generate_index_definition,
+        get_file_path,
+        get_text_embedding,
+        main,
+        sanitize_document_id,
+        split_document_by_structure,
+        split_document_into_passages,
     )
 
 except ImportError as e:
@@ -81,7 +88,7 @@ def test_split_document_by_structure(mock_tokenizer):
     mock_tokenizer.encode.side_effect = lambda x: [0] * len(x.split())
     text = "Paragraph 1.\n\nParagraph 2.\n\nParagraph 3."
     chunks = split_document_by_structure(text, max_tokens=5, overlap_tokens=1)
-    assert len(chunks) == 2 
+    assert len(chunks) == 2
     assert chunks == ["Paragraph 1. Paragraph 2.", "Paragraph 2. Paragraph 3."]
 
 # Test pour split_document_into_passages
@@ -101,7 +108,7 @@ def test_get_text_embedding(mock_azure_openai):
     mock_response = MagicMock()
     mock_response.data = [MagicMock(embedding=[0.1, 0.2, 0.3])]
     mock_client.embeddings.create.return_value = mock_response
-    
+
     embedding = get_text_embedding("test text", mock_client)
     assert embedding == [0.1, 0.2, 0.3]
     mock_client.embeddings.create.assert_called_once()
@@ -222,7 +229,7 @@ def test_main(mock_azure_openai, mock_file_system, tmp_path, caplog):
 
     # Check if to_csv was called
     mock_to_csv.assert_called_once()
-    
+
     # Instead of checking if the file exists (which it won't due to mocking),
     # we'll check if to_csv was called with the correct filename
     to_csv_args, to_csv_kwargs = mock_to_csv.call_args

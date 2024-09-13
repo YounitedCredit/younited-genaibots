@@ -1,12 +1,12 @@
-import os
-import re
-import urllib.parse
 import argparse
 import fnmatch
 import logging
+import os
+import re
+import urllib.parse
+
 import colorama
 from colorama import Fore, Style
-from pathlib import Path
 
 help_description = """
 Project File Concatenator Script with .gitignore Support, Custom Exclude Patterns, and Directory Bypass
@@ -114,7 +114,7 @@ def clean_markdown(content):
 
     # Remove extra newlines and clean lines
     content_lines = [line.strip() for line in content.splitlines() if line.strip()]
-    
+
     # Join the cleaned lines with visible line breaks for better readability
     return '\n'.join(content_lines)
 
@@ -149,21 +149,21 @@ def should_ignore_file(filepath, ignore_patterns):
 
 def concat_files(directory, output_file, exclude_empty, bypass_dirs, file_types, ignore_patterns_custom, use_gitignore):
     """Concatenate files from a directory into a single output file, excluding files based on .gitignore, empty files, and bypassed directories."""
-    
+
     # Initialize bypass_dirs as an empty list if it's None
     if bypass_dirs is None:
         bypass_dirs = []
-    
+
     # Convert file_types to a tuple for endswith
     if isinstance(file_types, list):
         file_types = tuple(file_types)
-    
+
     ignore_patterns = []
-    
+
     # Add .gitignore patterns if --use-gitignore is provided
     if use_gitignore:
         ignore_patterns.extend(parse_gitignore(directory))
-        logger.info(f"Using .gitignore patterns.")
+        logger.info("Using .gitignore patterns.")
 
     # Add custom ignore patterns from the command line
     if ignore_patterns_custom:
@@ -189,7 +189,7 @@ def concat_files(directory, output_file, exclude_empty, bypass_dirs, file_types,
             if any(fnmatch.fnmatch(root, os.path.join(directory, d)) for d in bypass_dirs):
                 logger.info(f"Bypassing directory: {root}")
                 continue
-            
+
             for file in files:
                 file_path = os.path.join(root, file)
                 relative_path = os.path.relpath(file_path, directory)
@@ -198,9 +198,9 @@ def concat_files(directory, output_file, exclude_empty, bypass_dirs, file_types,
                 if file.startswith('.') or should_ignore_file(relative_path, ignore_patterns):
                     logger.debug(f"Skipping file: {relative_path}")
                     continue
-                
+
                 # Check if the file has an extension matching file_types (now a tuple)
-                if not file.endswith(file_types):  
+                if not file.endswith(file_types):
                     logger.debug(f"Skipping non-relevant file type: {relative_path}")
                     continue
 

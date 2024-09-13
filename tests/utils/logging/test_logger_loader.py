@@ -1,10 +1,13 @@
 import logging
-from unittest.mock import MagicMock, patch
-import tempfile
-import pytest
 import os
-from utils.logging.logger_loader import setup_logger_and_tracer
+import tempfile
 import time
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from utils.logging.logger_loader import setup_logger_and_tracer
+
 
 @pytest.fixture
 def mock_config_manager():

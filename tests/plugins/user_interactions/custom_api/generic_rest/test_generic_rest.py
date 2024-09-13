@@ -10,18 +10,17 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.message_type import MessageType
+from core.user_interactions.outgoing_notification_data_base import (
+    OutgoingNotificationDataBase,
+)
 from plugins.user_interactions.custom_api.generic_rest.generic_rest import (
     GenericRestPlugin,
     RestConfig,
 )
-
-from core.user_interactions.outgoing_notification_data_base import (
-    OutgoingNotificationDataBase,
-)
-
 from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
     GenericRestReactions,
 )
+
 
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
@@ -50,7 +49,7 @@ def generic_rest_plugin(mock_global_manager, rest_config_data):
     }
     mock_loop = AsyncMock()
     mock_loop.create_task = MagicMock()
-    
+
     with patch('asyncio.get_event_loop', return_value=mock_loop):
         plugin = GenericRestPlugin(mock_global_manager)
         plugin.initialize()  # Ajout de cette ligne
@@ -384,7 +383,7 @@ async def test_send_message_with_title_and_flags(generic_rest_plugin):
     event = MagicMock()
     message_type = MessageType.TEXT
     title = "Greeting"
-    
+
     # Test when title, is_internal, and show_ref are set
     generic_rest_plugin.post_notification = AsyncMock()
 

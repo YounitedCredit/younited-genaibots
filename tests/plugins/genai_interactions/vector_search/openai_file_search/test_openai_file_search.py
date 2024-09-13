@@ -1,10 +1,16 @@
-from unittest.mock import AsyncMock, patch, MagicMock
-import pytest
-from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
-from plugins.genai_interactions.vector_search.openai_file_search.openai_file_search import OpenaiFileSearchPlugin
-import numpy as np
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import numpy as np
+import pytest
+
+from core.action_interactions.action_input import ActionInput
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+from plugins.genai_interactions.vector_search.openai_file_search.openai_file_search import (
+    OpenaiFileSearchPlugin,
+)
 
 
 @pytest.fixture
@@ -38,14 +44,14 @@ def test_initialize(openai_file_search_plugin):
 @pytest.mark.asyncio
 async def test_handle_action(openai_file_search_plugin):
     action_input = ActionInput(action_name="search", parameters={"query": "test query", "index_name": "test_index"})
-    
+
     mock_event = MagicMock(spec=IncomingNotificationDataBase)
-    
+
     with patch.object(openai_file_search_plugin, 'call_search', new_callable=AsyncMock) as mock_call_search:
         mock_call_search.return_value = "search result"
         result = await openai_file_search_plugin.handle_action(action_input, mock_event)
         assert result == "search result"
-        
+
         mock_call_search.assert_called_once_with(query="test query", index_name="test_index", result_count=openai_file_search_plugin.result_count, get_whole_doc=False)
 
 
@@ -54,15 +60,15 @@ async def test_call_search_with_results(openai_file_search_plugin):
     query = "test query"
     index_name = "test_index"
     expected_result = [{"id": "doc1", "@search.score": 1.0}]
-    
+
     with patch.object(openai_file_search_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
         mock_read_data_content.return_value = json.dumps({
             "value": [{"id": "doc1", "vector": [0.1, 0.2, 0.3], "document_id": "doc1", "title": "Test Document"}]
         })
-        
+
         with patch.object(openai_file_search_plugin, 'get_embedding', new_callable=AsyncMock) as mock_get_embedding:
             mock_get_embedding.return_value = [0.1, 0.2, 0.3]
-            
+
             result = await openai_file_search_plugin.call_search(query=query, index_name=index_name, result_count=5)
             search_results = json.loads(result)["search_results"]
             assert search_results[0]["id"] == "doc1"
@@ -73,10 +79,10 @@ async def test_call_search_with_results(openai_file_search_plugin):
 async def test_call_search_without_results(openai_file_search_plugin):
     query = "test query"
     index_name = "test_index"
-    
+
     with patch.object(openai_file_search_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
         mock_read_data_content.return_value = json.dumps({"value": []})  # Empty results
-        
+
         result = await openai_file_search_plugin.call_search(query=query, index_name=index_name, result_count=5)
         assert json.loads(result) == {"search_results": []}
 
@@ -97,7 +103,7 @@ async def test_handle_request(openai_file_search_plugin):
         is_mention=True,
         origin="origin"
     )
-    
+
     with patch.object(openai_file_search_plugin, 'handle_action', new_callable=AsyncMock) as mock_handle_action:
         mock_handle_action.return_value = "action result"
         await openai_file_search_plugin.handle_request(event)

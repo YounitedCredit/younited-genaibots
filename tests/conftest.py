@@ -1,5 +1,5 @@
-import sys
 import asyncio
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -26,8 +26,8 @@ from utils.config_manager.config_model import (
     Backend,
     BotConfig,
     ConfigModel,
-    LocalLogging,
     GenaiInteractions,
+    LocalLogging,
     Logging,
     Plugin,
     Plugins,
@@ -122,7 +122,7 @@ def mock_config_manager(mock_utils, mock_plugins):
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
-            LOAD_ACTIONS_FROM_BACKEND = False            
+            LOAD_ACTIONS_FROM_BACKEND = False
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -163,7 +163,7 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.action_interactions_handler = mock_action_interactions_handler
     mock_global_manager.prompt_manager = mock_prompt_manager
     mock_global_manager.base_directory = Path('')
-    mock_global_manager.available_actions = {}  
+    mock_global_manager.available_actions = {}
     mock_global_manager.logger = MagicMock()
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     return mock_global_manager

@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 import json
+from unittest.mock import AsyncMock
+
+import pytest
 
 from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
@@ -148,7 +149,7 @@ async def test_vector_search_execute_with_exception(mock_global_manager):
 
     # Assert that the exception was logged
     mock_global_manager.logger.exception.assert_called_with("An error occurred: Test exception")
-    
+
     # Print the call arguments to inspect them
     print(mock_global_manager.user_interactions_dispatcher.send_message.call_args_list)
 

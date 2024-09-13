@@ -1,14 +1,14 @@
 import os
-import pytest
-from unittest.mock import mock_open, patch, MagicMock, call
+from unittest.mock import call, mock_open, patch
 
 from tools.concat_project_files import (
     clean_markdown,
+    concat_files,
     decode_filename,
     parse_gitignore,
     should_ignore_file,
-    concat_files
 )
+
 
 # Test for clean_markdown function
 def test_clean_markdown():
@@ -159,10 +159,10 @@ def test_concat_files_use_gitignore(mock_exists, mock_open, mock_walk):
     mock_walk.return_value = [
         ("/mocked/path", [], ["file1.py", "file2.py", "file3.pyc"]),
     ]
-    
+
     # Create a mock file object
     mock_file = mock_open.return_value.__enter__.return_value
-    
+
     # Set up the read method to return different content for each call
     mock_file.read.side_effect = [
         "*.pyc\n",  # .gitignore content
@@ -217,7 +217,7 @@ def test_concat_files_read_error(mock_open, mock_walk):
     mock_walk.return_value = [
         ("/mocked/path", [], ["file1.py", "file2.py"]),
     ]
-    
+
     mock_open.return_value.__enter__.return_value.read.side_effect = [
         UnicodeDecodeError("utf-8", b"", 0, 1, "Invalid start byte"),
         "Content2"

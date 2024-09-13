@@ -1,8 +1,10 @@
-from unittest.mock import AsyncMock, MagicMock
-import pytest
-import asyncio
 import logging
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from utils.prompt_manager.prompt_manager import PromptManager
+
 
 # Ensure that loggers and handlers have proper levels
 @pytest.fixture
@@ -18,7 +20,7 @@ def mock_logger():
 @pytest.fixture(autouse=True)
 def disable_logging():
     logging.getLogger('asyncio').setLevel(logging.CRITICAL)
-    
+
 @pytest.fixture
 def mock_global_manager_with_dispatcher(mock_global_manager):
     mock_global_manager.backend_internal_data_processing_dispatcher = AsyncMock()

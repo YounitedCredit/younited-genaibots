@@ -1,8 +1,15 @@
+import base64
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from botbuilder.schema import Activity, Attachment, ChannelAccount, ConversationAccount, Entity
+from botbuilder.schema import (
+    Activity,
+    Attachment,
+    ChannelAccount,
+    ConversationAccount,
+    Entity,
+)
 from fastapi import Request
 
 from plugins.user_interactions.instant_messaging.teams.teams import (
@@ -12,7 +19,7 @@ from plugins.user_interactions.instant_messaging.teams.teams import (
 from plugins.user_interactions.instant_messaging.teams.utils.teams_event_data import (
     TeamsEventData,
 )
-import base64
+
 
 @pytest.fixture
 def teams_config():
@@ -116,7 +123,7 @@ async def test_validate_request(teams_plugin, mock_request):
                 with patch.object(teams_plugin, '_validate_user_and_channel', return_value=True) as mock_validate_user_and_channel:
                     with patch.object(teams_plugin, '_is_duplicate_request', return_value=False) as mock_is_duplicate:
                         is_valid = await teams_plugin.validate_request(event_data, headers, raw_body_str)
-                        
+
                         assert is_valid is True
                         mock_validate_auth_header.assert_called_once_with(headers)
                         mock_authenticate_token.assert_called_once_with(event_data, headers)
@@ -128,7 +135,7 @@ async def test_validate_request(teams_plugin, mock_request):
 async def test_validate_auth_header(teams_plugin):
     valid_headers = {"Authorization": "Bearer valid_token"}
     invalid_headers = {"Authorization": "Invalid"}
-    
+
     assert await teams_plugin._validate_auth_header(valid_headers) is True
     assert await teams_plugin._validate_auth_header(invalid_headers) is False
 
@@ -178,7 +185,7 @@ async def test_is_duplicate_request(teams_plugin):
         'conversation': {'id': 'conversation_id'},
         'id': 'message_id'
     }
-    
+
     with patch.object(teams_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data:
         mock_read_data.return_value = None
         assert await teams_plugin._is_duplicate_request(event_data, 'user_id', 'channel_id', 'channel') is False
@@ -327,23 +334,23 @@ def test_extract_conversation_info(teams_plugin):
     event_data['id'] = '123'
     conversation_id, ts, thread_id, event_label = teams_plugin._extract_conversation_info(event_data)
     assert event_label == 'message'
-    
+
 @pytest.mark.asyncio
 async def test_add_reaction(teams_plugin, mock_request):
     # Créer un faux événement
     mock_event = MagicMock()
-    
+
     # Configurer le plugin Teams
     teams_plugin.headers = mock_request.headers
     teams_plugin.activity = Activity(type="message")
-    
+
     # Simuler l'appel à process_activity
     with patch('botbuilder.core.bot_framework_adapter.BotFrameworkAdapter.process_activity', new_callable=AsyncMock) as mock_process_activity:
         await teams_plugin.add_reaction(mock_event, "channel_id", "timestamp", "reaction_name")
-        
+
         # Vérifier que process_activity a été appelé
         mock_process_activity.assert_called_once()
-        
+
         # Vérifier que l'activité a été correctement configurée
         called_activity = mock_process_activity.call_args[0][0]
         assert called_activity.type == "message"

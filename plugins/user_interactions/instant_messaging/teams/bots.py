@@ -102,7 +102,7 @@ class TeamsConversationBot(TeamsActivityHandler):
         card_path = os.path.join(os.getcwd(), ADAPTIVECARDTEMPLATE)
         with open(card_path, "rb") as in_file:
             template_json = json.load(in_file)
-        
+
         USERNAME_PLACEHOLDER = "${userName}"
         for t in template_json["body"]:
             t["text"] = t["text"].replace(USERNAME_PLACEHOLDER, member.name)

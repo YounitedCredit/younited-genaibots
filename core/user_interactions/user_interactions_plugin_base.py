@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
+
 from core.plugin_base import PluginBase
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,

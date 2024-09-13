@@ -7,7 +7,6 @@ from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
 from plugins.genai_interactions.text.vertexai_gemini.vertexai_gemini import (
     VertexaiGeminiPlugin,
 )
@@ -116,7 +115,7 @@ async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
                     "max_tokens": vertexai_gemini_plugin.vertexai_gemini_max_output_tokens
                 }
             }, ensure_ascii=False))
-            
+
             # Ensure write_data_content was not called due to invalid JSON
             mock_write_data_content.assert_not_called()
             mock_calculate_and_update_costs.assert_not_called()

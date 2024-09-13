@@ -21,7 +21,6 @@ from core.user_interactions.message_type import MessageType
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
-from utils.logging.logger_loader import logging
 from utils.plugin_manager.plugin_manager import PluginManager
 
 from .utils.slack_input_handler import SlackInputHandler
@@ -286,17 +285,17 @@ class SlackPlugin(UserInteractionsPluginBase):
         if event.get('user') == self.bot_user_id:
             self.logger.info("Discarding request: message from the bot itself")
             return False
-        
+
         if ((api_app_id is not None and user_id is not None and app_id is not None) or (api_app_id is not None and app_id is None)):
             if api_app_id not in self.SLACK_AUTHORIZED_WEBHOOKS and api_app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized webhook: {api_app_id}")
                 return False
-        
+
         if app_id is not None and api_app_id is None :
             if app_id not in self.SLACK_AUTHORIZED_APPS and app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized app: {app_id}")
                 return False
-        
+
         if channel_id.startswith('D'):
             if not self.SLACK_AUTHORIZE_DIRECT_MESSAGE:
                 self.logger.info(f"Discarding request: ignoring direct message from unauthorized channel: {channel_id}")
@@ -355,7 +354,7 @@ class SlackPlugin(UserInteractionsPluginBase):
     async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
         if not isinstance(message_type, MessageType):
             raise ValueError(f"Invalid message type: {message_type}. Expected MessageType enum.")
-        
+
         headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
         event_copy = copy.deepcopy(event)
         channel_id = event_copy.channel_id
@@ -444,7 +443,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             payload['blocks'] = json.dumps(blocks)
         else:
             raise ValueError(f"Invalid message type. Use {', '.join([e.value for e in MessageType])}.")
-        
+
         return payload
 
     def handle_response(self, response, message_block):
@@ -548,7 +547,7 @@ class SlackPlugin(UserInteractionsPluginBase):
 
             # Use SlackOutputHandler to fetch conversation history
             messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id, thread_id=final_thread_id)
-            
+
             # Convert each message into IncomingNotificationDataBase
             event_data_list = []
             for message in messages:

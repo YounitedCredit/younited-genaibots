@@ -2,6 +2,7 @@ import json
 import re
 import traceback
 from typing import List
+
 import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -12,6 +13,7 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 from utils.plugin_manager.plugin_manager import PluginManager
+
 
 class SlackOutputHandler:
     def __init__(self, global_manager : GlobalManager, slack_config):

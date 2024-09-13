@@ -14,6 +14,7 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 
+
 class TestActionInteractionsPlugin(ActionInteractionsPluginBase):
     def __init__(self, global_manager):
         super().__init__(global_manager)
@@ -101,7 +102,7 @@ def test_add_action_class(concrete_plugin, mock_global_manager):
     class TestAction(ActionBase):
         def __init__(self, global_manager):
             super().__init__(global_manager)
-        
+
         def execute(self, action_input, event):
             # Implémentation factice de la méthode execute
             return "Test execution"
@@ -115,16 +116,16 @@ def test_add_action_class(concrete_plugin, mock_global_manager):
     # Simuler le package correct
     test_package = 'core.action_interactions'
 
-   
+
     with patch('core.action_interactions.action_interactions_plugin_base.__package__', test_package):
         concrete_plugin._add_action_class(TestAction, loaded_actions)
 
     # Vérifications
     assert test_package in mock_global_manager.available_actions, f"{test_package} n'a pas été ajouté aux actions disponibles"
-    
+
     if test_package in mock_global_manager.available_actions:
         print(f"Contenu de {test_package}: {mock_global_manager.available_actions[test_package]}")
-    
+
     assert 'TestAction' in mock_global_manager.available_actions[test_package], "TestAction n'a pas été ajouté au package"
     assert isinstance(mock_global_manager.available_actions[test_package]['TestAction'], TestAction), "L'instance de TestAction n'a pas été correctement créée"
     assert 'TestAction' in loaded_actions, "Le nom de l'action n'a pas été ajouté à loaded_actions"
@@ -141,7 +142,7 @@ class ValidActions(Enum):
 class TestActions(Enum):
     TEST = "Test"
     INVALID = "Invalid"
-    
+
 def test_validate_actions(concrete_plugin):
     # Créer une action valide
     class TestAction(ActionBase):

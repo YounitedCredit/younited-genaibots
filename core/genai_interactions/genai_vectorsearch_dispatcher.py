@@ -39,7 +39,7 @@ class GenaiVectorsearch(GenAIInteractionsPluginBase):
                 "Setting Genai Vector Search default plugin to first plugin in list")
 
         self.default_plugin_name = self.default_plugin.plugin_name if self.default_plugin else None
-        
+
         if self.default_plugin_name:
             self.logger.info(f"Default plugin set to: <{self.default_plugin_name}>")
         else:

@@ -14,12 +14,13 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 
+
 class OpenAIRequestError(Exception):
     def __init__(self, status_code, response_body):
         self.status_code = status_code
         self.response_body = response_body
         super().__init__(f"OpenAI request failed with status code {status_code}")
-        
+
 class AzureAisearchConfig(BaseModel):
     PLUGIN_NAME: str
     AZURE_AISEARCH_AZURE_OPENAI_KEY: str
@@ -102,7 +103,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
         # Call search and handle fetching full document based on document_id
         result = await self.call_search(message=query, index_name=index_name, get_whole_doc=get_whole_doc)
         return result
-    
+
     def prepare_search_body_headers(self, message):
         body = {
             "search": message,
@@ -124,12 +125,12 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                 status = response.status
                 body = await response.read()
                 return status, body
-    
+
     async def call_search(self, message, index_name, get_whole_doc=False):
         try:
             # Perform the initial search query to retrieve passages
             search_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
-            
+
             search_headers = {
                 'Content-Type': 'application/json',
                 'api-key': self.search_key
@@ -138,7 +139,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             search_body = {
                 "search": message,
                 "top": self.search_topn_document,
-                "select": "id, document_id, title, content, passage_id, file_path" 
+                "select": "id, document_id, title, content, passage_id, file_path"
             }
 
             async with aiohttp.ClientSession() as session:
@@ -207,7 +208,7 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
             }
 
             status, response_body = await self.post_request(fetch_url, fetch_headers, fetch_body)
-            
+
             self.logger.debug(f"Fetch status: {status}")
             self.logger.debug(f"Response body: {response_body}")
 
@@ -217,16 +218,16 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
             # Parse the JSON response
             fetch_body = json.loads(response_body)
-            
+
             self.logger.debug(f"Parsed fetch body: {fetch_body}")
 
             # Collect and concatenate all passages by passage_id
             passages = sorted(fetch_body.get("value", []), key=lambda x: x['passage_id'])
             self.logger.debug(f"Sorted passages: {passages}")
-            
+
             full_document_content = " ".join([passage['content'] for passage in passages])
             self.logger.debug(f"Full document content: {full_document_content}")
-            
+
             return full_document_content
 
         except Exception as e:

@@ -8,6 +8,7 @@ from plugins.backend.internal_data_processing.file_system.file_system import (
     FileSystemPlugin,
 )
 
+
 @pytest.fixture
 def mock_config():
     return {
@@ -46,7 +47,7 @@ async def test_read_data_content(file_system_plugin):
         content = await file_system_plugin.read_data_content('container', 'file')
         assert content == '{"key": "value"}'
         m.assert_called_once_with(
-            os.path.join(file_system_plugin.root_directory, 'container', 'file'), 
+            os.path.join(file_system_plugin.root_directory, 'container', 'file'),
             'r', encoding='utf-8', errors='ignore'
         )
 

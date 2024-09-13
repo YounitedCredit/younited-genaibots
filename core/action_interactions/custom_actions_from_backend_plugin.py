@@ -1,6 +1,10 @@
-from core.action_interactions.action_interactions_plugin_base import ActionInteractionsPluginBase
-import types
 import asyncio
+import types
+
+from core.action_interactions.action_interactions_plugin_base import (
+    ActionInteractionsPluginBase,
+)
+
 
 class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
     def initialize(self):
@@ -9,7 +13,7 @@ class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
         """
         self.plugin_name = "custom_actions_from_backend"
         self.logger.info(f"Initializing actions for plugin {self.plugin_name} from backend.")
-        
+
         # Call the async load_actions method using asyncio.run to handle it synchronously
         asyncio.create_task(self.load_actions())
 
@@ -17,7 +21,7 @@ class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
     def plugin_name(self):
         # This is a required property to implement for the abstract class
         return "custom_actions_from_backend"
-    
+
     @plugin_name.setter
     def plugin_name(self, value):
         self._plugin_name = value

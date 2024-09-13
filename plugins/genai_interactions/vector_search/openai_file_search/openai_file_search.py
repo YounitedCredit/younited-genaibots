@@ -1,14 +1,19 @@
+import inspect
 import json
-import numpy as np
 from typing import List
-from pydantic import BaseModel
+
+import numpy as np
 from openai import AsyncAzureOpenAI, AsyncOpenAI
+from pydantic import BaseModel
 
 from core.action_interactions.action_input import ActionInput
-from core.genai_interactions.genai_interactions_plugin_base import GenAIInteractionsPluginBase
+from core.genai_interactions.genai_interactions_plugin_base import (
+    GenAIInteractionsPluginBase,
+)
 from core.global_manager import GlobalManager
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
-import inspect
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 
 
 class OpenaiFileSearchConfig(BaseModel):
@@ -20,7 +25,7 @@ class OpenaiFileSearchConfig(BaseModel):
     OPENAI_FILE_SEARCH_MODEL_NAME: str
     OPENAI_FILE_SEARCH_RESULT_COUNT: int
     OPENAI_FILE_SEARCH_INDEX_NAME: str
-    
+
 
 class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):

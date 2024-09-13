@@ -3,7 +3,6 @@ import json
 import os
 import traceback
 
-from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from pydantic import BaseModel
@@ -115,7 +114,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def vectors(self):
         # Implement the vectors property
         return self.vectors_container
-    
+
     @property
     def custom_actions(self):
         # Implement the custom_actions property
@@ -340,7 +339,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Error listing files in container {container_name}: {e}")
             raise
-        
+
     async def update_prompt_system_message(self, channel_id, thread_id, message):
         try:
             self.logger.debug(f"Updating prompt system message for channel {channel_id}, thread {thread_id}")

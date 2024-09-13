@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import requests
@@ -81,7 +81,7 @@ async def test_execute_bing_search(mock_get, mock_response, mock_env_var, bing_s
         headers={"Ocp-Apim-Subscription-Key": "fake_subscription_key"},
         params={"q": "test query", "textDecorations": True, "textFormat": "Raw"}
     )
-    
+
     # Vérifier que genai_interactions_text_dispatcher.trigger_genai a été appelé
     bing_search_instance.genai_interactions_text_dispatcher.trigger_genai.assert_called_once()
 
@@ -262,12 +262,12 @@ async def test_select_from_snippet(bing_search_instance, incoming_notification):
 async def test_get_webpages_content_no_results(mock_get, bing_search_instance, incoming_notification):
     # Configurer le mock pour lever une exception pour chaque URL
     mock_get.side_effect = requests.exceptions.RequestException("Test exception")
-    
+
     urls = ["https://example.com", "https://example2.com"]
-    
+
     # Appeler la méthode à tester
     await bing_search_instance.get_webpages_content(urls, incoming_notification)
-    
+
     # Vérifier que le message d'erreur final a été envoyé
     bing_search_instance.user_interactions_dispatcher.send_message.assert_called_with(
         event=incoming_notification,
@@ -403,15 +403,15 @@ async def test_get_webpages_content_mixed_scenarios(mock_get, bing_search_instan
 
     # Vérifier que le message de succès est envoyé
     bing_search_instance.genai_interactions_text_dispatcher.trigger_genai.assert_called_once()
-    
+
 @patch('plugins.action_interactions.default.main_actions.actions.bing_search.requests.get')
 @pytest.mark.asyncio
 async def test_get_webpages_content_no_content(mock_get, bing_search_instance, incoming_notification):
     mock_get.side_effect = requests.exceptions.RequestException("Test exception")
     urls = ["https://example.com", "https://example2.com"]
-    
+
     await bing_search_instance.get_webpages_content(urls, incoming_notification)
-    
+
     bing_search_instance.user_interactions_dispatcher.send_message.assert_called_with(
         event=incoming_notification,
         message="Sorry, we couldn't find a solution to your problem. Please try rephrasing your request.",
@@ -425,13 +425,13 @@ async def test_get_webpages_content_no_content(mock_get, bing_search_instance, i
 async def test_get_webpages_content_message_formation(mock_get, bing_search_instance, incoming_notification):
     mock_get.return_value.text = "<html><body><p>Test content</p></body></html>"
     urls = ["https://example.com", "https://example2.com"]
-    
+
     await bing_search_instance.get_webpages_content(urls, incoming_notification)
-    
+
     bing_search_instance.genai_interactions_text_dispatcher.trigger_genai.assert_called_once()
     call_args = bing_search_instance.genai_interactions_text_dispatcher.trigger_genai.call_args
     event_copy = call_args[1]['event']
-    
+
     assert "Here is a text content from the 2 web page(s) we analyzed:" in event_copy.text
     assert "https://example.com Test content" in event_copy.text
     assert "https://example2.com Test content" in event_copy.text
@@ -449,7 +449,7 @@ def parse_from_snippet(self, from_snippet):
 async def test_perform_search(mock_get, mock_response, bing_search_instance, incoming_notification):
     # Remplacer directement la clé de souscription
     bing_search_instance.subscription_key = "fake_subscription_key"
-    
+
     mock_get.return_value = mock_response
     result = await bing_search_instance.perform_search("test query", incoming_notification)
     assert result == mock_response.json.return_value

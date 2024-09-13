@@ -7,7 +7,6 @@ from azure.monitor.opentelemetry.exporter import (
     AzureMonitorMetricExporter,
     AzureMonitorTraceExporter,
 )
-
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -52,7 +51,7 @@ def setup_logger_and_tracer(global_manager):
     }
 
     logging.getLogger("http.client").setLevel(logging.WARNING)
-    
+
     # Install coloredlogs
     coloredlogs.install(
         level=log_level,

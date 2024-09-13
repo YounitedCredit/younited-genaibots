@@ -1,13 +1,17 @@
+import asyncio
+import copy
 import hashlib
 import hmac
+import json
 import time
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from fastapi import Request
 from pydantic import BaseModel
 from starlette.responses import Response
-import asyncio
+
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
@@ -15,8 +19,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.user_interactions.instant_messaging.slack.slack import (
     SlackPlugin,
 )
-import copy
-import json
+
 
 class SlackConfig(BaseModel):
     PLUGIN_NAME: str
@@ -294,7 +297,7 @@ async def test_process_interaction(slack_plugin):
         mock_process.assert_called_once_with(
             event_data=event_data,
             event_origin=slack_plugin.plugin_name,
-            plugin_name=slack_plugin.slack_config.SLACK_BEHAVIOR_PLUGIN_NAME 
+            plugin_name=slack_plugin.slack_config.SLACK_BEHAVIOR_PLUGIN_NAME
         )
 
 @pytest.mark.asyncio
@@ -314,7 +317,7 @@ async def test_validate_headers(slack_plugin):
 async def test_validate_signature(slack_plugin):
     timestamp = '1531420618'
     raw_body_str = '{"event": {"type": "message", "user": "U123456", "app_id": None, "api_app_id":None, "channel": "C12345678", "ts": "1234567890.123456"}}'
-    
+
     # Set the root_message_timestamp
     slack_plugin.root_message_timestamp = timestamp
 
@@ -493,24 +496,24 @@ async def test_process_event_by_type(slack_plugin):
             "text": "Hello, world!"
         }
     }
-    
+
     # Test for normal message
     with patch.object(slack_plugin, 'process_interaction') as mock_process:
         await slack_plugin.process_event_by_type(event_data, "message", None)
         mock_process.assert_called_once_with(event_data)
-    
+
     # Test for file_share
     event_data["event"]["subtype"] = "file_share"
     with patch.object(slack_plugin, 'process_interaction') as mock_process:
         await slack_plugin.process_event_by_type(event_data, "message", "file_share")
         mock_process.assert_called_once_with(event_data)
-    
+
     # Test for ignored subtype
     event_data["event"]["subtype"] = "channel_join"
     with patch.object(slack_plugin.logger, 'info') as mock_logger:
         await slack_plugin.process_event_by_type(event_data, "message", "channel_join")
         mock_logger.assert_called_once_with("ignoring channel event subtype: channel_join")
-    
+
     # Test for non-message event type
     with patch.object(slack_plugin.logger, 'debug') as mock_logger:
         await slack_plugin.process_event_by_type(event_data, "reaction_added", None)
@@ -847,12 +850,12 @@ def test_initialize(slack_plugin):
     assert slack_plugin.SLACK_FEEDBACK_CHANNEL == slack_plugin.slack_config.SLACK_FEEDBACK_CHANNEL
     assert slack_plugin.slack_bot_token == slack_plugin.slack_config.SLACK_BOT_TOKEN
     assert slack_plugin.slack_signing_secret == slack_plugin.slack_config.SLACK_SIGNING_SECRET
-    assert slack_plugin._route_path == slack_plugin.slack_config.SLACK_ROUTE_PATH  
-    assert slack_plugin._route_methods == slack_plugin.slack_config.SLACK_ROUTE_METHODS  
+    assert slack_plugin._route_path == slack_plugin.slack_config.SLACK_ROUTE_PATH
+    assert slack_plugin._route_methods == slack_plugin.slack_config.SLACK_ROUTE_METHODS
     assert slack_plugin.bot_user_id == slack_plugin.slack_config.SLACK_BOT_USER_ID
-    assert slack_plugin.MAX_MESSAGE_LENGTH == slack_plugin.slack_config.SLACK_MAX_MESSAGE_LENGTH  
-    assert slack_plugin.INTERNAL_CHANNEL == slack_plugin.slack_config.SLACK_INTERNAL_CHANNEL 
-    assert slack_plugin.WORKSPACE_NAME == slack_plugin.slack_config.SLACK_WORKSPACE_NAME 
+    assert slack_plugin.MAX_MESSAGE_LENGTH == slack_plugin.slack_config.SLACK_MAX_MESSAGE_LENGTH
+    assert slack_plugin.INTERNAL_CHANNEL == slack_plugin.slack_config.SLACK_INTERNAL_CHANNEL
+    assert slack_plugin.WORKSPACE_NAME == slack_plugin.slack_config.SLACK_WORKSPACE_NAME
     assert slack_plugin.plugin_name == slack_plugin.slack_config.PLUGIN_NAME
     assert slack_plugin.FEEDBACK_BOT_USER_ID == slack_plugin.slack_config.SLACK_FEEDBACK_BOT_ID
 
@@ -1053,11 +1056,11 @@ async def test_add_reference_message_user(slack_plugin):
         origin="slack"
     )
     message_blocks = ["Hello, world!"]
-    
+
     slack_plugin.slack_input_handler.get_message_permalink_and_text = AsyncMock(return_value=("https://example.com", "Test message"))
-    
+
     result = await slack_plugin.add_reference_message(event, message_blocks, "1234567890.123456")
-    
+
     assert result is True
     assert len(message_blocks) == 2
     assert message_blocks[0].startswith("<https://example.com|[ref msg link]>")
@@ -1082,11 +1085,11 @@ async def test_add_reference_message_app(slack_plugin):
         origin="slack"
     )
     message_blocks = ["Hello, world!"]
-    
+
     slack_plugin.slack_input_handler.get_message_permalink_and_text = AsyncMock(return_value=("https://example.com", "Test message"))
-    
+
     result = await slack_plugin.add_reference_message(event, message_blocks, "1234567890.123456")
-    
+
     assert result is True
     assert len(message_blocks) == 2
     assert message_blocks[0].startswith("<https://example.com|[ref msg link]>")
@@ -1111,11 +1114,11 @@ async def test_add_reference_message_api_app(slack_plugin):
         origin="slack"
     )
     message_blocks = ["Hello, world!"]
-    
+
     slack_plugin.slack_input_handler.get_message_permalink_and_text = AsyncMock(return_value=("https://example.com", "Test message"))
-    
+
     result = await slack_plugin.add_reference_message(event, message_blocks, "1234567890.123456")
-    
+
     assert result is True
     assert len(message_blocks) == 2
     assert message_blocks[0].startswith("<https://example.com|[ref msg link]>")
@@ -1163,13 +1166,13 @@ def test_construct_payload(slack_plugin):
 
     # Test with different message type
     message_type = MessageType.COMMENT
-    
+
     # Créez un mock synchrone pour format_slack_message
     mock_format_slack_message = MagicMock(return_value=[{"type": "section", "text": {"type": "mrkdwn", "text": "Formatted message"}}])
 
     with patch.object(slack_plugin.slack_output_handler, 'format_slack_message', mock_format_slack_message):
         payload = slack_plugin.construct_payload(channel_id, response_id, message_block, message_type, block_index, total_blocks, title, is_new_message_added)
-    
+
     assert 'blocks' in payload
     blocks = json.loads(payload['blocks'])
     assert blocks[0]['text']['text'] == "Formatted message"
@@ -1361,7 +1364,7 @@ async def test_handle_valid_request_error(slack_plugin):
          patch.object(slack_plugin.logger, 'error') as mock_logger:
         with pytest.raises(Exception) as exc_info:
             await slack_plugin.handle_valid_request(event_data)
-        
+
         assert str(exc_info.value) == "Test error"
         mock_logger.assert_called_once_with("An error occurred while processing user input: Test error")
 
@@ -1426,16 +1429,16 @@ async def test_upload_file_no_internal_channel(slack_plugin):
 
     # Set INTERNAL_CHANNEL to None
     slack_plugin.INTERNAL_CHANNEL = None
-    
+
     # Mock the upload_file_to_slack method
     slack_plugin.slack_output_handler.upload_file_to_slack = AsyncMock()
 
     # Call the method
     await slack_plugin.upload_file(event, file_content, filename, title, is_internal=True)
-    
+
     # Check that upload_file_to_slack was called with the correct arguments
     slack_plugin.slack_output_handler.upload_file_to_slack.assert_called_once()
-    
+
     call_args = slack_plugin.slack_output_handler.upload_file_to_slack.call_args
     assert call_args is not None
     kwargs = call_args.kwargs
@@ -1444,7 +1447,7 @@ async def test_upload_file_no_internal_channel(slack_plugin):
     assert kwargs['file_content'] == file_content
     assert kwargs['filename'] == filename
     assert kwargs['title'] == title
-    
+
     # Check the event object's attributes
     assert kwargs['event'].timestamp == event.timestamp
     assert kwargs['event'].converted_timestamp == event.converted_timestamp
@@ -1487,11 +1490,11 @@ async def test_wait_for_internal_message_timeout(slack_plugin):
     event_copy = copy.deepcopy(event)
 
     slack_plugin.slack_input_handler.search_message_in_thread = AsyncMock(return_value=None)
-    
+
     with patch('asyncio.sleep', new_callable=AsyncMock):
         await slack_plugin.wait_for_internal_message(event, event_copy)
-    
-    assert event_copy.thread_id == event.thread_id 
+
+    assert event_copy.thread_id == event.thread_id
 
 @pytest.mark.asyncio
 async def test_fetch_conversation_history(slack_plugin, mocker):
@@ -1519,10 +1522,10 @@ async def test_fetch_conversation_history(slack_plugin, mocker):
 
     # Assert that fetch_conversation_history was called with the correct arguments
     slack_plugin.slack_output_handler.fetch_conversation_history.assert_called_once_with(channel_id=None, thread_id=None)
-    
+
     # Assert that request_to_notification_data was called for each message
     assert slack_plugin.request_to_notification_data.call_count == 2
-    
+
     # Assert that the method returned the list of event data objects
     assert result == [mock_notification_data_1, mock_notification_data_2]
 
@@ -1553,10 +1556,10 @@ async def test_fetch_conversation_history_with_channel_and_thread(slack_plugin, 
 
     # Assert that fetch_conversation_history was called with the correct channel_id and thread_id
     slack_plugin.slack_output_handler.fetch_conversation_history.assert_called_once_with(channel_id="C123", thread_id="T456")
-    
+
     # Assert that request_to_notification_data was called for each message
     assert slack_plugin.request_to_notification_data.call_count == 2
-    
+
     # Assert that the method returned the list of event data objects
     assert result == [mock_notification_data_1, mock_notification_data_2]
 
@@ -1578,7 +1581,7 @@ async def test_fetch_conversation_history_exception_handling(slack_plugin, mocke
 
     # Assert that fetch_conversation_history was called with no channel_id/thread_id
     slack_plugin.slack_output_handler.fetch_conversation_history.assert_called_once_with(channel_id=None, thread_id=None)
-    
+
     # Assert that the method returns an empty list on exception
     assert result == []
 

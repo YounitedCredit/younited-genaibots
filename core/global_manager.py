@@ -63,7 +63,7 @@ class GlobalManager:
         self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
 
         self.logger.info("Loading plugins...")
-        self.plugin_manager.load_plugins()        
+        self.plugin_manager.load_plugins()
 
         backend_internal_data_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_DATA_PROCESSING")
@@ -97,7 +97,7 @@ class GlobalManager:
 
         self.action_interactions_handler = ActionInteractionsHandler(self)
 
-        
+
         self.logger.debug("Prompt manager initialization...")
         self.prompt_manager = PromptManager(self)
         self.logger.info("Prompt manager loaded.")

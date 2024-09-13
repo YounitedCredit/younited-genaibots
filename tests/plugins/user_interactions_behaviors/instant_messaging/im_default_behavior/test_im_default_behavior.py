@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -7,8 +7,9 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from plugins.user_interactions_behaviors.instant_messaging.im_default_behavior.im_default_behavior import (
     ImDefaultBehaviorPlugin,
-    MessageType
+    MessageType,
 )
+
 
 @pytest.fixture(scope="function", autouse=True)
 def global_manager(mock_global_manager):
@@ -491,7 +492,7 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
     assert remove_reaction_args['channel_id'] == 'C123'
     assert remove_reaction_args['timestamp'] == '1234567890.123456'
     assert 'reaction_name' in remove_reaction_args
-    
+
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_no_genai_output(im_default_behavior_plugin, global_manager, monkeypatch):
     event_data = IncomingNotificationDataBase(

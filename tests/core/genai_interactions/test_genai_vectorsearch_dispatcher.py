@@ -1,5 +1,6 @@
-from unittest.mock import MagicMock
 from unittest import mock
+from unittest.mock import MagicMock
+
 import pytest
 
 from core.action_interactions.action_input import ActionInput

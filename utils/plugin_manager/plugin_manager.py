@@ -2,11 +2,13 @@ import importlib
 import sys
 import traceback
 import types
+
 from fastapi import APIRouter
-import asyncio
+
+from core.action_interactions.action_base import ActionBase
 from core.plugin_base import PluginBase
 from utils.config_manager.config_model import Plugins
-from core.action_interactions.action_base import ActionBase
+
 
 class PluginManager:
     def __init__(self, base_directory, global_manager):
@@ -65,16 +67,18 @@ class PluginManager:
     def load_custom_actions(self, loaded_actions):
         if self.global_manager.bot_config.LOAD_ACTIONS_FROM_BACKEND:
             self.logger.info("Loading custom actions plugin from backend...")
-            
+
             # Dynamically import the CustomActionsFromBackendPlugin to avoid circular imports
-            from core.action_interactions.custom_actions_from_backend_plugin import CustomActionsFromBackendPlugin
-            
+            from core.action_interactions.custom_actions_from_backend_plugin import (
+                CustomActionsFromBackendPlugin,
+            )
+
             # Instantiate the plugin without initializing it
             custom_backend_plugin = CustomActionsFromBackendPlugin(self.global_manager)
-            
+
             # Add the custom backend plugin to the plugins dictionary under ACTION_INTERACTIONS.CUSTOM
             self.plugins.setdefault('ACTION_INTERACTIONS', {})['CUSTOM'] = [custom_backend_plugin]
-            
+
             # Track the loaded backend plugin
             loaded_actions.append("CUSTOM_ACTIONS_FROM_BACKEND")
         else:
@@ -111,7 +115,7 @@ class PluginManager:
                     loaded_actions.append(action_file)
                 else:
                     self.logger.warning(f"Failed to read content for action file '{action_file}' from backend.")
-        
+
         except Exception as e:
             self.logger.error(f"Error while loading custom actions from backend: {e}")
 
@@ -120,7 +124,7 @@ class PluginManager:
             self.logger.info(f"Custom actions loaded from backend: {', '.join(loaded_actions)}")
         else:
             self.logger.info("No custom actions were loaded from the backend.")
-            
+
     def get_plugin_by_category(self, category, subcategory=None):
         # Check if the category exists in the plugins dictionary
         if category in self.plugins:

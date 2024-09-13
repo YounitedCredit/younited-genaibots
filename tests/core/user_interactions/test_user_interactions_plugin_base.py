@@ -1,5 +1,6 @@
-from unittest.mock import MagicMock
 from typing import List, Optional
+from unittest.mock import MagicMock
+
 import pytest
 
 from core.user_interactions.incoming_notification_data_base import (
@@ -67,7 +68,7 @@ class TestUserInteractionsPlugin(UserInteractionsPluginBase):
 
     def initialize(self, plugins):
         pass  # Implementation of initialize method
-       
+
     async def fetch_conversation_history(
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:

@@ -3,8 +3,8 @@ import base64
 import inspect
 import json
 from datetime import datetime
-from typing import List
-from typing import Optional, List
+from typing import List, Optional
+
 import requests
 from botbuilder.core import (
     BotFrameworkAdapter,
@@ -115,10 +115,10 @@ class TeamsPlugin(UserInteractionsPluginBase):
             self.activity = Activity().deserialize(self.body)
 
             self.logger.info(f"Request received from <{request.url.path}>")
-            
+
             # Create a new task to handle the rest of the processing
             asyncio.create_task(self.process_event_data(event_data, self.headers, raw_request))
-            
+
             return Response(
                 content=json.dumps({"status": "success", "message": "Request accepted for processing"}),
                 media_type= self.APPJSON,
@@ -177,7 +177,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
 
     async def validate_request(self, event_data = None, headers = None, raw_body_str = None):
         self.logger.debug("Validating request...")
-        
+
         if not await self._validate_auth_header(headers):
             return False
 
@@ -279,17 +279,17 @@ class TeamsPlugin(UserInteractionsPluginBase):
         activity = Activity().deserialize(event_data)
         timestamp = self._get_timestamp(activity)
         turn_context = await self._create_turn_context(activity)
-        
+
         user_id, user_name, channel_id = self._extract_user_info(activity)
         text = activity.text
         is_mention = self._check_is_mention(activity)
         conversation_id, ts, thread_id, event_label = self._extract_conversation_info(event_data)
-        
+
         base64_images = await self._process_image_attachments(activity)
         files_content = []
-        
+
         event_type = event_data.get('type')
-        
+
         if event_type == 'message':
             return self._create_teams_event_data(
                 timestamp, ts, event_label, channel_id, thread_id, user_name, user_id,
@@ -316,8 +316,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
 
     def _check_is_mention(self, activity):
         return any(
-            entity.type == 'mention' and 
-            entity.additional_properties.get('mentioned', {}).get('id') == self.bot_user_id 
+            entity.type == 'mention' and
+            entity.additional_properties.get('mentioned', {}).get('id') == self.bot_user_id
             for entity in (activity.entities or [])
         )
 
@@ -350,8 +350,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
             return attachment.content.split('base64,')[1]
         return None
 
-    def _create_teams_event_data(self, timestamp, ts, event_label, channel_id, thread_id, 
-                                user_name, user_id, is_mention, text, base64_images, 
+    def _create_teams_event_data(self, timestamp, ts, event_label, channel_id, thread_id,
+                                user_name, user_id, is_mention, text, base64_images,
                                 files_content, event_data):
         return TeamsEventData(
             timestamp=ts,

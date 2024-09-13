@@ -1,16 +1,16 @@
+import argparse
+import json
+import logging
 import os
 import re
-import pandas as pd
-import logging
-from openai import AzureOpenAI
-import tiktoken
 import urllib.parse
-import json
-import argparse
+
 import colorama
-from colorama import Fore, Style
-import urllib.parse
+import pandas as pd
+import tiktoken
 from bs4 import BeautifulSoup
+from colorama import Fore, Style
+from openai import AzureOpenAI
 
 help_description = """
 File Embedder Script with Dynamic Chunking
@@ -129,7 +129,7 @@ def get_file_path(local_path, source_type, wiki_url, input_dir):
         return create_wiki_url(wiki_url, local_path, input_dir)
     else:
         raise ValueError(f"Invalid source_type: {source_type}")
-    
+
 def create_wiki_url(wiki_base_url, local_file_path, input_dir, subfolder=''):
     """Creates the correct URL for an Azure DevOps Wiki page from a local file path.
 
@@ -187,38 +187,38 @@ def clean_text(text):
     try:
         # First, parse the text with BeautifulSoup to strip out HTML tags
         soup = BeautifulSoup(text, 'html.parser')
-        
+
         # Extract the text content, ignoring any HTML tags
         text = soup.get_text(separator="\n")
 
         # Remove title markers, keep title text
         text = re.sub(r'^\s*#+\s', '', text, flags=re.MULTILINE)
-        
+
         # Remove images
         text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
-        
+
         # Keep only URLs from links
         text = re.sub(r'\[.*?\]\((.*?)\)', r'\1', text)
-        
+
         # Remove bold and italic markers
         text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
         text = re.sub(r'\*(.*?)\*', r'\1', text)
-        
+
         # Remove list markers
         text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
-        
+
         # Remove block code entirely
         text = re.sub(r'`{3}.*?`{3}', '', text, flags=re.DOTALL)
-        
+
         # Remove inline code markers, keep code text
         text = re.sub(r'`(.*?)`', r'\1', text)
 
         # Remove extra newlines and clean lines
         content_lines = [line.strip() for line in text.splitlines() if line.strip()]
-        
+
         # Join the cleaned lines with visible line breaks for better readability
         return '\n'.join(content_lines)
-    
+
     except Exception as e:
         logging.error(f"Error cleaning text: {e}")
         return ""
@@ -226,16 +226,16 @@ def clean_text(text):
 def clean_title(title):
     # Decode the title first to handle any URL encoded characters
     title = urllib.parse.unquote(title)
-    
+
     # Replace hyphens and underscores with spaces
     title = title.replace('-', ' ').replace('_', ' ')
-    
+
     # Remove any remaining URL-unsafe characters
     title = re.sub(r'[^\w\s-]', '', title)
-    
+
     # Remove extra whitespace
     title = ' '.join(title.split())
-    
+
     return title
 
 def split_document_by_structure(text, max_tokens, overlap_tokens=50):
@@ -247,7 +247,7 @@ def split_document_by_structure(text, max_tokens, overlap_tokens=50):
 
     for paragraph in paragraphs:
         paragraph_tokens = len(tokenizer.encode(paragraph))
-        
+
         if current_chunk_tokens + paragraph_tokens > max_tokens:
             chunks.append(" ".join(current_chunk))
             overlap = current_chunk[-overlap_tokens:]
@@ -256,10 +256,10 @@ def split_document_by_structure(text, max_tokens, overlap_tokens=50):
         else:
             current_chunk.append(paragraph)
             current_chunk_tokens += paragraph_tokens
-    
+
     if current_chunk:
         chunks.append(" ".join(current_chunk))
-    
+
     return chunks
 
 def split_document_into_passages(document, max_tokens=None):
@@ -268,7 +268,7 @@ def split_document_into_passages(document, max_tokens=None):
         tokens = tokenizer.encode(document)
         if max_tokens is None or len(tokens) <= max_tokens:
             return [document]  # Return the entire document as a single passage
-        
+
         passages = []
         for i in range(0, len(tokens), max_tokens):
             passage_tokens = tokens[i:i + max_tokens]
@@ -285,7 +285,7 @@ def get_text_embedding(text, openai_client, model=None):
     if text.strip() == '':
         logging.warning("Empty text encountered, returning empty embedding.")
         return []
-    
+
     model_name = model if model else "text-embedding-3-large"  # Default model
     try:
         response = openai_client.embeddings.create(input=[text], model=model_name)
@@ -324,7 +324,7 @@ def sanitize_document_id(doc_id):
     """Sanitize the document ID by removing invalid characters and avoiding leading underscores."""
     # Replace any invalid characters with an underscore
     sanitized_id = re.sub(r'[^a-zA-Z0-9_\-=]', '_', doc_id)
-    
+
     # Remove any leading underscores
     return sanitized_id.lstrip('_')
 
@@ -491,10 +491,10 @@ def main(args):
         for root, dirs, files in os.walk(args.input):
             for file in files:
                 local_file_path = os.path.join(root, file)
-                
+
                 # Dynamically generate the file path or wiki URL during processing
                 logging.info(f"Processing file: {local_file_path}")
-                
+
                 try:
                     with open(local_file_path, 'r', encoding='utf-8') as f:
                         text = f.read()
@@ -526,11 +526,11 @@ def main(args):
                 # Process each passage
                 for passage_index, passage in enumerate(document_passages, 1):
                     embedding = get_text_embedding(passage, openai_client, model=args.model_name)
-                    
+
                     if embedding:
                         # Append the correct document_id for each passage
                         document_ids.append(document_id)  # Use the document_id, not the title
-                        
+
                         # Track each passage's unique metadata
                         passage_ids.append(passage_index)  # Track the passage index
                         embeddings.append(embedding)  # Add the embedding
@@ -573,7 +573,7 @@ def main(args):
         with open(index_file, 'w') as f:
             json.dump(index_definition, f, indent=2)
         logging.info(f"\n{'='*50}")
-        logging.info(f"INDEX DEFINITION GENERATED")
+        logging.info("INDEX DEFINITION GENERATED")
         logging.info(f"File: {index_file}")
         logging.info(f"{'='*50}\n")
         logging.info(f"Index definition has been written to {index_file}")
@@ -621,7 +621,7 @@ if __name__ == "__main__":
     parser.add_argument('--dynamic_chunking', action='store_true', help='Enable chunking based on document structure such as paragraphs or headings')
     parser.add_argument('--overlap_tokens', type=int, default=50, help='Number of tokens to overlap between chunks')
     parser.add_argument('--model_name', default="text-embedding-3-large", help="OpenAI model name to be used for generating embeddings. Default is 'text-embedding-3-large'")
-    parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki'], default='filesystem', 
+    parser.add_argument('--source_type', choices=['filesystem', 'azure_devops_wiki'], default='filesystem',
                         help="Source type: 'filesystem' (default) or 'azure_devops_wiki'. Specifies how the file path is treated.")
     parser.add_argument('--wiki_subfolder', default='', help="Relative path of the subfolder inside the wiki repository. Used to adjust file paths in Azure DevOps Wiki URLs.")
     parser.add_argument('--wiki_url', help="Base URL of the Azure DevOps Wiki. Required if 'azure_devops_wiki' is selected as source_type.")

@@ -176,7 +176,7 @@ class AsyncIterator:
         item = self._items[self._index]
         self._index += 1
         return item
-    
+
 @pytest.mark.asyncio
 async def test_list_container_files(azure_blob_storage_plugin):
     with patch.object(BlobServiceClient, 'get_container_client') as mock_get_container_client:
@@ -213,13 +213,13 @@ async def test_update_prompt_system_message(azure_blob_storage_plugin):
 async def test_update_session_invalid_json(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
          patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
-        
+
         # Simuler un contenu JSON invalide
         mock_read.return_value = 'invalid json'
-        
+
         # Appel de la méthode avec des données invalides
         await azure_blob_storage_plugin.update_session('container', 'file', 'role', 'content')
-        
+
         # Vérifier que write_data_content n'est pas appelé en cas de JSON invalide
         mock_write.assert_not_called()
 

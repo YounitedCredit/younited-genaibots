@@ -1,21 +1,20 @@
 import pytest
 from pydantic import ValidationError
+
 from utils.config_manager.config_model import (
     ActionInteractions,
     AzureLogging,
     Backend,
     BotConfig,
     ConfigModel,
-    LocalLogging,
     GenaiInteractions,
+    LocalLogging,
     Logging,
     Plugin,
     Plugins,
-    SensitiveData,
     UserInteractions,
     UserInteractionsBehaviors,
     Utils,
-    Environment
 )
 
 
@@ -59,10 +58,10 @@ def test_logging():
     # Test valid Logging
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
     azure_data = {"PLUGIN_NAME": "azure_plugin", "AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING": "connection_string"}
-    
+
     # Ensure LOCAL_LOGGING and AZURE_LOGGING are properly set
     logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data), AZURE_LOGGING=AzureLogging(**azure_data))
-    
+
     assert logging.LOCAL_LOGGING.PLUGIN_NAME == "file_plugin"
     assert logging.LOCAL_LOGGING.LOCAL_LOGGING_FILE_PATH == "path/to/log"
     assert logging.AZURE_LOGGING.PLUGIN_NAME == "azure_plugin"
@@ -77,11 +76,11 @@ def test_logging():
 def test_utils():
     # Test valid Utils
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
-    
+
     # Ensure LOCAL_LOGGING is properly set in Logging
     logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data))
     utils = Utils(LOGGING=logging)
-    
+
     assert utils.LOGGING.LOCAL_LOGGING.LOCAL_LOGGING_FILE_PATH == "path/to/log"
 
 
@@ -101,7 +100,7 @@ def test_plugins():
         GENAI_INTERACTIONS=genai_interactions,
         USER_INTERACTIONS_BEHAVIORS=user_interactions_behaviors
     )
-    
+
     assert plugins.ACTION_INTERACTIONS.DEFAULT["default_plugin"].PLUGIN_NAME == "plugin_name"
 
 
@@ -128,7 +127,8 @@ def test_config_model():
         "LLM_CONVERSION_FORMAT": "conversion_format",
         "BREAK_KEYWORD": "break",
         "START_KEYWORD": "start",
-        "LOAD_ACTIONS_FROM_BACKEND": False
+        "LOAD_ACTIONS_FROM_BACKEND": False,
+        "GET_ALL_THREAD_FROM_MESSAGE_LINKS": True
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
 
@@ -152,6 +152,6 @@ def test_config_model():
     )
 
     config_model = ConfigModel(BOT_CONFIG=BotConfig(**bot_config_data), UTILS=utils, PLUGINS=plugins)
-    
+
     assert config_model.BOT_CONFIG.CORE_PROMPT == "core_prompt"
     assert config_model.UTILS.LOGGING.LOCAL_LOGGING.PLUGIN_NAME == "file_plugin"

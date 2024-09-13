@@ -1,7 +1,9 @@
 import json
 from unittest.mock import AsyncMock, patch
 
+import aiohttp
 import pytest
+
 from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
@@ -9,7 +11,7 @@ from core.user_interactions.incoming_notification_data_base import (
 from plugins.genai_interactions.vector_search.azure_aisearch.azure_aisearch import (
     AzureAisearchPlugin,
 )
-import aiohttp
+
 
 @pytest.fixture
 def azure_aisearch_plugin(mock_global_manager):
@@ -47,14 +49,14 @@ def test_initialize(azure_aisearch_plugin):
 @pytest.mark.asyncio
 async def test_handle_action(azure_aisearch_plugin):
     action_input = ActionInput(action_name="search", parameters={"query": "test input"})
-    
+
     with patch.object(azure_aisearch_plugin, 'call_search', new_callable=AsyncMock) as mock_call_search:
         mock_call_search.return_value = "search result"
-        
+
         result = await azure_aisearch_plugin.handle_action(action_input)
-        
+
         assert result == "search result"
-        
+
         # Adjusted to handle the additional 'get_whole_doc' argument
         mock_call_search.assert_called_once_with(message="test input", index_name=azure_aisearch_plugin.search_index_name, get_whole_doc=False)
 
@@ -86,7 +88,7 @@ async def test_post_request(azure_aisearch_plugin):
 async def test_call_search_with_results(azure_aisearch_plugin):
     message = "test message"
     index_name = azure_aisearch_plugin.search_index_name
-    
+
     mock_search_results = [
         {
             "id": "1",
@@ -117,7 +119,7 @@ async def test_call_search_without_results(azure_aisearch_plugin):
 @pytest.mark.asyncio
 async def test_call_search_exception(azure_aisearch_plugin):
     message = "test message"
-    
+
     with patch('aiohttp.ClientSession') as MockSession:
         mock_session = AsyncMock()
         mock_session.post.side_effect = Exception("Test exception")
@@ -169,25 +171,25 @@ async def test_handle_request_exception(azure_aisearch_plugin):
 @pytest.mark.asyncio
 async def test_handle_action_missing_index_name(azure_aisearch_plugin):
     action_input = ActionInput(action_name="search", parameters={"query": "test input", "index_name": ""})
-    
+
     with pytest.raises(ValueError) as exc_info:
         await azure_aisearch_plugin.handle_action(action_input)
-        
+
     assert "Index name is required but not provided." in str(exc_info.value)
 
 @pytest.mark.asyncio
 async def test_fetch_full_document_content_success(azure_aisearch_plugin):
     document_id = "doc123"
     index_name = "test_index"
-    
+
     mock_passages = [
         {"content": "First part of document", "passage_id": 1},
         {"content": "Second part of document", "passage_id": 2}
     ]
-    
+
     with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
         mock_post_request.return_value = (200, {"value": mock_passages})
-        
+
         result = await azure_aisearch_plugin.fetch_full_document_content(document_id, index_name)
         assert result == "First part of document Second part of document"
 
@@ -195,10 +197,10 @@ async def test_fetch_full_document_content_success(azure_aisearch_plugin):
 async def test_fetch_full_document_content_error(azure_aisearch_plugin):
     document_id = "doc123"
     index_name = "test_index"
-    
+
     with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
         mock_post_request.return_value = (500, {})  # Simulate an error response
-        
+
         result = await azure_aisearch_plugin.fetch_full_document_content(document_id, index_name)
         assert result == ""  # Expect an empty string on error
 
@@ -210,12 +212,12 @@ async def test_fetch_full_document_content_success(azure_aisearch_plugin, caplog
         {"content": "First part of document", "passage_id": 1},
         {"content": "Second part of document", "passage_id": 2}
     ]
-    
+
     with patch.object(azure_aisearch_plugin, 'post_request', new_callable=AsyncMock) as mock_post_request:
         mock_post_request.return_value = (200, json.dumps({"value": mock_passages}))
-        
+
         result = await azure_aisearch_plugin.fetch_full_document_content(document_id, index_name)
-        
+
         assert result == "First part of document Second part of document", f"Unexpected result. Logs:\n{caplog.text}"
 
 @pytest.mark.asyncio

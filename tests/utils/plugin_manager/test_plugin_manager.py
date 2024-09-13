@@ -1,8 +1,11 @@
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+
 from core.plugin_base import PluginBase
 from utils.config_manager.config_model import Plugins
 from utils.plugin_manager.plugin_manager import PluginManager
+
 
 @pytest.fixture
 def plugin_manager(mock_global_manager, mock_plugins):
@@ -45,7 +48,7 @@ def test_load_plugin(plugin_manager):
 
         # Use the module name used by load_plugin, following the expected format
         module_name = 'plugins.action_interactions.default.main_actions.main_actions'
-    
+
         # Patch PluginBase and call load_plugin
         with patch('core.plugin_base.PluginBase', new=MagicMock()):
             plugin_instance = plugin_manager.load_plugin('plugins', module_name)
@@ -120,7 +123,7 @@ def test_load_plugin(plugin_manager):
 
         # Use the module name expected by load_plugin
         module_name = 'plugins.action_interactions.default.main_actions.main_actions'
-    
+
         # Patch PluginBase and call load_plugin
         with patch('core.plugin_base.PluginBase', new=MagicMock()):
             plugin_instance = plugin_manager.load_plugin('plugins', module_name)

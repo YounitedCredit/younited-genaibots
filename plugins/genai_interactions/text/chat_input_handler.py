@@ -3,9 +3,9 @@ import asyncio
 import json
 import re
 import traceback
-import codecs
-import yaml
 from typing import List
+
+import yaml
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -13,13 +13,13 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
 from core.global_manager import GlobalManager
-from core.user_interactions.message_type import MessageType
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from utils.config_manager.config_model import BotConfig
 from utils.plugin_manager.plugin_manager import PluginManager
+
 
 class ChatInputHandler():
     def __init__(self, global_manager: GlobalManager, chat_plugin: GenAIInteractionsTextPluginBase):
@@ -106,14 +106,14 @@ class ChatInputHandler():
                 # Add system instructions for core and main prompt
                 await self.global_manager.prompt_manager.initialize()
                 init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
-                
+
                 # Insert the system instructions at the beginning of the conversation
                 messages.append({"role": "system", "content": init_prompt})
 
                 # Process and convert each fetched message, including handling images and files
                 for fetched_event_data in fetched_messages:
                     user_content_text = [{
-                        "type": "text", 
+                        "type": "text",
                         "text": f"Timestamp: {str(fetched_event_data.converted_timestamp)}, "
                                 f"[Slack username]: {str(fetched_event_data.user_name)}, "
                                 f"[Slack user id]: {str(fetched_event_data.user_id)}, "
@@ -213,7 +213,7 @@ class ChatInputHandler():
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-    
+
     async def call_completion(self, channel_id, thread_id, messages, event_data: IncomingNotificationDataBase):
         # Define blob_name for session storage
         blob_name = f"{channel_id}-{thread_id}.txt"
@@ -233,7 +233,7 @@ class ChatInputHandler():
         costs = self.backend_internal_data_processing_dispatcher.costs
 
         await self.calculate_and_update_costs(genai_cost_base, costs, blob_name, event_data)
-    
+
         # Step 1: Remove markers
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
@@ -245,15 +245,15 @@ class ChatInputHandler():
             if self.conversion_format == "json":
                 # Strip leading/trailing newlines
                 gpt_response = gpt_response.strip("\n")
-                
+
                 # Try to parse the response as JSON
                 response_json = json.loads(gpt_response)
-                
+
             # Step 4b: Handle YAML conversion if needed
             elif self.conversion_format == "yaml":
                 sanitized_yaml = self.adjust_yaml_structure(gpt_response)
                 response_json = await self.yaml_to_json(event_data=event_data, yaml_string=sanitized_yaml)
-            
+
             else:
                 # Log warning and try JSON as a fallback
                 self.logger.warning(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
@@ -262,7 +262,7 @@ class ChatInputHandler():
         except json.JSONDecodeError as e:
             # Step 5: Handle and report JSON decoding errors
             await self.user_interaction_dispatcher.send_message(event=event_data, message=f"An error occurred while converting the completion: {e}", message_type=MessageType.COMMENT, is_internal=True)
-            await self.user_interaction_dispatcher.send_message(event=event_data, message=f"Oops something went wrong, try again or contact the bot owner", message_type=MessageType.COMMENT)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Oops something went wrong, try again or contact the bot owner", message_type=MessageType.COMMENT)
             self.logger.error(f"Failed to parse JSON: {e}")
             return None
 
@@ -419,7 +419,7 @@ class ChatInputHandler():
         """
         try:
             self.logger.info("Triggering GenAI with the reconstructed conversation thread...")
-            
+
             # Call GenAI using the full thread's messages
             completion = await self.call_completion(event_data.channel_id, event_data.thread_id, messages, event_data)
 

@@ -1,9 +1,10 @@
 import asyncio
+import copy
 import inspect
 import json
 import traceback
 from typing import Any
-import copy
+
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel
 
@@ -13,11 +14,10 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
 from core.global_manager import GlobalManager
-from core.user_interactions.message_type import MessageType
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
@@ -32,8 +32,8 @@ class AzureChatGptConfig(BaseModel):
     AZURE_CHATGPT_OPENAI_API_VERSION: str
     AZURE_CHATGPT_MODEL_NAME: str
     AZURE_CHATGPT_VISION_MODEL_NAME: str
-    AZURE_CHATGPT_IS_ASSISTANT: bool = False  
-    AZURE_CHATGPT_ASSISTANT_ID: str = None 
+    AZURE_CHATGPT_IS_ASSISTANT: bool = False
+    AZURE_CHATGPT_ASSISTANT_ID: str = None
 
 
 class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
@@ -242,7 +242,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 vision_model = self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME
                 if not vision_model:
                     raise ValueError("Image received but AZURE_CHATGPT_VISION_MODEL_NAME not configured")
-                
+
                 self.logger.info(f"Using vision model: {vision_model}")
                 image_interpretations = []
                 for i, base64_image in enumerate(event_data.images):
@@ -274,7 +274,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                     interpretation = image_completion.choices[0].message.content
                     self.logger.info(f"Image {i+1} interpretation: {interpretation[:50]}...")  # Log first 50 chars
                     image_interpretations.append(interpretation)
-                
+
                 # Ajout des interprétations d'images au dernier message utilisateur
                 if last_user_message_index is not None:
                     automated_response = (
@@ -293,7 +293,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                         })
                     else:
                         messages_copy[last_user_message_index]['content'] += automated_response
-                    self.logger.info(f"Added image interpretations to the last user message")
+                    self.logger.info("Added image interpretations to the last user message")
 
             # Remove images from event_data to avoid sending them again
             event_data.images = []
@@ -358,13 +358,13 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error(f"An error occurred during assistant completion: {str(e)}")
             self.logger.error(traceback.format_exc())  # Log the full stack trace
             await self.user_interaction_dispatcher.send_message(
-                event=event_data, 
-                message="An unexpected error occurred during assistant completion", 
-                message_type=MessageType.COMMENT, 
+                event=event_data,
+                message="An unexpected error occurred during assistant completion",
+                message_type=MessageType.COMMENT,
                 is_internal=True
             )
             raise
-        
+
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         # Check if we should use the assistant
         self.logger.info("generate completion called")
@@ -403,7 +403,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             if start_marker in response and end_marker in response:
                 # Extract the JSON content between the markers
                 json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
-                
+
                 # Load the JSON content
                 try:
                     response_dict = json.loads(json_content)
@@ -412,7 +412,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                     for action in response_dict.get("response", []):
                         if action["Action"]["ActionName"] == "UserInteraction":
                             value = action["Action"]["Parameters"]["value"]
-                            
+
                             # Replace the escape sequences (\\n) with real newlines (\n)
                             formatted_value = value.replace("\\n", "\n")
                             action["Action"]["Parameters"]["value"] = formatted_value
@@ -420,7 +420,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                     # Rebuild the formatted JSON with indentation
                     formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
                     response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
-                
+
                 except json.JSONDecodeError as e:
                     # Log error if JSON parsing fails
                     self.logger.error(f"Error decoding JSON: {e}")

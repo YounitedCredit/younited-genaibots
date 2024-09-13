@@ -1,12 +1,15 @@
-import pytest
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from tools.vectorization.aisearch_import import (
-    validate_document,
-    load_index_definition,
     create_index_if_not_exists,
-    import_data
+    import_data,
+    load_index_definition,
+    validate_document,
 )
+
 
 # Test for validate_document
 def test_validate_document():
@@ -27,7 +30,7 @@ def test_validate_document():
 def test_load_index_definition(mock_open):
     # Mock file content
     mock_open.return_value.__enter__.return_value.read.return_value = json.dumps({"name": "test-index"})
-    
+
     # Test loading index definition
     result = load_index_definition("/path/to/index_definition.json")
     assert result["name"] == "test-index"
@@ -71,7 +74,7 @@ def test_import_data(mock_open, mock_search_client):
             {"id": 2, "content": "another test content"}
         ]
     })
-    
+
     non_nullable_fields = ['id', 'content']
     mock_search_client.upload_documents.return_value = MagicMock()
 

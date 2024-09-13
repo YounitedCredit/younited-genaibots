@@ -2,6 +2,7 @@ import inspect
 import json
 import os
 import traceback
+from typing import NoReturn
 
 from pydantic import BaseModel
 
@@ -9,7 +10,7 @@ from core.backend.internal_data_processing_base import InternalDataProcessingBas
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from typing import NoReturn
+
 
 class FileSystemConfig(BaseModel):
     PLUGIN_NAME: str
@@ -100,7 +101,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def vectors(self):
         # Implement the vectors property
         return self.vectors_container
-    
+
     @property
     def custom_actions(self):
         # Implement the custom_actions property
@@ -120,7 +121,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.abort_container = self.file_system_config.FILE_SYSTEM_ABORT_CONTAINER
             self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
-            self.plugin_name = self.file_system_config.PLUGIN_NAME            
+            self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
             self.logger.exception(f"Missing configuration key: {str(e)}")
@@ -168,7 +169,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         if os.path.exists(file_path):
             try:
                 # Utiliser 'errors="ignore"' pour ignorer les caractères non valides
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:  
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                     data = file.read()
                 self.logger.debug("Data successfully read")
                 return data

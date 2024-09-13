@@ -1,14 +1,13 @@
-import json
 import argparse
+import json
 import logging
+
 import colorama
-from colorama import Fore, Style
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import SearchIndex
-from azure.search.documents.models import IndexAction
-from azure.search.documents._index_documents_batch import IndexDocumentsBatch
+from colorama import Fore, Style
 
 """
 Vector Import Script
@@ -140,7 +139,7 @@ def main():
     parser.add_argument("--admin-key", required=True, help="Azure AI Search admin key")
     parser.add_argument("--index-definition", required=True, help="Path to index definition JSON file")
     parser.add_argument("--data", required=True, help="Path to data JSON file")
-    
+
     args = parser.parse_args()
 
     logger.info(f"{Fore.CYAN}Starting import process{Style.RESET_ALL}")

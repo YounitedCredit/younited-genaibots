@@ -12,7 +12,6 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 
 
-
 class DummyGenAIInteractionsTextPluginBase(GenAIInteractionsTextPluginBase):
     def __init__(self, global_manager, *args, **kwargs):
         super().__init__(global_manager, *args, **kwargs)
