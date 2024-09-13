@@ -145,7 +145,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             end_time = time.time()  # Stop the timer
             elapsed_time = end_time - start_time  # Calculate elapsed time
             self.logger.info(f"process_interaction in instant messaging default behavior took {elapsed_time} seconds to execute.")
-
+    
     async def process_incoming_notification_data(self, event: IncomingNotificationDataBase):
         try:
             # Get the channel ID and timestamp from the event

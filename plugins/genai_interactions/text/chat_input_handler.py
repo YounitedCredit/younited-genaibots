@@ -4,8 +4,9 @@ import json
 import re
 import traceback
 from typing import List
-
+import datetime
 import yaml
+from datetime import datetime
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -143,7 +144,122 @@ class ChatInputHandler():
 
                     user_content = user_content_text + user_content_images
                     messages.append({"role": "user", "content": user_content})
+            else:
+                # Fetch conversation history if RECORD_NONPROCESSED_MESSAGES is False
+                relevant_events = []
+                current_event_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
 
+                # Ensure event_data.converted_timestamp is a datetime object
+                if isinstance(event_data.converted_timestamp, str):
+                    try:
+                        event_data.converted_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
+                    except ValueError as e:
+                        self.logger.error(f"Error parsing event_data timestamp: {event_data.converted_timestamp} - {e}")
+                        raise
+                    
+                if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
+                    self.logger.info("Fetching conversation history as RECORD_NONPROCESSED_MESSAGES is False.")
+                    conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+
+                    # Retrieve the last message timestamp from the current session
+                    last_message_timestamp = None
+                    for message in reversed(messages):
+                        if message["role"] == "user":
+                            last_message_content = message["content"]
+                            if isinstance(last_message_content, str):
+                                last_message_text = last_message_content
+                            elif isinstance(last_message_content, list) and last_message_content:
+                                last_message_text = last_message_content[0].get("text", "")
+                            else:
+                                last_message_text = ""
+
+                            last_message_timestamp_str = last_message_text.split(",")[0].split(": ")[1]
+                            last_message_timestamp = datetime.strptime(last_message_timestamp_str, "%Y-%m-%d %H:%M:%S")
+                            break
+
+                    # Compute relevant events within the specified period
+                    for past_event in conversation_history:
+                        past_event_timestamp = datetime.strptime(past_event.converted_timestamp, "%Y-%m-%d %H:%M:%S")
+                        if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+                            self.logger.info(f"Processing past event: {past_event.to_dict()}")
+                            relevant_events.append(past_event)
+
+                    # Process and convert each relevant event
+                    for relevant_event in relevant_events:
+                        user_content_text = [{
+                            "type": "text",
+                            "text": f"Timestamp: {str(relevant_event.converted_timestamp)}, "
+                                    f"[Slack username]: {str(relevant_event.user_name)}, "
+                                    f"[Slack user id]: {str(relevant_event.user_id)}, "
+                                    f"[Slack user email]: {relevant_event.user_email}, "
+                                    f"[Directly mentioning you]: {str(relevant_event.is_mention)}, "
+                                    f"[message]: {str(relevant_event.text)}"
+                        }]
+
+                        # Handle images if present
+                        user_content_images = []
+                        if relevant_event.images:
+                            for base64_image in relevant_event.images:
+                                image_message = {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                        "detail": "high"
+                                    }
+                                }
+                                user_content_images.append(image_message)
+
+                        # Handle file content if present
+                        if relevant_event.files_content:
+                            for file_content in relevant_event.files_content:
+                                file_message = {"type": "text", "text": file_content}
+                                user_content_text.append(file_message)
+
+                        user_content = user_content_text + user_content_images
+                        messages.append({"role": "user", "content": user_content})
+
+                # Add the new incoming message to the conversation
+                constructed_message = {
+                    "role": "user",
+                    "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
+                            f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
+                            f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+                }
+
+                user_content_text = [{"type": "text", "text": constructed_message["content"]}]
+                user_content_images = []
+
+                if event_data.images:
+                    for base64_image in event_data.images:
+                        image_message = {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
+                        user_content_images.append(image_message)
+
+                if event_data.files_content:
+                    for file_content in event_data.files_content:
+                        file_message = {"type": "text", "text": file_content}
+                        user_content_text.append(file_message)
+
+                user_content = user_content_text + user_content_images
+                messages.append({"role": "user", "content": user_content})
+
+                # Handle unmentioned or mentioned thread messages based on the configuration
+                if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+                    # If bot is mentioned, retrieve previously stored unmentioned messages and extend
+                    messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
+                elif event_data.is_mention == False and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+                    # If bot is not mentioned, store the message for later processing
+                    await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
+                    return None
+
+                # Generate response based on updated messages
+                return await self.generate_response(event_data, messages)
+        
             # Add the new incoming message to the conversation
             constructed_message = {
                 "role": "user",
@@ -188,8 +304,7 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while handling thread message event: {e}")
             raise
-
-
+    
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
         try:
             original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp

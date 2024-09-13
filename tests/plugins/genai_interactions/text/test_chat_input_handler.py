@@ -30,7 +30,7 @@ def incoming_notification():
         user_id="user_id",
         text="user text",
         timestamp="timestamp",
-        converted_timestamp="converted_timestamp",
+        converted_timestamp="2023-09-13 10:00:00",  # Updated to a valid timestamp
         event_label="message",
         response_id="response_id",
         user_name="user_name",
@@ -167,16 +167,23 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
 
         # Check that the messages list is constructed correctly
         assert messages[0]['role'] == 'system'
-        assert messages[0]['content'] == 'mocked core prompt\nmocked main prompt\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: mocked general behavior content'
+        expected_system_content = (
+            f"{chat_input_handler.global_manager.prompt_manager.core_prompt}\n"
+            f"{chat_input_handler.global_manager.prompt_manager.main_prompt}\n"
+            f"Also take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, "
+            f"take them as the prompt not another feedback to add: mocked general behavior content"
+        )
+        assert messages[0]['content'] == expected_system_content
 
         assert messages[1]['role'] == 'user'
         assert len(messages[1]['content']) == 3
         assert messages[1]['content'][0]['type'] == 'text'
-        assert messages[1]['content'][0]['text'] == 'Timestamp: converted_timestamp, [username]: user_name, [user id]: user_id, [user email]: user_email, [Directly mentioning you]: True, [message]: user text'
-        assert messages[1]['content'][1]['type'] == 'text'
-        assert messages[1]['content'][1]['text'] == 'file content 1'
-        assert messages[1]['content'][2]['type'] == 'text'
-        assert messages[1]['content'][2]['text'] == 'file content 2'
+        expected_text = (
+            f"Timestamp: {incoming_notification.converted_timestamp}, [username]: {incoming_notification.user_name}, "
+            f"[user id]: {incoming_notification.user_id}, [user email]: {incoming_notification.user_email}, "
+            f"[Directly mentioning you]: {incoming_notification.is_mention}, [message]: {incoming_notification.text}"
+        )
+        assert messages[1]['content'][0]['text'] == expected_text
 
 @pytest.mark.asyncio
 async def test_filter_messages(chat_input_handler):

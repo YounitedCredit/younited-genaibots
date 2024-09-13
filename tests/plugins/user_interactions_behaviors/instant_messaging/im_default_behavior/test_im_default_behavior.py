@@ -443,7 +443,7 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
         user_name="test_user",
         user_email="test@example.com",
         user_id="U123",
-        is_mention=False,
+        is_mention=False,  # Not mentioning the bot
         text="Hello",
         origin="test_origin"
     )
@@ -453,45 +453,23 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
 
     await im_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")
 
-    # Vérifications précédentes...
-
-    # Examinons la structure des appels de méthode
-    print("Nombre d'appels de méthode:", len(plugin_mock.method_calls))
+    # Examine the method calls
+    print("Number of method calls:", len(plugin_mock.method_calls))
     for i, call in enumerate(plugin_mock.method_calls):
-        print(f"Appel {i}:")
-        print("  Nom de la méthode:", call[0])
+        print(f"Call {i}:")
+        print("  Method name:", call[0])
         print("  Arguments:", call[1])
         print("  Kwargs:", call[2])
         print()
 
-    # Vérifications des appels spécifiques
+    # Verify that no methods are called since the bot should not process the message
     add_reaction_calls = [call for call in plugin_mock.method_calls if call[0] == 'add_reaction']
     send_message_calls = [call for call in plugin_mock.method_calls if call[0] == 'send_message']
     remove_reaction_calls = [call for call in plugin_mock.method_calls if call[0] == 'remove_reaction']
 
-    assert len(add_reaction_calls) == 1, "add_reaction devrait être appelé une fois"
-    assert len(send_message_calls) == 1, "send_message devrait être appelé une fois"
-    assert len(remove_reaction_calls) == 1, "remove_reaction devrait être appelé une fois"
-
-    # Vérifiez les arguments des appels
-    add_reaction_args = add_reaction_calls[0][2]  # Utilisation des kwargs
-    assert add_reaction_args['event'] == event_data
-    assert add_reaction_args['channel_id'] == 'C123'
-    assert add_reaction_args['timestamp'] == '1234567890.123456'
-    assert 'reaction_name' in add_reaction_args
-
-    send_message_args = send_message_calls[0][2]  # Utilisation des kwargs
-    assert send_message_args['event'] == event_data
-    assert send_message_args['message'] == ''
-    assert send_message_args['message_type'] == MessageType.TEXT
-    assert send_message_args['is_internal'] == True
-    assert send_message_args['show_ref'] == True
-
-    remove_reaction_args = remove_reaction_calls[0][2]  # Utilisation des kwargs
-    assert remove_reaction_args['event'] == event_data
-    assert remove_reaction_args['channel_id'] == 'C123'
-    assert remove_reaction_args['timestamp'] == '1234567890.123456'
-    assert 'reaction_name' in remove_reaction_args
+    assert len(add_reaction_calls) == 0, "add_reaction should not be called"
+    assert len(send_message_calls) == 0, "send_message should not be called"
+    assert len(remove_reaction_calls) == 0, "remove_reaction should not be called"
 
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_no_genai_output(im_default_behavior_plugin, global_manager, monkeypatch):

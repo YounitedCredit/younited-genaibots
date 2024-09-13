@@ -20,6 +20,7 @@ REQUIRE_MENTION_NEW_MESSAGE=False  # Require bot mention in new messages to trig
 REQUIRE_MENTION_THREAD_MESSAGE=True  # Require bot mention in thread messages to trigger response
 ACKNOWLEDGE_NONPROCESSED_MESSAGE=False  # Acknowledge messages that are not processed
 GET_ALL_THREAD_FROM_MESSAGE_LINKS=True  # Fetch all thread messages from message links
+RECORD_NONPROCESSED_MESSAGE = False # Record messages that are not processed
 
 # ====================================================
 # BOT DEFAULT PLUGINS
