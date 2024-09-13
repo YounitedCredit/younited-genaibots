@@ -17,7 +17,6 @@ from utils.config_manager.config_model import (
     Utils,
 )
 
-
 def test_bot_config():
     # Test valid BotConfig
     valid_data = {
@@ -43,7 +42,7 @@ def test_bot_config():
         "START_KEYWORD": "start",
         "LOAD_ACTIONS_FROM_BACKEND": True,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": False,
-        "RECORD_NONPROCESSED_MESSAGE": False
+        "RECORD_NONPROCESSED_MESSAGES": False  # Correct field name
     }
     bot_config = BotConfig(**valid_data)
     assert bot_config.CORE_PROMPT == "core_prompt"
@@ -53,7 +52,6 @@ def test_bot_config():
     invalid_data.pop("CORE_PROMPT")
     with pytest.raises(ValidationError):
         BotConfig(**invalid_data)
-
 
 def test_logging():
     # Test valid Logging
@@ -73,7 +71,6 @@ def test_logging():
     with pytest.raises(ValidationError):
         Logging(LOCAL_LOGGING=LocalLogging(**invalid_file_data))
 
-
 def test_utils():
     # Test valid Utils
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
@@ -83,7 +80,6 @@ def test_utils():
     utils = Utils(LOGGING=logging)
 
     assert utils.LOGGING.LOCAL_LOGGING.LOCAL_LOGGING_FILE_PATH == "path/to/log"
-
 
 def test_plugins():
     # Test valid Plugins
@@ -103,7 +99,6 @@ def test_plugins():
     )
 
     assert plugins.ACTION_INTERACTIONS.DEFAULT["default_plugin"].PLUGIN_NAME == "plugin_name"
-
 
 def test_config_model():
     # Test valid ConfigModel
@@ -130,7 +125,7 @@ def test_config_model():
         "START_KEYWORD": "start",
         "LOAD_ACTIONS_FROM_BACKEND": False,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": True,
-        "RECORD_NONPROCESSED_MESSAGE": False
+        "RECORD_NONPROCESSED_MESSAGES": False  # Correct field name
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
 

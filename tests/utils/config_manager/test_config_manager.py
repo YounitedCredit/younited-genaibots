@@ -5,65 +5,63 @@ import pytest
 
 from utils.config_manager.config_manager import ConfigManager
 
-
 def test_config_manager_initialization(mock_global_manager):
     # Setup: Create a ConfigManager instance using the mock_global_manager
     with patch('builtins.open', mock_open(read_data="""
-BOT_CONFIG:
-  CORE_PROMPT: 'core_prompt'
-  MAIN_PROMPT: 'main_prompt'
-  PROMPTS_FOLDER: 'prompt_folder'
-  SUBPROMPTS_FOLDER: 'subprompt_folder'
-  FEEDBACK_GENERAL_BEHAVIOR: 'feedback_general_behavior'
-  REQUIRE_MENTION_NEW_MESSAGE: true
-  REQUIRE_MENTION_THREAD_MESSAGE: true
-  LOG_DEBUG_LEVEL: 'DEBUG'
-  SHOW_COST_IN_THREAD: true
-  ACKNOWLEDGE_NONPROCESSED_MESSAGE: true
-  GET_ALL_THREAD_FROM_MESSAGE_LINKS: true
-  GET_URL_CONTENT: true
-  ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'
-  INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: 'default_processing_plugin'
-  USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: 'default_instant_messaging_behavior_plugin'
-  GENAI_TEXT_DEFAULT_PLUGIN_NAME: 'default_genai_text_plugin'
-  GENAI_IMAGE_DEFAULT_PLUGIN_NAME: 'default_genai_image_plugin'
-  GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: 'default_genai_vector_search_plugin'
-  LLM_CONVERSION_FORMAT: 'LLM_conversion_format'
-  RECORD_NONPROCESSED_MESSAGE: false
-  BREAK_KEYWORD: 'start'
-  START_KEYWORD: 'stop'
-  LOAD_ACTIONS_FROM_BACKEND: False
-PLUGINS:
-  ACTION_INTERACTIONS:
-    CUSTOM: {}
-    DEFAULT: {}
-  BACKEND:
-    INTERNAL_DATA_PROCESSING: {}
-  USER_INTERACTIONS:
-    INSTANT_MESSAGING: {}
-    CUSTOM_API: {}
-  GENAI_INTERACTIONS:
-    TEXT: {}
-    IMAGE: {}
-    VECTOR_SEARCH: {}
-  USER_INTERACTIONS_BEHAVIORS:
-    INSTANT_MESSAGING: {}
-    CUSTOM_API: {}
-UTILS:
-  LOGGING:
-    FILE:
-      PLUGIN_NAME: 'file_logging'
-      LEVEL: 'DEBUG'
-      FILE_PATH: 'log.txt'
-    AZURE:
-      PLUGIN_NAME: 'azure_logging'
-      APPLICATIONINSIGHTS_CONNECTION_STRING: 'connection_string'
-""")):
+    BOT_CONFIG:
+      CORE_PROMPT: 'core_prompt'
+      MAIN_PROMPT: 'main_prompt'
+      PROMPTS_FOLDER: 'prompt_folder'
+      SUBPROMPTS_FOLDER: 'subprompt_folder'
+      FEEDBACK_GENERAL_BEHAVIOR: 'feedback_general_behavior'
+      REQUIRE_MENTION_NEW_MESSAGE: true
+      REQUIRE_MENTION_THREAD_MESSAGE: true
+      LOG_DEBUG_LEVEL: 'DEBUG'
+      SHOW_COST_IN_THREAD: true
+      ACKNOWLEDGE_NONPROCESSED_MESSAGE: true
+      GET_ALL_THREAD_FROM_MESSAGE_LINKS: true
+      GET_URL_CONTENT: true
+      ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'
+      INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: 'default_processing_plugin'
+      USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: 'default_instant_messaging_behavior_plugin'
+      GENAI_TEXT_DEFAULT_PLUGIN_NAME: 'default_genai_text_plugin'
+      GENAI_IMAGE_DEFAULT_PLUGIN_NAME: 'default_genai_image_plugin'
+      GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: 'default_genai_vector_search_plugin'
+      LLM_CONVERSION_FORMAT: 'LLM_conversion_format'
+      RECORD_NONPROCESSED_MESSAGES: false
+      BREAK_KEYWORD: 'start'
+      START_KEYWORD: 'stop'
+      LOAD_ACTIONS_FROM_BACKEND: False
+    PLUGINS:
+      ACTION_INTERACTIONS:
+        CUSTOM: {}
+        DEFAULT: {}
+      BACKEND:
+        INTERNAL_DATA_PROCESSING: {}
+      USER_INTERACTIONS:
+        INSTANT_MESSAGING: {}
+        CUSTOM_API: {}
+      GENAI_INTERACTIONS:
+        TEXT: {}
+        IMAGE: {}
+        VECTOR_SEARCH: {}
+      USER_INTERACTIONS_BEHAVIORS:
+        INSTANT_MESSAGING: {}
+        CUSTOM_API: {}
+    UTILS:
+      LOGGING:
+        FILE:
+          PLUGIN_NAME: 'file_logging'
+          LEVEL: 'DEBUG'
+          FILE_PATH: 'log.txt'
+        AZURE:
+          PLUGIN_NAME: 'azure_logging'
+          APPLICATIONINSIGHTS_CONNECTION_STRING: 'connection_string'
+    """)):
         config_manager = ConfigManager(mock_global_manager)
-
-    # Test that the ConfigManager initializes correctly
-    assert config_manager.config['BOT_CONFIG']['LOG_DEBUG_LEVEL'] == 'DEBUG'
-    assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS']['CUSTOM'] == {}
+        assert config_manager.config['BOT_CONFIG']['MAIN_PROMPT'] == 'main_prompt'
+        assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS'] == {'CUSTOM': {}, 'DEFAULT': {}}
+        assert config_manager.config['UTILS']['LOGGING']['FILE']['PLUGIN_NAME'] == 'file_logging'
 
 def test_config_file_not_found(mock_global_manager):
     # Test handling of a missing configuration file

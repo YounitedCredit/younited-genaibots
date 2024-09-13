@@ -351,18 +351,11 @@ response:
     assert 'Parameters' in result['response'][0]['Action']
     assert 'value' in result['response'][0]['Action']['Parameters']
 
-    # Check that the value is a string and contains the expected YAML content
+    # Check that the value is a dict and contains the expected parsed YAML content
     value = result['response'][0]['Action']['Parameters']['value']
-    assert isinstance(value, str)
-    assert 'key: value' in value
-    assert 'nested:' in value
-    assert 'subkey: subvalue' in value
-
-    # Remove the Markdown code block delimiters and parse the YAML
-    import yaml
-    yaml_content = value.strip().replace('```yaml\n', '').replace('```', '')
-    parsed_value = yaml.safe_load(yaml_content)
-    assert parsed_value == {'key': 'value', 'nested': {'subkey': 'subvalue'}}
+    assert isinstance(value, dict)
+    assert value['key'] == 'value'
+    assert value['nested']['subkey'] == 'subvalue'
 
     print("Actual result:")
     print(result)
@@ -378,3 +371,210 @@ async def test_yaml_to_json_error(chat_input_handler, incoming_notification):
     assert result is None
     chat_input_handler.logger.error.assert_called()
     chat_input_handler.user_interaction_dispatcher.send_message.assert_called()
+
+@pytest.mark.asyncio
+async def test_handle_thread_message_event_is_mention_true_no_messages(chat_input_handler, incoming_notification):
+    # Set is_mention to True
+    incoming_notification.is_mention = True
+    # Simulate that messages are not found in storage
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value=None)
+    # Mock fetch_conversation_history
+    chat_input_handler.user_interaction_dispatcher.fetch_conversation_history = AsyncMock(return_value=[])
+
+    # Mock prompt manager
+    chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock()
+    chat_input_handler.global_manager.prompt_manager.core_prompt = "core prompt"
+    chat_input_handler.global_manager.prompt_manager.main_prompt = "main prompt"
+
+    with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        mock_generate_response.return_value = "generated response"
+
+        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+
+        assert result == "generated response"
+        chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content.assert_called_once()
+        chat_input_handler.user_interaction_dispatcher.fetch_conversation_history.assert_called_once()
+        mock_generate_response.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_handle_thread_message_event_is_mention_false_require_mention_false(chat_input_handler, incoming_notification):
+    # Set is_mention to False
+    incoming_notification.is_mention = False
+    # Set REQUIRE_MENTION_THREAD_MESSAGE to False
+    chat_input_handler.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE = False
+
+    # Simulate that messages are found in storage
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value=json.dumps([{"role": "assistant", "content": "previous message"}]))
+
+    with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        mock_generate_response.return_value = "generated response"
+
+        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+
+        assert result == "generated response"
+        chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content.assert_called_once()
+        mock_generate_response.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_call_completion_exception(chat_input_handler, incoming_notification, mock_chat_plugin):
+    # Setup
+    chat_input_handler.chat_plugin = mock_chat_plugin
+    # Simulate that generate_completion raises an exception
+    exception = Exception("Test exception 'message': \"Error details\", 'param': 'some_param'")
+    mock_chat_plugin.generate_completion.side_effect = exception
+
+    # Mock necessary methods
+    chat_input_handler.user_interaction_dispatcher.send_message = AsyncMock()
+    chat_input_handler.logger.error = MagicMock()
+    chat_input_handler.handle_completion_errors = AsyncMock(return_value=None)  # Ensure it returns None
+
+    result = await chat_input_handler.call_completion("channel_id", "thread_id", [], incoming_notification)
+
+    # Assert that result is None due to exception
+    assert result is None
+    # Check that handle_completion_errors was called
+    chat_input_handler.handle_completion_errors.assert_called_once_with(incoming_notification, exception)
+
+@pytest.mark.asyncio
+async def test_calculate_and_update_costs_exception(chat_input_handler, incoming_notification):
+    cost_params = MagicMock()
+    # Simulate missing attributes to cause an exception
+    del cost_params.prompt_tk
+    chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock()
+    chat_input_handler.user_interaction_dispatcher.send_message = AsyncMock()
+    chat_input_handler.logger.error = MagicMock()
+
+    result = await chat_input_handler.calculate_and_update_costs(cost_params, "costs_container", "blob_name", incoming_notification)
+
+    # Check that an exception was logged
+    chat_input_handler.logger.error.assert_called_once()
+    # The method should return total_cost, input_cost, output_cost as 0
+    assert result == (0, 0, 0)
+
+def test_adjust_yaml_structure_complex(chat_input_handler):
+    yaml_content = """
+response:
+- Action:
+    ActionName: TestAction
+    Parameters:
+      param1: value1
+      param2: |
+        multiline
+        value
+        with special * characters
+      param3: single line
+      nested_param:
+        subparam1: subvalue1
+        subparam2: |
+          multiline
+          subvalue
+    """
+    adjusted = chat_input_handler.adjust_yaml_structure(yaml_content)
+    expected = """
+response:
+  - Action:
+      ActionName: TestAction
+      Parameters:
+        param1: value1
+        param2: |
+        multiline
+        value
+        with special * characters
+        param3: single line
+        nested_param:
+          subparam1: subvalue1
+          subparam2: |
+          multiline
+          subvalue
+    """
+    # Normalize both strings by removing extra whitespace
+    adjusted_normalized = "\n".join(line.rstrip() for line in adjusted.strip().split("\n"))
+    expected_normalized = "\n".join(line.rstrip() for line in expected.strip().split("\n"))
+
+    assert adjusted_normalized == expected_normalized
+
+
+
+@pytest.mark.asyncio
+async def test_yaml_to_json_nested(chat_input_handler, incoming_notification):
+    yaml_string = """
+response:
+  - Action:
+      ActionName: TestAction
+      Parameters:
+        value: |
+          ```yaml
+          key1: value1
+          nested:
+            subkey1: subvalue1
+            subkey2:
+              - listitem1
+              - listitem2
+          ```
+    """
+    result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
+    assert result is not None
+    assert 'response' in result
+    action = result['response'][0]['Action']
+    parameters = action['Parameters']
+    value = parameters['value']
+    assert isinstance(value, dict)
+    assert value['key1'] == 'value1'
+    assert value['nested']['subkey1'] == 'subvalue1'
+    assert value['nested']['subkey2'] == ['listitem1', 'listitem2']
+
+@pytest.mark.asyncio
+async def test_handle_event_data_unknown_event_label(chat_input_handler, incoming_notification):
+    incoming_notification.event_label = 'unknown_event'
+    with pytest.raises(ValueError) as exc_info:
+        await chat_input_handler.handle_event_data(incoming_notification)
+    assert str(exc_info.value) == f"Unknown event label: {incoming_notification.event_label}"
+
+
+@pytest.mark.asyncio
+async def test_filter_messages_only_images(chat_input_handler):
+    messages = [
+        {"role": "user", "content": [{"type": "image_url", "image_url": "some_url"}]},
+        {"role": "assistant", "content": "Hi there!"}
+    ]
+    filtered = await chat_input_handler.filter_messages(messages)
+    assert len(filtered) == 2
+    assert len(filtered[0]['content']) == 0  # All image content should be filtered out
+
+@pytest.mark.asyncio
+async def test_generate_response_no_mention(chat_input_handler, incoming_notification):
+    incoming_notification.is_mention = False
+    incoming_notification.event_label = 'thread_message'
+    with patch.object(chat_input_handler.global_manager.user_interactions_behavior_dispatcher, 'begin_genai_completion', new_callable=AsyncMock) as mock_begin_genai_completion, \
+         patch.object(chat_input_handler, 'call_completion', new_callable=AsyncMock) as mock_call_completion, \
+         patch.object(chat_input_handler.global_manager.user_interactions_behavior_dispatcher, 'end_genai_completion', new_callable=AsyncMock) as mock_end_genai_completion:
+        result = await chat_input_handler.generate_response(incoming_notification, [])
+        assert result is None
+        mock_begin_genai_completion.assert_not_called()
+        mock_call_completion.assert_not_called()
+        mock_end_genai_completion.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_call_completion_json_format(chat_input_handler, incoming_notification, mock_chat_plugin):
+    # Setup
+    chat_input_handler.chat_plugin = mock_chat_plugin
+    mock_chat_plugin.generate_completion.return_value = ('{"response": "json data"}', MagicMock())
+    chat_input_handler.conversion_format = "json"
+
+    # Mock necessary methods and attributes
+    chat_input_handler.backend_internal_data_processing_dispatcher.costs = "costs_container"
+    chat_input_handler.backend_internal_data_processing_dispatcher.sessions = "sessions_container"
+    chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
+    chat_input_handler.user_interaction_dispatcher.upload_file = AsyncMock()
+
+    with patch.object(chat_input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_costs:
+        mock_calculate_costs.return_value = (1.0, 0.5, 0.5)
+
+        result = await chat_input_handler.call_completion("channel_id", "thread_id", [], incoming_notification)
+
+        # Assertions
+        assert result == {"response": "json data"}
+        mock_chat_plugin.generate_completion.assert_called_once()
+        mock_calculate_costs.assert_called_once()
+        chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content.assert_called_once()
+        chat_input_handler.user_interaction_dispatcher.upload_file.assert_called_once()

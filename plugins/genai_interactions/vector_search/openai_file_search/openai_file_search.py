@@ -111,16 +111,18 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
 
     async def replace_with_full_document_content(self, search_results, index_name):
         """Replace the content field with full document content for each result."""
-        ids_seen = set()
+        full_content_cache = {}
 
         try:
             for result in search_results:
                 document_id = result['document_id']
 
-                if document_id not in ids_seen:
+                if document_id not in full_content_cache:
                     full_document_content = await self.fetch_full_document_content(document_id, index_name)
-                    result['content'] = full_document_content  # Replace the content with the full document
-                    ids_seen.add(document_id)
+                    full_content_cache[document_id] = full_document_content
+
+                # Replace the content with the full document content from the cache
+                result['content'] = full_content_cache[document_id]
 
             return search_results
 

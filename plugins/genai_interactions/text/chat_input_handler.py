@@ -45,9 +45,12 @@ class ChatInputHandler():
                 return await self.handle_message_event(event_data)
             elif event_data.event_label == 'thread_message':
                 return await self.handle_thread_message_event(event_data)
+            else:
+                raise ValueError(f"Unknown event label: {event_data.event_label}")
         except Exception as e:
             self.logger.error(f"Error while handling event data: {e}")
             raise
+
 
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
@@ -306,13 +309,17 @@ class ChatInputHandler():
             raise
     
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
+        completion = None  # Initialize to None
         try:
             original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp
             if event_data.is_mention or event_data.event_label == "message":
                 self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
-                await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(event_data, channel_id=event_data.channel_id, timestamp= event_data.timestamp)
-                completion = await self.call_completion(event_data.channel_id,original_msg_ts, messages, event_data)
-                await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(event=event_data, channel_id=event_data.channel_id, timestamp= event_data.timestamp)
+                await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
+                    event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+                completion = await self.call_completion(
+                    event_data.channel_id, original_msg_ts, messages, event_data)
+                await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
+                    event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
             return completion
         except Exception as e:
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
@@ -405,6 +412,7 @@ class ChatInputHandler():
         adjusted_lines = []
         inside_parameters_block = False
         multiline_literal_indentation = 0
+        current_indentation_level = 0
 
         for line in lines:
             # If we're inside a multiline block, we check the indentation level
@@ -414,37 +422,48 @@ class ChatInputHandler():
 
             stripped_line = line.strip()
 
-            # Escape asterisks in the YAML string
-            stripped_line = stripped_line.replace('*', '\\*')
+            # Escape asterisks in the YAML string (only outside multiline blocks)
+            if multiline_literal_indentation == 0:
+                stripped_line = stripped_line.replace('*', '\\*')
 
             # No leading spaces for 'response:'
             if stripped_line.startswith('response:'):
                 adjusted_lines.append(stripped_line)
                 inside_parameters_block = False
+                current_indentation_level = 0
 
             # 2 spaces before '- Action:'
             elif stripped_line.startswith('- Action:'):
                 adjusted_lines.append('  ' + stripped_line)
                 inside_parameters_block = False
+                current_indentation_level = 2
 
             # 6 spaces before 'ActionName:' or 'Parameters:'
             elif stripped_line.startswith('ActionName:') or stripped_line.startswith('Parameters:'):
                 adjusted_lines.append('      ' + stripped_line)
-                inside_parameters_block = True
+                inside_parameters_block = stripped_line.startswith('Parameters:')
+                current_indentation_level = 6
 
             # Starts a multiline value
             elif inside_parameters_block and stripped_line.endswith(': |'):
-                adjusted_lines.append('        ' + stripped_line)
-                multiline_literal_indentation = 8
+                adjusted_lines.append(' ' * (current_indentation_level + 2) + stripped_line)
+                multiline_literal_indentation = current_indentation_level + 4  # Increase indentation for multiline content
 
             # Handle the lines within a multiline block
             elif multiline_literal_indentation > 0:
-                # The line is part of a multiline block, keep its current indentation
                 adjusted_lines.append(line)
 
             # Regular parameter value lines under 'Parameters:'
-            elif inside_parameters_block and re.match(r"^\w+:", stripped_line):
-                adjusted_lines.append('        ' + stripped_line)
+            elif inside_parameters_block and ':' in stripped_line:
+                adjusted_lines.append(' ' * (current_indentation_level + 2) + stripped_line)
+                if stripped_line.endswith(':'):
+                    # Increase indentation level for nested dictionaries
+                    current_indentation_level += 2
+
+            # Decrease indentation when leaving a nested block
+            elif inside_parameters_block and not stripped_line:
+                current_indentation_level = max(current_indentation_level - 2, 6)
+                adjusted_lines.append(line)
 
             # Keep the original indentation for everything else
             else:
@@ -453,7 +472,6 @@ class ChatInputHandler():
         # Reconstruct the adjusted YAML content
         adjusted_yaml_content = '\n'.join(adjusted_lines)
         return adjusted_yaml_content
-
 
     async def yaml_to_json(self, event_data, yaml_string):
         try:
@@ -464,11 +482,10 @@ class ChatInputHandler():
             for action in python_dict['response']:
                 if 'value' in action['Action']['Parameters']:
                     value_str = action['Action']['Parameters']['value']
-                    if value_str.startswith('```yaml') and value_str.endswith('```'):
+                    if value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
                         # Remove the markdown code block syntax
-                        yaml_str = value_str[9:-3].strip()  # Adjusted to remove 'yaml' and the following space
-                        # Remove leading and trailing newlines
-                        yaml_str = yaml_str.strip('\n')
+                        yaml_str = value_str.strip()[7:-3].strip()
+                        # Parse the YAML content
                         action['Action']['Parameters']['value'] = yaml.safe_load(yaml_str)
 
             return python_dict
@@ -481,9 +498,14 @@ class ChatInputHandler():
                 message_type=MessageType.COMMENT,
                 is_internal=True
             )
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="😓 Sorry something went wrong with this thread formatting. Create a new thread and try again! (consult logs for deeper infos)", message_type=MessageType.TEXT, is_internal=False)
+            await self.user_interaction_dispatcher.send_message(
+                event=event_data,
+                message="😓 Sorry something went wrong with this thread formatting. Create a new thread and try again! (consult logs for deeper infos)",
+                message_type=MessageType.TEXT,
+                is_internal=False
+            )
             return None
-
+        
     async def calculate_and_update_costs(self, cost_params: GenAICostBase, costs_blob_container_name, blob_name, event:IncomingNotificationDataBase):
         # Initialize total_cost, input_cost, and output_cost to 0
         total_cost = input_cost = output_cost = 0

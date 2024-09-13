@@ -77,14 +77,14 @@ def validate_document(document, non_nullable_fields):
     return True
 
 def load_index_definition(file_path):
-    """Load the index definition from a JSON file."""
     logger.info(f"Loading index definition from {file_path}")
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
     except Exception as e:
-        logger.error(f"Error loading index definition: {str(e)}")
-        raise
+        error_message = f"Error loading index definition: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message) from e
 
 def create_index_if_not_exists(index_client, index_definition):
     """Check if an index exists, and if not, create it."""
