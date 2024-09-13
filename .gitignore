@@ -1,6 +1,7 @@
 venv/
 Yuc.Aibots.Framework.code-workspace
 .env*
+.config*
 **/__pycache__/
 app.log
 qodana.yaml
