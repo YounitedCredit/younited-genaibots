@@ -147,7 +147,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
-            os.makedirs(directory_path, exist_ok=True)
+            try:
+                os.makedirs(directory_path, exist_ok=True)
+            except OSError as e:
+                self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
+                raise
 
     def append_data(self, container_name: str, data_identifier: str, data: str) -> NoReturn:
         # Construct the full path to the file
