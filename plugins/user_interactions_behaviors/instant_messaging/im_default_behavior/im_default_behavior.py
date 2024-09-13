@@ -23,7 +23,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         if not isinstance(global_manager, GlobalManager):
             raise TypeError("global_manager must be an instance of GlobalManager")
 
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager : GlobalManager = global_manager        
         self.logger = global_manager.logger
         bot_config_dict = global_manager.config_manager.config_model.BOT_CONFIG
         self.bot_config : BotConfig = bot_config_dict
@@ -56,6 +56,31 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 return
 
             event: IncomingNotificationDataBase = await self.user_interaction_dispatcher.request_to_notification_data(event_data, plugin_name=event_origin)
+
+            # Retrieve bot configuration settings            
+            record_nonprocessed_messages = self.bot_config.RECORD_NONPROCESSED_MESSAGES
+            require_mention_new_message = self.bot_config.REQUIRE_MENTION_NEW_MESSAGE
+
+            # Check if the event should be processed based on the configuration
+            if event.event_label == "thread_message" and not event.is_mention:
+                if not record_nonprocessed_messages:
+                    self.logger.info("Event is a threaded message without mention and RECORD_NONPROCESSED_MESSAGES is False, not processing.")
+                    return
+                else:
+                    self.logger.info("Event is a threaded message without mention, but RECORD_NONPROCESSED_MESSAGES is True, processing.")
+
+            if event.event_label == "message":
+                if require_mention_new_message and not event.is_mention:
+                    self.logger.info("Event is a new message without mention and mentions are required, not processing.")
+                    return
+                if not require_mention_new_message:
+                    self.logger.info("Event is a new message and mentions are not required, processing.")
+                elif event.is_mention:
+                    self.logger.info("Event is a new message with mention, processing.")
+                elif not record_nonprocessed_messages:
+                    self.logger.info("Event is a new message without mention and non-processed messages are not recorded, not processing.")
+                    return
+
             self.instantmessaging_plugin : UserInteractionsPluginBase = self.user_interaction_dispatcher.get_plugin(event_origin)
             # reactions for the bot to use in the chat
             self.reaction_processing = self.instantmessaging_plugin.reactions.PROCESSING
@@ -120,7 +145,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             end_time = time.time()  # Stop the timer
             elapsed_time = end_time - start_time  # Calculate elapsed time
             self.logger.info(f"process_interaction in instant messaging default behavior took {elapsed_time} seconds to execute.")
-
+    
     async def process_incoming_notification_data(self, event: IncomingNotificationDataBase):
         try:
             # Get the channel ID and timestamp from the event

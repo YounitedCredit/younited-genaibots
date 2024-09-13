@@ -16,12 +16,12 @@ from core.user_interactions.incoming_notification_data_base import (
 
 class AzureChatGptConfig(BaseModel):
     PLUGIN_NAME: str
-    AZURE_OPENAI_KEY: str
-    AZURE_OPENAI_ENDPOINT: str
-    OPENAI_API_VERSION: str
-    IMAGE_GENERATOR_MODEL_NAME: str
-    INPUT_TOKEN_PRICE: float
-    OUTPUT_TOKEN_PRICE: float
+    AZURE_DALLE_OPENAI_KEY: str
+    AZURE_DALLE_OPENAI_ENDPOINT: str
+    AZURE_DALLE_OPENAI_API_VERSION: str
+    AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME: str
+    AZURE_DALLE_INPUT_TOKEN_PRICE: float
+    AZURE_DALLE_OUTPUT_TOKEN_PRICE: float
 
 class AzureDallePlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -33,10 +33,10 @@ class AzureDallePlugin(GenAIInteractionsPluginBase):
         self.plugin_name = None
 
     def initialize(self):
-        self.azure_openai_key = self.azure_chatgpt_config.AZURE_OPENAI_KEY
-        self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_OPENAI_ENDPOINT
-        self.openai_api_version = self.azure_chatgpt_config.OPENAI_API_VERSION
-        self.model_name = self.azure_chatgpt_config.IMAGE_GENERATOR_MODEL_NAME
+        self.azure_openai_key = self.azure_chatgpt_config.AZURE_DALLE_OPENAI_KEY
+        self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_DALLE_OPENAI_ENDPOINT
+        self.openai_api_version = self.azure_chatgpt_config.AZURE_DALLE_OPENAI_API_VERSION
+        self.model_name = self.azure_chatgpt_config.AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME
         self.plugin_name = self.azure_chatgpt_config.PLUGIN_NAME
 
         self.client = AsyncAzureOpenAI(

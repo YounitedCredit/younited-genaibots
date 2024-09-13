@@ -14,16 +14,15 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 
+
 class OpenAIRequestError(Exception):
     def __init__(self, status_code, response_body):
         self.status_code = status_code
         self.response_body = response_body
         super().__init__(f"OpenAI request failed with status code {status_code}")
-        
+
 class AzureAisearchConfig(BaseModel):
     PLUGIN_NAME: str
-    AZURE_AISEARCH_INPUT_TOKEN_PRICE: float
-    AZURE_AISEARCH_OUTPUT_TOKEN_PRICE: float
     AZURE_AISEARCH_AZURE_OPENAI_KEY: str
     AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT: str
     AZURE_AISEARCH_OPENAI_API_VERSION: str
@@ -91,16 +90,25 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
-        query = parameters.get('query', '')  # The query to search for
-        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fall back to default and convert to lower case
-        result = await self.call_search(message=query, index_name=index_name)
+        query = parameters.get('query', '')  # The search query
+        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fallback to default
+        get_whole_doc = parameters.get('get_whole_doc', False)  # New flag for fetching full document
+
+        # Check if index_name is empty
+        if not index_name:
+            error_message = "Index name is required but not provided."
+            self.logger.error(error_message)
+            raise ValueError(error_message)
+
+        # Call search and handle fetching full document based on document_id
+        result = await self.call_search(message=query, index_name=index_name, get_whole_doc=get_whole_doc)
         return result
-    
+
     def prepare_search_body_headers(self, message):
         body = {
             "search": message,
             "top": self.search_topn_document,
-            "select": "id, title, content",  # Return ID, title, and content
+            "select": "id, title, content, file_path",  # Return ID, title, content and file_path
             "queryType": "simple"  # Use 'simple' for a basic search
         }
 
@@ -117,12 +125,12 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                 status = response.status
                 body = await response.read()
                 return status, body
-    
-    async def call_search(self, message, index_name):
+
+    async def call_search(self, message, index_name, get_whole_doc=False):
         try:
-            # Prepare the search URL dynamically based on index_name
+            # Perform the initial search query to retrieve passages
             search_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
-            
+
             search_headers = {
                 'Content-Type': 'application/json',
                 'api-key': self.search_key
@@ -130,27 +138,27 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
 
             search_body = {
                 "search": message,
-                "select": "id, title, content",  # Fields to return
-                "top": self.search_topn_document
+                "top": self.search_topn_document,
+                "select": "id, document_id, title, content, passage_id, file_path"
             }
 
-            # Perform the search request
             async with aiohttp.ClientSession() as session:
                 async with session.post(search_url, headers=search_headers, json=search_body) as response:
                     status = response.status
                     body = await response.json()
 
-                    # Check if search was successful
                     if status != 200:
                         self.logger.error(f"Search failed with status code {status}")
-                        self.logger.error(f"Search response: {str(body)}")
                         raise OpenAIRequestError(status, body)
 
-                    # Log and return the search results
                     search_results = body.get("value", [])
-                    self.logger.info(f"Search returned {len(search_results)} results")
+
+                    # If get_whole_doc is True, replace the content of each result with the full document content
+                    if get_whole_doc:
+                        search_results = await self.replace_with_full_document_content(search_results, index_name)
+
                     return json.dumps({"search_results": search_results})
-                    
+
         except Exception as e:
             self.logger.error(f"An error occurred during search: {e}")
             return json.dumps({
@@ -159,9 +167,69 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
                         "Action": {
                             "ActionName": "UserInteraction",
                             "Parameters": {
-                                "value": "I was unable to gather the information in my data, sorry about that."
+                                "value": "I was unable to retrieve the information."
                             }
                         }
                     }
                 ]
             })
+
+    async def replace_with_full_document_content(self, search_results, index_name):
+        """Replace the content field with full document content for each result."""
+        ids_seen = set()
+
+        try:
+            for result in search_results:
+                document_id = result['document_id']
+
+                # Fetch all passages for this document id if we haven't processed it yet
+                if document_id not in ids_seen:
+                    full_document_content = await self.fetch_full_document_content(document_id, index_name)
+                    result['content'] = full_document_content  # Replace the content with the full document
+                    ids_seen.add(document_id)  # Mark this document id as processed
+
+            return search_results
+
+        except Exception as e:
+            self.logger.error(f"Error while fetching full document content: {e}")
+            return search_results
+
+    async def fetch_full_document_content(self, document_id, index_name):
+        try:
+            fetch_url = f"{self.search_endpoint}/indexes/{index_name}/docs/search?api-version=2021-04-30-Preview"
+            fetch_headers = {
+                'Content-Type': 'application/json',
+                'api-key': self.search_key
+            }
+            fetch_body = {
+                "filter": f"document_id eq '{document_id}'",
+                "select": "content, passage_id",
+                "top": 1000
+            }
+
+            status, response_body = await self.post_request(fetch_url, fetch_headers, fetch_body)
+
+            self.logger.debug(f"Fetch status: {status}")
+            self.logger.debug(f"Response body: {response_body}")
+
+            if status != 200:
+                self.logger.error(f"Failed to fetch full document with status {status}")
+                return ""
+
+            # Parse the JSON response
+            fetch_body = json.loads(response_body)
+
+            self.logger.debug(f"Parsed fetch body: {fetch_body}")
+
+            # Collect and concatenate all passages by passage_id
+            passages = sorted(fetch_body.get("value", []), key=lambda x: x['passage_id'])
+            self.logger.debug(f"Sorted passages: {passages}")
+
+            full_document_content = " ".join([passage['content'] for passage in passages])
+            self.logger.debug(f"Full document content: {full_document_content}")
+
+            return full_document_content
+
+        except Exception as e:
+            self.logger.error(f"Error while fetching full document: {e}")
+            return ""

@@ -1,11 +1,13 @@
 import copy
 import json
+
 from core.action_interactions.action_base import ActionBase
 from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.message_type import MessageType
+
 
 class VectorSearch(ActionBase):
     REQUIRED_PARAMETERS = ['query', 'index_name', 'result_count']
@@ -42,10 +44,10 @@ class VectorSearch(ActionBase):
                     vectorfeedback_dict = json.loads(vectorfeedback_json)
                 else:
                     vectorfeedback_dict = vectorfeedback_json
-                
+
                 if 'search_results' in vectorfeedback_dict:
                     search_results = vectorfeedback_dict['search_results']
-                    
+
                     # Construct the message from the search result JSON
                     message = "Here's the result from the vector db search with the cosine similarity score to help you judge the most relevant data regarding your query:\n"
                     for result in search_results:
@@ -53,7 +55,7 @@ class VectorSearch(ActionBase):
                         message += f"Score: {result['@search.score']}\n"
                         message += f"Title: {result['title']}\n"
                         message += f"File Path: {result['file_path']}\n"  # Add file path
-                        message += f"Content: {result['content']}\n"  
+                        message += f"Content: {result['content']}\n"
                         message += "Based on this result and its similarity related to the user's input, answer their previous query. Use only information relevant to the user question, everything is not necessary relevant but use anything useful\n\n"
 
                 # Send message to trigger the GenAI interaction

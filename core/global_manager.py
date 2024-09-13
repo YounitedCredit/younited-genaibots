@@ -54,6 +54,14 @@ class GlobalManager:
         bot_config_dict = self.config_manager.config_model.BOT_CONFIG
         self.bot_config : BotConfig = bot_config_dict
 
+        self.logger.info("Dispatchers creation...")
+        self.backend_internal_data_processing_dispatcher = BackendInternalDataProcessingDispatcher(self)
+        self.genai_interactions_text_dispatcher = GenaiInteractionsTextDispatcher(self)
+        self.genai_image_generator_dispatcher = GenaiInteractionsImageGeneratorDispatcher(self)
+        self.genai_vectorsearch_dispatcher = GenaiVectorsearch(self)
+        self.user_interactions_dispatcher = UserInteractionsDispatcher(self)
+        self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
+
         self.logger.info("Loading plugins...")
         self.plugin_manager.load_plugins()
 
@@ -70,13 +78,14 @@ class GlobalManager:
         user_interactions_behavior_plugins : List[UserInteractionsBehaviorBase] = self.plugin_manager.get_plugin_by_category(
             "USER_INTERACTIONS_BEHAVIORS")
 
-        self.logger.info("Dispatchers creation...")
-        self.backend_internal_data_processing_dispatcher = BackendInternalDataProcessingDispatcher(self)
-        self.genai_interactions_text_dispatcher = GenaiInteractionsTextDispatcher(self)
-        self.genai_image_generator_dispatcher = GenaiInteractionsImageGeneratorDispatcher(self)
-        self.genai_vectorsearch_dispatcher = GenaiVectorsearch(self)
-        self.user_interactions_dispatcher = UserInteractionsDispatcher(self)
-        self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
+        # Initialize dispatchers
+        self.logger.info("Initializing dispatchers...")
+        self.user_interactions_dispatcher.initialize(user_interactions_plugins)
+        self.genai_interactions_text_dispatcher.initialize(genai_interactions_text_plugins)
+        self.backend_internal_data_processing_dispatcher.initialize(backend_internal_data_processing_plugins)
+        self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
+        self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
+        self.user_interactions_behavior_dispatcher.initialize(user_interactions_behavior_plugins)
 
         self.logger.debug("Initializing plugins...")
         self.plugin_manager.initialize_plugins()
@@ -88,14 +97,6 @@ class GlobalManager:
 
         self.action_interactions_handler = ActionInteractionsHandler(self)
 
-        # Initialize dispatchers
-        self.logger.info("Initializing dispatchers...")
-        self.user_interactions_dispatcher.initialize(user_interactions_plugins)
-        self.genai_interactions_text_dispatcher.initialize(genai_interactions_text_plugins)
-        self.backend_internal_data_processing_dispatcher.initialize(backend_internal_data_processing_plugins)
-        self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
-        self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
-        self.user_interactions_behavior_dispatcher.initialize(user_interactions_behavior_plugins)
 
         self.logger.debug("Prompt manager initialization...")
         self.prompt_manager = PromptManager(self)

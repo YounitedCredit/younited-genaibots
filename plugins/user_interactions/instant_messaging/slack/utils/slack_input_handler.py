@@ -1,18 +1,19 @@
 import base64
-import inspect
 import io
 import json
 import os
 import re
 import zipfile
 from datetime import datetime, timezone
-
 from zoneinfo import ZoneInfo
+
+import aiohttp
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image
 from pypdf import PdfReader
 from slack_sdk import WebClient
+from slack_sdk.web.async_client import AsyncWebClient
 
 from core.global_manager import GlobalManager
 from plugins.user_interactions.instant_messaging.slack.slack_event_data import (
@@ -57,7 +58,8 @@ class SlackInputHandler:
         self.SLACK_BOT_TOKEN = self.slack_config.SLACK_BOT_TOKEN
         self.SLACK_BOT_USER_TOKEN = self.slack_config.SLACK_BOT_USER_TOKEN
         self.client = WebClient(token=self.SLACK_BOT_TOKEN)
-        self.WORKSPACE_NAME = self.slack_config.WORKSPACE_NAME
+        self.WORKSPACE_NAME = self.slack_config.SLACK_WORKSPACE_NAME
+        self.async_client = AsyncWebClient(token=self.SLACK_BOT_TOKEN)
 
     def is_message_too_old(self, event_ts):
 
@@ -87,7 +89,7 @@ class SlackInputHandler:
         elif (app_id not in self.SLACK_AUTHORIZED_APPS and app_id is not None):
             self.logger.info(f"Ignoring event from unauthorized app: {app_id}")
             return False
-        
+
         elif (api_app_id not in self.SLACK_AUTHORIZED_WEBHOOKS and api_app_id is not None and app_id is None):
             self.logger.info(f"Ignoring event from unauthorized webhook: {api_app_id}")
             return False
@@ -116,35 +118,28 @@ class SlackInputHandler:
         return paris_time
 
     # Function to get user info
-    def get_user_info(self, user_id):
-        if user_id is not None:
+    async def get_user_info(self, user_id):
+        if user_id is not None and user_id != 'Unknown':
             try:
-                slack_token = os.environ.get('SLACK_BOT_TOKEN')
-                headers = {
-                    'Authorization': f'Bearer {slack_token}'
-                }
-
-                response = requests.get(f'{self.SLACK_USER_INFO}{user_id}', headers=headers)
-                response.raise_for_status()  # This will raise an exception for 4xx and 5xx status codes
-            except requests.exceptions.RequestException as e:
-                self.logger.error(f"Failed to fetch user info: {e}")
-                return None, None
-
-            try:
-                user_info = response.json()
-                if user_info and user_info.get('ok'):
-                    user = user_info.get('user')
-                    name = user.get('name')
-                    email = user.get('profile', {}).get('email')
-                    return name, email
+                response = await self.async_client.users_info(user=user_id)
+                if response['ok']:
+                    user = response['user']
+                    name = user.get('real_name') or user.get('name', 'Unknown')
+                    email = user.get('profile', {}).get('email', 'Unknown')
+                    return name, email, user_id
                 else:
-                    self.logger.error(f"Failed to fetch user info: {user_info.get('error', 'Unknown error')}")
-                    return None, None
-            except ValueError as e:
-                self.logger.error(f"Failed to parse user info: {e}")
-                return None, None
-        else:
-            return None, None
+                    self.logger.error(f"Failed to fetch user info: {response.get('error', 'Unknown error')}")
+            except Exception as e:
+                self.logger.error(f"Error fetching user info: {e}")
+                return 'Unknown', 'Unknown', user_id
+        return 'Unknown', 'Unknown', user_id
+
+    async def format_slack_timestamp(self, slack_timestamp: str) -> str:
+        timestamp_float = float(slack_timestamp)
+        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
+        paris_tz = ZoneInfo("Europe/Paris")
+        paris_dt = utc_dt.astimezone(paris_tz)
+        return paris_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     def extract_event_details(self, event):
         try:
@@ -286,9 +281,12 @@ class SlackInputHandler:
         try:
             self.logger.debug(f"Event data: {json.dumps(event_data, indent=2)}")
             bot_user_id = self.SLACK_BOT_USER_ID
-            timestamp = event_data.get('event', {}).get('ts')
             event = event_data.get('event', {})
+            if not event:
+                self.logger.error("No event data found")
+                return None
 
+            timestamp = event.get('ts')
             if not self._is_valid_event(event, bot_user_id):
                 return None
 
@@ -301,14 +299,14 @@ class SlackInputHandler:
                 return None
 
             self.logger.info('Valid event category (message)')
-            
+
             base64_images, files_content = await self._process_files(event)
-            
+
             text, is_mention, response_id = self.process_message_event(event, bot_user_id, timestamp)
 
             if not text and not base64_images and not files_content:
                 self.logger.error(f"No text, images, or files received from Slack cid:{channel_id} ts:{thread_id}")
-                return
+                return None
 
             text = await self._process_text(text, main_timestamp, user_id)
 
@@ -323,8 +321,11 @@ class SlackInputHandler:
                 self.logger.debug(str(event_data_instance))
                 return event_data_instance
 
+            return None
+
         except Exception as e:
-            await self.handle_exception(e, channel_id, ts, event_data)
+            self.logger.error(f"Error in request_to_notification_data: {e}")
+            return None
 
     def _is_valid_event(self, event, bot_user_id):
         if event.get('subtype') == 'message_changed':
@@ -377,38 +378,137 @@ class SlackInputHandler:
 
     async def _process_slack_links(self, text, main_timestamp, user_id):
         slack_message_links = re.findall(r'<(https:\/\/[a-zA-Z0-9\.]+\.slack\.com\/archives\/.*?)>', text)
-        if slack_message_links:
-            for link in slack_message_links:
-                text = await self._process_single_slack_link(link, text, main_timestamp, user_id)
-        # Si aucun lien Slack n'est trouvé, le texte reste inchangé
+        for link in slack_message_links:
+            processed_content = await self._process_single_slack_link(link, "", main_timestamp, user_id, depth=0)
+            text = text.replace(f"<{link}>", processed_content)
         return text
 
-    async def _process_single_slack_link(self, link, original_text, main_timestamp, user_id):
-        link_channel_id, link_message_ts, is_reply = await self.extract_info_from_url(link)
+    async def _process_single_slack_link(self, link, original_text, main_timestamp, user_id, depth=0):
         try:
-            linked_message_content = await self.get_message_content(link_channel_id, link_message_ts, is_reply)
-            while(f"https://{self.WORKSPACE_NAME}" in linked_message_content):
-                self._process_slack_links(linked_message_content, main_timestamp, user_id)
-                link_channel_id, link_message_ts, is_reply = await self.extract_info_from_url(linked_message_content)
-                linked_message_content = await self.get_message_content(link_channel_id, link_message_ts, is_reply)
+            if depth > 5:
+                return f"[Maximum depth reached for Slack link: {link}]"
 
-            full_message_text = f"\nLinked Message: {linked_message_content}"
-            converted_timestamp = await self.format_slack_timestamp(main_timestamp)
-            user_name, user_email = self.get_user_info(user_id)
-            
-            # Combine the original text with the linked message content
-            processed_text = f"{original_text}\n{full_message_text.strip()}"
-            return processed_text
-        except Exception as e:
-            if str(e) == "Failed to retrieve message from Slack API: not_in_channel":
-                self.logger.error("Failed to retrieve message: not in channel")
-                error_message = "You don't have the right to read the message because you're not added in the channel this message is linked from, inform the user about this issue."
+            self.logger.debug(f"Processing Slack link (depth {depth}): {link}")
+
+            # Extract channel, message, and thread info from the URL
+            channel_id, message_ts, thread_ts, is_thread = await self.extract_info_from_url(link)
+            self.logger.debug(f"Extracted info: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, is_thread={is_thread}")
+
+            # Case 1: If it's a thread link (is_thread == False and no thread_ts), always fetch the entire thread
+            if not is_thread and not thread_ts:
+                self.logger.info(f"Fetching entire thread for message_ts: {message_ts} (Thread link)")
+                result = await self.get_message_content(channel_id, message_ts, thread_ts=message_ts, original_link=link)
+
+            # Case 2: If it's a message inside a thread (is_thread == True), handle based on GET_ALL_THREAD_FROM_MESSAGE_LINKS
+            elif is_thread:
+                if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS:
+                    self.logger.info(f"GET_ALL_THREAD_FROM_MESSAGE_LINKS is True, fetching entire thread for message: {message_ts} in thread: {thread_ts}")
+                    # Fetch the full thread and return all the messages in the thread
+                    result = await self.get_message_content(channel_id, message_ts, thread_ts=None, original_link=link)
+                else:
+                    # Fetch only the specific message
+                    self.logger.info(f"Fetching single message for message_ts: {thread_ts}")
+                    result = await self.get_message_content(channel_id, thread_ts, thread_ts=None, original_link=link)
+
+            # Handle case where no messages are found
+            if not result['messages']:
+                return f"No messages found for the given Slack link: {link}"
+
+            # Extract metadata and messages
+            metadata = result['metadata']
+            content_type = result['content_type']
+            messages = result['messages']
+
+            # Tag the exact message that was linked
+            tagged_message = None
+            if is_thread:
+                # When it's a message inside a thread, compare against `thread_ts`
+                for message in messages:
+                    if message['ts'] == thread_ts:
+                        tagged_message = message
+                        break
             else:
-                self.logger.error(f"Failed to retrieve message: {e}")
-                error_message = "Failed to retrieve message from Url"
-            
-            # Return the original text with an error message appended
-            return f"{original_text}\n{error_message}"
+                # When it's a link to a full thread, compare against `message_ts`
+                for message in messages:
+                    if message['ts'] == message_ts:
+                        tagged_message = message
+                        break
+
+            if not tagged_message:
+                self.logger.error(f"No matching message found for the timestamp: {thread_ts if is_thread else message_ts}")
+                return f"No exact message found for the given Slack link: {link}"
+
+
+            # Process the message text and handle nested links recursively
+            processed_messages = []
+            for message in messages:
+                processed_text = await self._process_slack_links_in_text(message['text'], depth + 1)
+                message['text'] = processed_text
+                processed_messages.append(message)
+
+            # Format the content for display
+            formatted_content = await self._format_message_content(processed_messages)
+
+            # Fetch user info for the author of the exact message
+            tagged_message_user_id = tagged_message.get('user', None)
+            if tagged_message_user_id:
+                user_name, user_email, _ = await self.get_user_info(tagged_message_user_id)
+            else:
+                user_name, user_email = 'Unknown', 'Unknown'
+
+            # Create a metadata string for the source info, including the exact message information and config setting note
+            metadata_str = (f"Source: {metadata['source_link']}\n"
+                            f"Channel ID: {metadata['channel_id']}\n"
+                            f"Thread ID: {metadata['thread_id']}\n"
+                            f"Content Type: {content_type}\n")
+
+            if tagged_message:
+                # Include the content of the exact message that was referenced in the link, along with user info
+                tagged_message_content = tagged_message.get('text', 'No content found')
+                metadata_str += (f"Note: The exact message referenced in the link is tagged below.\n"
+                                f"Message content: \"{tagged_message_content}\"\n"
+                                f"Author: {user_name} (Email: {user_email})\n")
+
+            # If the entire thread was retrieved due to the config, add an explanation
+            if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS and is_thread:
+                metadata_str += "Note: Due to the configuration settings, the entire thread was retrieved for analysis.\n"
+
+            # Combine the metadata and formatted message content
+            full_message_text = (f"\n[Automated Response] Slack link content (depth {depth}):\n"
+                                f"{metadata_str}\n\n"
+                                f"{formatted_content}")
+
+            return full_message_text
+
+        except ValueError as ve:
+            self.logger.error(f"Invalid Slack URL: {link}. Error: {str(ve)}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Failed to process Slack link: {link}. Error: {str(e)}", exc_info=True)
+            raise
+
+
+    async def _process_slack_links_in_text(self, text, depth):
+        #
+        matches = re.findall(r'<(https:\/\/[a-zA-Z0-9\.]+\.slack\.com\/archives\/[^|>]+)(?:\|([^>]+))?>', text)
+
+        for match in matches:
+            full_url = match[0]
+            display_url = match[1] if len(match) > 1 else full_url
+
+            try:
+                linked_content = await self._process_single_slack_link(full_url, "", "", "", depth=depth)
+                # Remplacer le lien Slack original par le contenu traité
+                text = text.replace(f'<{full_url}|{display_url}>', f"[Linked content: {linked_content}]")
+                text = text.replace(f'<{full_url}>', f"[Linked content: {linked_content}]")  # Pour les cas sans texte d'affichage
+            except Exception as e:
+                self.logger.error(f"Failed to process nested Slack link: {full_url}. Error: {e}", exc_info=True)
+                # Remplacer le lien par un message d'erreur
+                error_message = f"[Failed to retrieve content for Slack link: {full_url}]"
+                text = text.replace(f'<{full_url}|{display_url}>', error_message)
+                text = text.replace(f'<{full_url}>', error_message)
+
+        return text
 
     async def _process_urls(self, text):
         urls = re.findall(r'<(http[s]?://[^|]+)', text)
@@ -423,25 +523,44 @@ class SlackInputHandler:
         return text
 
     async def _process_single_url(self, url):
-        try:
-            webcontent = requests.get(url)
-            webcontent.raise_for_status()
-            soup = BeautifulSoup(webcontent.text, 'html.parser')
-            content = soup.get_text()
-            content = content.replace('\n', '')
-            content = re.sub(' +', ' ', content)
-            return f"The following text is an automated response inserted in the user conversation automatically: {content}\n"
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"An error occurred while trying to get {url}: {e}")
-            return f"The following text is an automated response inserted in the user conversation automatically: An error occurred while trying to get {url}: {e}\n"
+        if "slack.com/archives/" in url:
+            try:
+                match = re.search(r'archives/(?P<channel_id>[A-Z0-9]+)/p(?P<message_ts>\d+)(?:\?thread_ts=(?P<thread_ts>[\d.]+))?', url)
+                if match:
+                    channel_id = match.group('channel_id')
+                    message_ts = f"{match.group('message_ts')[:10]}.{match.group('message_ts')[10:]}"
+                    thread_ts = match.group('thread_ts')
+
+                    messages = await self.global_manager.slack_output_handler.fetch_conversation_history(channel_id, thread_ts or message_ts)
+
+                    if messages:
+                        content = "\n".join([f"User: {msg.get('user', 'Unknown')}\nMessage: {msg.get('text', '')}" for msg in messages])
+                        return f"The following text is the content of the Slack message or thread:\n{content}\n"
+                    else:
+                        return f"Unable to retrieve content for Slack URL: {url}"
+                else:
+                    return f"Invalid Slack URL format: {url}"
+            except Exception as e:
+                self.logger.error(f"Error processing Slack URL {url}: {e}")
+                return f"Error processing Slack URL: {url}"
+        else:
+            try:
+                webcontent = requests.get(url)
+                webcontent.raise_for_status()
+                soup = BeautifulSoup(webcontent.text, 'html.parser')
+                content = soup.get_text()
+                content = content.replace('\n', '')
+                content = re.sub(' +', ' ', content)
+                return f"The following text is an automated response inserted in the user conversation automatically giving the content of the URL in the user message: {content}\n"
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"An error occurred while trying to get {url}: {e}")
+                return f"An error occurred while trying to get {url}: {e}\n"
 
     async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):
         converted_timestamp = await self.format_slack_timestamp(ts)
-        user_name, user_email = self.get_user_info(user_id)
+        user_name, user_email, _ = await self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
 
-        caller_frame = inspect.currentframe().f_back
-        caller_name = caller_frame.f_globals['__name__']
         return SlackEventData(
             timestamp=ts,
             converted_timestamp=converted_timestamp,
@@ -450,16 +569,16 @@ class SlackInputHandler:
             thread_id=thread_id,
             response_id=response_id,
             user_name=user_name,
-            username=username,
             user_email=user_email,
             user_id=user_id,
             app_id=app_id,
             api_app_id=api_app_id,
+            username=username,
             is_mention=is_mention,
             text=text,
+            origin="slack",
             images=base64_images,
             files_content=files_content,
-            origin=caller_name,
             origin_plugin_name=self.slack_config.PLUGIN_NAME
         )
 
@@ -481,75 +600,221 @@ class SlackInputHandler:
         return paris_time
 
     async def extract_info_from_url(self, message_url):
-        # Regex to extract channel_id, message_ts, and optionally thread_id and cid
         match = re.search(
-            r'https:\/\/[a-zA-Z0-9\.]+\.slack\.com\/archives\/(?P<channel_id>[A-Za-z0-9]+)\/p(?P<message_ts>\d+)(?:\?thread_id=(?P<thread_id>\d+))?',
+            r'https:\/\/[a-zA-Z0-9\.]+\.slack\.com\/archives\/(?P<channel_id>[A-Za-z0-9]+)\/p(?P<message_ts>\d+)(?:\?thread_ts=(?P<thread_ts>[\d.]+))?(?:&cid=(?P<cid>[A-Za-z0-9]+))?',
             message_url
         )
 
         if match:
             channel_id = match.group('channel_id')
-            message_ts = match.group('message_ts')[:10] + '.' + match.group('message_ts')[10:]
+            message_ts = f"{match.group('message_ts')[:10]}.{match.group('message_ts')[10:]}"
+            thread_ts = match.group('thread_ts')
 
-            # Check if thread_id and cid are present
-            if match.group('thread_id') and match.group('cid'):
-                return match.group('cid'), message_ts, True
+            if thread_ts:
+                # This is a message within a thread
+                return channel_id, thread_ts, message_ts, True
             else:
-                return channel_id, message_ts, False
+                # This is either an individual message or the start of a thread
+                return channel_id, message_ts, None, False
         else:
             raise ValueError("Invalid Slack message URL")
 
-    async def get_message_content(self, channel_id, message_ts, is_reply):
+    async def get_message_content(self, channel_id, message_ts, thread_ts=None, original_link=None):
         try:
-            response = await self._fetch_message_data(channel_id, message_ts, is_reply)
-            messages = self._extract_messages(response)
-            return self._format_message_content(messages)
-        except ValueError as e:
-            self.logger.error(f"Error retrieving message content: {e}")
-            raise  # Re-raise the exception
+            self.logger.debug(f"get_message_content called with: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, original_link={original_link}")
 
-    async def _fetch_message_data(self, channel_id, message_ts, is_reply):
-        params = self._build_api_params(channel_id, message_ts, is_reply)
-        headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
-        response = requests.get(f"{self.SLACK_API_URL}conversations.history", headers=headers, params=params)
+            # Function to check if two timestamps match within a tolerance
+            def ts_match(ts1, ts2, tolerance=0.001):
+                return abs(float(ts1) - float(ts2)) < tolerance
 
-        if response.status_code != 200:
-            error_message = response.json().get('error', 'Unknown error')
-            raise ValueError(f"Failed to retrieve message from Slack API: {error_message}")
+            # If no thread_ts is provided, assume the message_ts is for the thread
+            if thread_ts is None:
+                thread_ts = message_ts
 
-        data = response.json()
-        if not data['ok']:
-            raise ValueError(f"Failed to retrieve message from Slack API: {data['error']}")
+            self.logger.debug(f"Using thread_ts: {thread_ts}")
 
-        return data
+            # Fetch all messages in the thread
+            data = await self._fetch_thread_messages(channel_id, thread_ts)
+            messages = data.get('messages', [])
+            self.logger.debug(f"Fetched {len(messages)} messages from thread")
 
-    def _build_api_params(self, channel_id, message_ts, is_reply):
+            # Prepare metadata for the response
+            metadata = {
+                "source_link": original_link,
+                "channel_id": channel_id,
+                "thread_id": thread_ts,
+                "is_full_thread": True  # Assume it's the full thread unless proven otherwise
+            }
+
+            # Case 1: If message_ts matches thread_ts, this is a request for the full thread
+            if ts_match(message_ts, thread_ts):
+                self.logger.debug("message_ts matches thread_ts, returning all thread messages")
+                return {
+                    "metadata": metadata,
+                    "content_type": "full_thread",
+                    "messages": messages
+                }
+
+            # Case 2: If message_ts does not match thread_ts, search for the specific message
+            matching_messages = [m for m in messages if ts_match(m['ts'], message_ts)]
+
+            # If the specific message is found, return just that message
+            if matching_messages:
+                self.logger.debug(f"Found {len(matching_messages)} matching messages")
+                metadata["is_full_thread"] = False
+                return {
+                    "metadata": metadata,
+                    "content_type": "single_message",
+                    "messages": matching_messages
+                }
+
+            # Case 3: If no specific match is found, return the entire thread
+            self.logger.debug("No exact match found. Returning all thread messages")
+            return {
+                "metadata": metadata,
+                "content_type": "full_thread",
+                "messages": messages
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error in get_message_content: {e}", exc_info=True)
+            raise ValueError(f"Failed to retrieve message from Slack API: {str(e)}")
+
+    async def _fetch_thread_messages(self, channel_id, thread_ts):
+        url = f"{self.SLACK_API_URL}conversations.replies"
+        params = {
+            'channel': channel_id,
+            'ts': thread_ts,
+            'limit': 100
+        }
+        return await self._make_slack_api_call(url, params)
+
+    async def _fetch_single_message(self, channel_id, message_ts):
+        url = f"{self.SLACK_API_URL}conversations.history"
         params = {
             'channel': channel_id,
             'latest': message_ts,
             'limit': 1,
-            'inclusive': True
+            'inclusive': 'true'  # Changé de True à 'true'
         }
-        if is_reply:
-            params['oldest'] = message_ts
+        return await self._make_slack_api_call(url, params)
+
+
+    async def _make_slack_api_call(self, url, params):
+        headers = {'Authorization': f'Bearer {self.SLACK_BOT_USER_TOKEN}'}
+
+        # Convertir tous les paramètres en chaînes
+        params = {k: str(v) for k, v in params.items()}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status != 200:
+                    error_message = (await response.json()).get('error', 'Unknown error')
+                    raise ValueError(f"Failed to retrieve message from Slack API: {error_message}")
+
+                data = await response.json()
+                if not data['ok']:
+                    raise ValueError(f"Failed to retrieve message from Slack API: {data['error']}")
+
+                return data
+
+    async def _fetch_message_data(self, channel_id, message_ts, message_type):
+        params = self._build_api_params(channel_id, message_ts, message_type)
+        headers = {'Authorization': f'Bearer {self.SLACK_BOT_USER_TOKEN}'}
+
+        endpoint = "conversations.replies" if message_type == "thread" else "conversations.history"
+        url = f"{self.SLACK_API_URL}{endpoint}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status != 200:
+                    error_message = (await response.json()).get('error', 'Unknown error')
+                    raise ValueError(f"Failed to retrieve message from Slack API: {error_message}")
+
+                data = await response.json()
+                if not data['ok']:
+                    raise ValueError(f"Failed to retrieve message from Slack API: {data['error']}")
+
+                return data
+
+    def _build_api_params(self, channel_id, message_ts, message_type):
+        params = {
+            'channel': channel_id,
+            'limit': 100
+        }
+        if message_type == "thread":
+            params['ts'] = message_ts
+        else:
+            params['latest'] = message_ts
+            params['inclusive'] = True
+            params['limit'] = 1
         return params
 
     def _extract_messages(self, response):
         return response.get('messages', [])
 
-    def _format_message_content(self, messages):
-        if not messages:
-            return None
+    async def get_bot_info(self, bot_id):
+        try:
+            response = await self.async_client.bots_info(bot=bot_id)
+            if response['ok']:
+                bot_info = response.get('bot', {})
+                bot_name = bot_info.get('name', 'Unknown Bot')
+                return bot_name
+            else:
+                self.logger.error(f"Failed to fetch bot info: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            self.logger.error(f"Error fetching bot info: {e}")
+        return 'Unknown Bot'
 
-        message = messages[0]
-        user_id = message.get('user', 'Unknown')
-        text = message.get('text', '')
-        if 'blocks' in message:
-            block = message["blocks"]
-            slack_block_processor = SlackBlockProcessor()
-            text = slack_block_processor.extract_text_from_blocks(blocks=block)
+    async def _format_message_content(self, messages):
+        formatted_messages = []
+        for message in messages:
+            if message is None:
+                continue
 
-        return f"*{user_id}*: _{text}_"
+            # Extract user_id and check if it's a bot message
+            user_id = message.get('user', 'Unknown')
+            subtype = message.get('subtype', '')
+
+            # Handle bot message case
+            if subtype == 'bot_message':
+                bot_id = message.get('bot_id', 'Unknown')
+                if bot_id != 'Unknown':
+                    # Fetch bot info using bot_id
+                    bot_name = await self.get_bot_info(bot_id)
+                    username = bot_name
+                    user_email = 'Bot/App (No email)'
+                else:
+                    username = 'Unknown Bot'
+                    user_email = 'Unknown'
+            else:
+                username, user_email, _ = await self.get_user_info(user_id)
+
+            # Format the message timestamp
+            timestamp = await self.format_slack_timestamp(message.get('ts', ''))
+
+            # Check if the message directly mentions the bot
+            is_mention = f"<@{self.SLACK_BOT_USER_ID}>" in message.get('text', '')
+
+            # Extract text content
+            text = message.get('text', '')
+            if 'blocks' in message:
+                block = message["blocks"]
+                slack_block_processor = SlackBlockProcessor()
+                text = slack_block_processor.extract_text_from_blocks(blocks=block)
+
+            # Format the message content
+            formatted_message = (
+                f"Timestamp: {timestamp}\n"
+                f"[Slack username]: {username}\n"
+                f"[Slack user id]: {user_id if subtype != 'bot_message' else bot_id}\n"
+                f"[Slack user email]: {user_email}\n"
+                f"[Directly mentioning you]: {is_mention}\n"
+                f"[Message]: {text}\n"
+            )
+            formatted_messages.append(formatted_message)
+
+        return "\n".join(formatted_messages)
 
     async def download_image_as_byte_array(self, image_url):
         slack_token = os.environ.get('SLACK_BOT_TOKEN')
@@ -589,51 +854,55 @@ class SlackInputHandler:
         return None
 
     async def get_message_permalink_and_text(self, channel_id, message_ts):
-        response = self.client.chat_getPermalink(channel=channel_id, message_ts=message_ts)
-        if response['ok']:
-            permalink = response['permalink']
+        try:
+            response = await self.async_client.chat_getPermalink(channel=channel_id, message_ts=message_ts)
+            if response['ok']:
+                permalink = response['permalink']
 
-            # Extract the linked message's ts from the permalink
-            path_elements = permalink.split('/')
-            channel = path_elements[4]
+                # Extract the linked message's ts from the permalink
+                path_elements = permalink.split('/')
+                channel = path_elements[4]
 
-            if 'thread_id' in permalink:
-                # Threaded message, use conversations.replies endpoint
-                ts = path_elements[5].split('?')[0]
-                ts = ts[:len(ts)-6] + '.' + ts[len(ts)-6:]
+                if 'thread_id' in permalink:
+                    # Threaded message, use conversations.replies endpoint
+                    ts = path_elements[5].split('?')[0]
+                    ts = ts[:len(ts)-6] + '.' + ts[len(ts)-6:]
 
-                latest = path_elements[5].split('thread_id=')[1].split('&')[0]
+                    latest = path_elements[5].split('thread_id=')[1].split('&')[0]
 
-                message_response = self.client.conversations_replies(channel=channel, ts=ts, latest=latest, inclusive=True, limit=1)
-            else:
-                # Non-threaded message, use conversations.history endpoint
-                latest = path_elements[5][1:]
-                if '?' in latest:
-                    latest = latest.split('?')[0]
+                    message_response = await self.async_client.conversations_replies(channel=channel, ts=ts, latest=latest, inclusive=True, limit=1)
+                else:
+                    # Non-threaded message, use conversations.history endpoint
+                    latest = path_elements[5][1:]
+                    if '?' in latest:
+                        latest = latest.split('?')[0]
 
-                # Convert the timestamp to the correct format
-                latest = str(float(latest) / 1000000)
+                    # Convert the timestamp to the correct format
+                    latest = str(float(latest) / 1000000)
 
-                message_response = self.client.conversations_history(channel=channel, latest=latest, inclusive=True, limit=1)
+                    message_response = await self.async_client.conversations_history(channel=channel, latest=latest, inclusive=True, limit=1)
 
-            messages = message_response.data.get('messages')
-            
-            if messages:
-                # Get the user's name
-                if "'user':" in str(messages) and (self.SLACK_AUTHORIZED_APPS[0] == "" or not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS)):
-                    self.logger.info(f"user:{messages} ")
-                    user_id = messages[0]['user']
-                    user_info_response = self.client.users_info(user=user_id)
-                    if user_info_response['ok']:
-                        user_name = user_info_response['user']['name']
-                        message_text = f"*{user_name}*: _{messages[0]['text']}_"  # Prepend the user's name to the message and format it
+                messages = message_response.get('messages')
+
+                if messages:
+                    # Get the user's name
+                    if "user" in messages[0] and (self.SLACK_AUTHORIZED_APPS[0] == "" or not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS)):
+                        self.logger.info(f"user:{messages} ")
+                        user_id = messages[0]['user']
+                        user_info_response = await self.async_client.users_info(user=user_id)
+                        if user_info_response['ok']:
+                            user_name = user_info_response['user']['name']
+                            message_text = f"*{user_name}*: _{messages[0]['text']}_"  # Prepend the user's name to the message and format it
+                            return permalink, message_text
+                    if "username" in messages[0]:
+                        self.logger.info(f"app:{messages} ")
+                        username = messages[0]['username']
+                        message_text = f"*{username}*: _{messages[0]['text']}_"  # Prepend the app's name to the message and format it
                         return permalink, message_text
-                if "'username':" in str(messages):
-                    self.logger.info(f"app:{messages} ")
-                    username = messages[0]['username']
-                    message_text = f"*{username}*: _{messages[0]['text']}_"  # Prepend the app's name to the message and format it
-                    return permalink, message_text
-                return permalink, message_text
+                    return permalink, messages[0].get('text', '')
 
-        self.logger.error(f"Error getting permalink: {response['error']}")
-        return None, None
+            self.logger.error(f"Error getting permalink: {response.get('error')}")
+            return None, None
+        except Exception as e:
+            self.logger.error(f"Exception in get_message_permalink_and_text: {e}")
+            return None, None

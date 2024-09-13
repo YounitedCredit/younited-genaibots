@@ -12,8 +12,10 @@ class BotConfig(BaseModel):
     REQUIRE_MENTION_NEW_MESSAGE : bool
     REQUIRE_MENTION_THREAD_MESSAGE : bool
     LOG_DEBUG_LEVEL : str
+    LOAD_ACTIONS_FROM_BACKEND : bool
     SHOW_COST_IN_THREAD : bool
     ACKNOWLEDGE_NONPROCESSED_MESSAGE : bool
+    GET_ALL_THREAD_FROM_MESSAGE_LINKS : bool
     GET_URL_CONTENT : bool
     ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: str
     INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: str
@@ -24,18 +26,19 @@ class BotConfig(BaseModel):
     LLM_CONVERSION_FORMAT: str
     BREAK_KEYWORD: str
     START_KEYWORD: str
+    RECORD_NONPROCESSED_MESSAGES: bool
 
-class FileSystem(BaseModel):
+class LocalLogging(BaseModel):
     PLUGIN_NAME: str
-    FILE_PATH: str
+    LOCAL_LOGGING_FILE_PATH: str
 
-class Azure(BaseModel):
+class AzureLogging(BaseModel):
     PLUGIN_NAME: str
-    APPLICATIONINSIGHTS_CONNECTION_STRING: str
+    AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING: str
 
 class Logging(BaseModel):
-    FILE_SYSTEM: Optional[FileSystem] = None
-    AZURE: Optional[Azure] = None
+    LOCAL_LOGGING: Optional[LocalLogging] = None
+    AZURE_LOGGING: Optional[AzureLogging] = None
 
 class Environment(BaseModel):
     PLUGIN_NAME: str

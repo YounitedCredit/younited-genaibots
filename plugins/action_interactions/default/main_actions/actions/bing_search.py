@@ -129,7 +129,7 @@ class BingSearch(ActionBase):
         except Exception as e:
             self.logger.error(f"An unexpected error occurred for URL: {url}. Error: {str(e)}")
             return None
-    
+
     def is_valid_url(self, url):
         regex = re.compile(
             r'^(?:http|ftp)s?://'  # http:// or https://
@@ -207,7 +207,7 @@ class BingSearch(ActionBase):
         text = text.replace('\r', '')
         text = re.sub(' +', ' ', text)
         return text
-    
+
     async def select_from_snippet(self, search_results, event : IncomingNotificationDataBase, result_number, user_input):
         # Initialize a list to store the page messages
         page_messages = []

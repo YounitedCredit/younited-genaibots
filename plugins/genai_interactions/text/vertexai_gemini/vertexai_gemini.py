@@ -1,6 +1,6 @@
 import asyncio
-import inspect
 import json
+import re
 import traceback
 from typing import Any
 
@@ -15,11 +15,10 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
 from core.global_manager import GlobalManager
-from core.user_interactions.message_type import MessageType
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
@@ -37,13 +36,14 @@ class VertexaiGeminiConfig(BaseModel):
     VERTEXAI_GEMINI_TEMPERATURE: float
     VERTEXAI_GEMINI_TOP_P: float
 
+
 class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = self.global_manager.logger
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
-        self.config_manager : ConfigManager = global_manager.config_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
+        self.config_manager: ConfigManager = global_manager.config_manager
         vertexai_gemini_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT["VERTEXAI_GEMINI"]
         self.vertexai_gemini_config = VertexaiGeminiConfig(**vertexai_gemini_config_dict)
         self.plugin_name = None
@@ -100,12 +100,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         vertexai.init(project=self.vertexai_gemini_projectname, location=self.vertexai_gemini_location, credentials=credentials)
         self.client = GenerativeModel(self.vertexai_gemini_modelname)
 
-    def validate_request(self, event:IncomingNotificationDataBase):
+    def validate_request(self, event: IncomingNotificationDataBase):
         """Determines whether the plugin can handle the given request."""
-        # Check if the request is a valid request for this plugin
         return True
 
-    async def handle_request(self, event:IncomingNotificationDataBase):
+    async def handle_request(self, event: IncomingNotificationDataBase):
         """Handles the request."""
         validate_request = self.validate_request(event)
 
@@ -116,7 +115,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         else:
             return response
 
-    async def handle_action(self, action_input:ActionInput, event:IncomingNotificationDataBase):
+    async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
             parameters = action_input.parameters
             input_param: str = parameters.get('input', '')
@@ -126,16 +125,17 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
             if main_prompt:
                 self.logger.debug(f"Main prompt: {main_prompt}")
-                init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
+                init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                    data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
                 if init_prompt is None:
-                    self.logger.warning("No specific instructionsfirst_candidate.content.parts[0].text")
+                    self.logger.warning("No specific instructions")
 
                 messages = [{"role": "system", "content": init_prompt}]
             else:
                 messages = [{"role": "system", "content": "No specific instruction provided."}]
 
             if context:
-                context_content = f"Here is aditionnal context relevant to the following request: {context}"
+                context_content = f"Here is additional context relevant to the following request: {context}"
                 messages.append({"role": "user", "content": context_content})
 
             if conversation_data:
@@ -162,8 +162,13 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             await self.backend_internal_data_processing_dispatcher.write_data_content(sessions, blob_name, completion_json)
             return completion
 
+        except ValueError as ve:
+            self.logger.error(f"JSON parsing failed: {ve}")
+            return "Error: The JSON text does not seem to be valid."
         except Exception as e:
             self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
+            return None
+
 
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
 
@@ -179,7 +184,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
                 "max_tokens": self.vertexai_gemini_max_output_tokens
             }
 
-            # Convert messages to JSON format for API consumption
+            # Prepare the request payload
             request_payload = {
                 "messages": messages,
                 "parameters": generation_params
@@ -190,33 +195,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             # Send the JSON data to the AI model and await the completion
             completion = await self.client.generate_content_async(messages_json)
 
-
-            # Assuming the 'completion' object has a structure similar to what you've shown
             # Get the first candidate's response text from the 'parts' field
             first_candidate = completion.candidates[0]
             response_text = first_candidate.content.parts[0].text
-            if first_candidate.content.parts[0].text:
-                try:
-                    # Try to parse the JSON and access 'content'
-                    escaped_text = first_candidate.content.parts[0].text.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-                    cleaned_text = escaped_text.rstrip(' \\n')
-                    content_object = json.loads(cleaned_text)
-                    # Check if 'content' is in content_object
-                    if 'content' in content_object:
-                        response_text = content_object['content']
-                    elif 'messages' in content_object and len(content_object['messages']) > 0 and 'content' in content_object['messages'][0]:
-                        response_text = content_object['messages'][0]['content']
-                    else:
-                        raise ValueError
-                except (json.JSONDecodeError):
-                    # If parsing the JSON fails or 'content' is not in the object,
-                    # set content_object to first_candidate.content.parts[0]
-                    response_text = first_candidate.content.parts[0].text
-            else:
-                self.logger.error("No content found in completion")
-                return None
 
-            # Extract the token usage details from the usage metadata
+            # Calculate token usage details before any return statement
             usage_metadata = completion.usage_metadata
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = usage_metadata.total_token_count
@@ -225,49 +208,58 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             self.genai_cost_base.input_token_price = self.vertexai_gemini_input_token_price
             self.genai_cost_base.output_token_price = self.vertexai_gemini_output_token_price
 
-            # Return the response text and the GenAICostBase instance
-            return response_text, self.genai_cost_base
+            # Process the response text to preserve newlines and Unicode characters
+            formatted_response = self.process_response_text(response_text)
+
+            # Return both the formatted response and genai_cost_base
+            return formatted_response, self.genai_cost_base
 
         except asyncio.exceptions.CancelledError:
             # Handle task cancellation
             await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
+
         except Exception as e:
             # Handle other exceptions that may occur
             self.logger.error(f"An error occurred: {str(e)}")
             raise
 
-    async def trigger_genai(self, event :IncomingNotificationDataBase):
-            event_copy = event
-            AUTOMATED_RESPONSE_TRIGGER = "Automated response"
-            if event.thread_id == '':
-                response_id = event_copy.timestamp
-            else:
-                response_id = event_copy.thread_id
+    def process_response_text(self, response_text):
+        """Function to clean and format the response text by preserving newlines and Unicode characters."""
+        if response_text:
+            try:
+                # Step 1: Remove the tags [BEGINIMDETECT], [ENDIMDETECT], ```json and ```.
+                cleaned_text = re.sub(r'\[BEGINIMDETECT\]|\[ENDIMDETECT\]|```json|```', '', response_text).strip()
 
-            event_copy.user_id = AUTOMATED_RESPONSE_TRIGGER
-            event_copy.user_name =  AUTOMATED_RESPONSE_TRIGGER
-            event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
-            event_copy.event_label = "thread_message"
-            user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event, message=event_copy.text)
-            event_copy.text = user_message
-            event_copy.is_mention = True
-            event_copy.thread_id = response_id
+                # Step 2: Replace the \n characters in the JSON structure, but keep those inside string values.
+                # To do this, we need to isolate valid JSON parts and process them separately.
+                try:
+                    # Extract the JSON block from the cleaned text
+                    json_text = re.search(r'{.*}', cleaned_text, re.DOTALL).group(0)
 
-            self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message= "Processing incoming data, please wait...", message_type=MessageType.COMMENT)
+                    # Remove newlines inside the JSON except for those inside strings
+                    json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n', lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '', json_text)
+                    formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
+                    return formatted_response
+                except (json.JSONDecodeError, AttributeError):
+                    self.logger.error(f"Invalid JSON response: {e}")
+                    return "Error: The JSON text does not seem to be valid."
 
-            # Count the number of words in event_copy.text
-            word_count = len(event_copy.text.split())
+            except json.JSONDecodeError as e:
+                # If JSON parsing fails, return the raw response text
+                raise ValueError(f"JSON parsing failed: {e}")
+        return response_text
 
-            # If there are more than 300 words, call plugin.file_upload
-            if word_count > 300:
-                await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text, filename="Bot reply.txt", title=":zap::robot_face: Automated User Input", is_internal=True)
-            else:
-                await self.user_interaction_dispatcher.send_message(event=event_copy, message= f":zap::robot_face: *AutomatedUserInput*: {event_copy.text}", message_type=MessageType.TEXT, is_internal= True)
-
-            await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
+    async def trigger_genai(self, event: IncomingNotificationDataBase):
+        """Triggers an automated response for Generative AI."""
+        try:
+            self.logger.debug("Automated response triggered for Generative AI.")
+            await self.handle_request(event)
+        except Exception as e:
+            self.logger.error(f"Error in trigger_genai: {str(e)}")
 
     async def trigger_feedback(self, event: IncomingNotificationDataBase) -> Any:
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        """Trigger feedback process (currently a placeholder)."""
+        self.logger.info(f"Feedback triggered for event: {event}")
+        return {"status": "Feedback triggered successfully"}

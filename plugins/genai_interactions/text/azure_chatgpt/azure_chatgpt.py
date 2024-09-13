@@ -1,9 +1,10 @@
 import asyncio
+import copy
 import inspect
 import json
 import traceback
 from typing import Any
-import copy
+
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel
 
@@ -13,11 +14,10 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
 from core.global_manager import GlobalManager
-from core.user_interactions.message_type import MessageType
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
@@ -27,13 +27,13 @@ class AzureChatGptConfig(BaseModel):
     PLUGIN_NAME: str
     AZURE_CHATGPT_INPUT_TOKEN_PRICE: float
     AZURE_CHATGPT_OUTPUT_TOKEN_PRICE: float
-    AZURE_OPENAI_KEY: str
-    AZURE_OPENAI_ENDPOINT: str
-    OPENAI_API_VERSION: str
+    AZURE_CHATGPT_OPENAI_KEY: str
+    AZURE_CHATGPT_OPENAI_ENDPOINT: str
+    AZURE_CHATGPT_OPENAI_API_VERSION: str
     AZURE_CHATGPT_MODEL_NAME: str
     AZURE_CHATGPT_VISION_MODEL_NAME: str
-    AZURE_CHATGPT_IS_ASSISTANT: bool = False  
-    AZURE_CHATGPT_ASSISTANT_ID: str = None 
+    AZURE_CHATGPT_IS_ASSISTANT: bool = False
+    AZURE_CHATGPT_ASSISTANT_ID: str = None
 
 
 class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
@@ -73,9 +73,9 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
     def initialize(self):
         # Client settings
-        self.azure_openai_key = self.azure_chatgpt_config.AZURE_OPENAI_KEY
-        self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_OPENAI_ENDPOINT
-        self.openai_api_version = self.azure_chatgpt_config.OPENAI_API_VERSION
+        self.azure_openai_key = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_KEY
+        self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_ENDPOINT
+        self.openai_api_version = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_API_VERSION
         self.model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
         self.input_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_OUTPUT_TOKEN_PRICE
@@ -94,9 +94,9 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
     def load_client(self):
         try:
             self.gpt_client = AsyncAzureOpenAI(
-                api_key=self.azure_chatgpt_config.AZURE_OPENAI_KEY,
-                azure_endpoint=self.azure_chatgpt_config.AZURE_OPENAI_ENDPOINT,
-                api_version=self.azure_chatgpt_config.OPENAI_API_VERSION
+                api_key=self.azure_openai_key,
+                azure_endpoint=self.azure_openai_endpoint,
+                api_version=self.openai_api_version
             )
         except KeyError as e:
             self.logger.error(f"Missing configuration key: {e}")
@@ -114,16 +114,41 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         # todo: add validation logic
         return True
 
-    async def handle_request(self, event:IncomingNotificationDataBase):
+    async def handle_request(self, event: IncomingNotificationDataBase):
         """Handles the request."""
-        validate_request = self.validate_request(event)
+        try:
+            validate_request = self.validate_request(event)
 
-        response = await self.input_handler.handle_event_data(event)
-        if validate_request == False:
-            self.logger.error(f"Invalid request: {event}")
-            return None
-        else:
+            if not validate_request:
+                self.logger.error(f"Invalid request: {event}")
+                await self.dispatcher.send_message(
+                    event.user_id,
+                    "Something went wrong. Please try again or contact the bot owner.",
+                    message_type=MessageType.USER
+                )
+                return None
+
+            response = await self.input_handler.handle_event_data(event)
             return response
+
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            self.logger.error(f"An error occurred: {e}\n{error_trace}")
+
+            # Send message to the user
+            await self.user_interaction_dispatcher.send_message(
+                event.user_id,
+                "Something went wrong. Please try again or contact the bot owner.",
+                message_type=MessageType.USER
+            )
+
+            # Send internal message with error details
+            await self.user_interaction_dispatcher.send_message(
+                "genai interaction issue",  # Replace with actual internal channel ID
+                f"An error occurred in the azure_chatgpt module: {e}\n{error_trace}",
+                message_type=MessageType.TEXT, is_internal=True
+            )
+            return None
 
     async def handle_action(self, action_input:ActionInput, event:IncomingNotificationDataBase):
         try:
@@ -217,7 +242,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 vision_model = self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME
                 if not vision_model:
                     raise ValueError("Image received but AZURE_CHATGPT_VISION_MODEL_NAME not configured")
-                
+
                 self.logger.info(f"Using vision model: {vision_model}")
                 image_interpretations = []
                 for i, base64_image in enumerate(event_data.images):
@@ -249,7 +274,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                     interpretation = image_completion.choices[0].message.content
                     self.logger.info(f"Image {i+1} interpretation: {interpretation[:50]}...")  # Log first 50 chars
                     image_interpretations.append(interpretation)
-                
+
                 # Ajout des interprétations d'images au dernier message utilisateur
                 if last_user_message_index is not None:
                     automated_response = (
@@ -268,7 +293,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                         })
                     else:
                         messages_copy[last_user_message_index]['content'] += automated_response
-                    self.logger.info(f"Added image interpretations to the last user message")
+                    self.logger.info("Added image interpretations to the last user message")
 
             # Remove images from event_data to avoid sending them again
             event_data.images = []
@@ -333,13 +358,13 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error(f"An error occurred during assistant completion: {str(e)}")
             self.logger.error(traceback.format_exc())  # Log the full stack trace
             await self.user_interaction_dispatcher.send_message(
-                event=event_data, 
-                message="An unexpected error occurred during assistant completion", 
-                message_type=MessageType.COMMENT, 
+                event=event_data,
+                message="An unexpected error occurred during assistant completion",
+                message_type=MessageType.COMMENT,
                 is_internal=True
             )
             raise
-        
+
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         # Check if we should use the assistant
         self.logger.info("generate completion called")
@@ -369,7 +394,38 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 seed=69
             )
 
+            # Extract the full response between the markers
             response = completion.choices[0].message.content
+            start_marker = "[BEGINIMDETECT]"
+            end_marker = "[ENDIMDETECT]"
+
+            # Ensure that the markers exist in the response
+            if start_marker in response and end_marker in response:
+                # Extract the JSON content between the markers
+                json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
+
+                # Load the JSON content
+                try:
+                    response_dict = json.loads(json_content)
+
+                    # Locate the "UserInteraction" action and replace escape sequences
+                    for action in response_dict.get("response", []):
+                        if action["Action"]["ActionName"] == "UserInteraction":
+                            value = action["Action"]["Parameters"]["value"]
+
+                            # Replace the escape sequences (\\n) with real newlines (\n)
+                            formatted_value = value.replace("\\n", "\n")
+                            action["Action"]["Parameters"]["value"] = formatted_value
+
+                    # Rebuild the formatted JSON with indentation
+                    formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
+                    response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
+
+                except json.JSONDecodeError as e:
+                    # Log error if JSON parsing fails
+                    self.logger.error(f"Error decoding JSON: {e}")
+            else:
+                self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
             # Extract the GPT response and token usage details
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = completion.usage.total_tokens

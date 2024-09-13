@@ -1,14 +1,13 @@
-import json
 import argparse
+import json
 import logging
+
 import colorama
-from colorama import Fore, Style
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import SearchIndex
-from azure.search.documents.models import IndexAction
-from azure.search.documents._index_documents_batch import IndexDocumentsBatch
+from colorama import Fore, Style
 
 """
 Vector Import Script
@@ -83,10 +82,12 @@ def load_index_definition(file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
     except Exception as e:
-        logger.error(f"Error loading index definition: {str(e)}")
-        raise
+        error_message = f"Error loading index definition: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message) from e
 
 def create_index_if_not_exists(index_client, index_definition):
+    """Check if an index exists, and if not, create it."""
     index_name = index_definition['name']
     logger.info(f"Checking if index {index_name} exists")
     try:
@@ -103,6 +104,7 @@ def create_index_if_not_exists(index_client, index_definition):
         raise
 
 def import_data(search_client, json_data_path, non_nullable_fields):
+    """Import data into the Azure Search index."""
     logger.info(f"Importing data from {json_data_path}")
     try:
         with open(json_data_path, 'r', encoding='utf-8') as json_file:
@@ -117,6 +119,7 @@ def import_data(search_client, json_data_path, non_nullable_fields):
             else:
                 logger.error(f"Skipping document {i}/{total_documents} due to null values")
 
+            # Upload every 100 documents or when done
             if len(valid_documents) % 100 == 0 or i == total_documents:
                 logger.info(f"Uploading batch of {len(valid_documents)} documents...")
                 result = search_client.upload_documents(documents=valid_documents)
@@ -130,12 +133,13 @@ def import_data(search_client, json_data_path, non_nullable_fields):
         raise
 
 def main():
+    """Main function to parse arguments and run the import process."""
     parser = argparse.ArgumentParser(description="Import index and data to Azure AI Search")
     parser.add_argument("--service-endpoint", required=True, help="Azure AI Search service endpoint")
     parser.add_argument("--admin-key", required=True, help="Azure AI Search admin key")
     parser.add_argument("--index-definition", required=True, help="Path to index definition JSON file")
     parser.add_argument("--data", required=True, help="Path to data JSON file")
-    
+
     args = parser.parse_args()
 
     logger.info(f"{Fore.CYAN}Starting import process{Style.RESET_ALL}")

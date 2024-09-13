@@ -1,11 +1,15 @@
 # tests/plugins/action_interactions/default/main_actions/actions/test_long_text.py
 
 from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from plugins.action_interactions.default.main_actions.actions.long_text import LongText
+
 
 @pytest.mark.asyncio
 async def test_long_text_execution(mock_global_manager):
@@ -58,7 +62,7 @@ async def test_process_continuation(mock_global_manager):
     long_text_action = LongText(global_manager=mock_global_manager)
     # Initialiser l'attribut concatenate_folder
     long_text_action.concatenate_folder = "mock_concatenate_folder"
-    
+
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="Existing content")
     mock_global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     mock_global_manager.genai_interactions_text_dispatcher.trigger_genai = AsyncMock()
@@ -93,7 +97,7 @@ async def test_process_end_of_conversation(mock_global_manager):
     # Initialiser les attributs nécessaires
     long_text_action.concatenate_folder = "mock_concatenate_folder"
     long_text_action.sessions_folder = "mock_sessions_folder"
-    
+
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="Existing content")
     mock_global_manager.backend_internal_data_processing_dispatcher.update_session = AsyncMock()
     mock_global_manager.backend_internal_data_processing_dispatcher.remove_data_content = AsyncMock()
@@ -169,7 +173,7 @@ async def test_long_text_execution_empty_value(mock_global_manager):
 
     with patch.object(long_text_action, '_process_continuation', return_value=True) as mock_process_continuation:
         result = await long_text_action.execute(action_input, event)
-    
+
     assert result is True
     mock_process_continuation.assert_called_once_with('', 'channel_1-thread_1.txt', event)
 
@@ -194,7 +198,7 @@ async def test_long_text_execution_no_thread_id(mock_global_manager):
 
     with patch.object(long_text_action, '_process_end_of_conversation', return_value=True) as mock_process_end:
         result = await long_text_action.execute(action_input, event)
-    
+
     assert result is True
     # Vérifier que _process_end_of_conversation a été appelé avec le bon nom de fichier
     mock_process_end.assert_called_once_with('Test', 'channel_1-123456.txt', event)
@@ -205,7 +209,7 @@ async def test_long_text_execution_no_thread_id(mock_global_manager):
 async def test_process_continuation_error(mock_global_manager):
     long_text_action = LongText(global_manager=mock_global_manager)
     long_text_action.concatenate_folder = "mock_concatenate_folder"
-    
+
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(side_effect=Exception("Read error"))
 
     event = IncomingNotificationDataBase(
@@ -231,7 +235,7 @@ async def test_process_end_of_conversation_error(mock_global_manager):
     long_text_action = LongText(global_manager=mock_global_manager)
     long_text_action.concatenate_folder = "mock_concatenate_folder"
     long_text_action.sessions_folder = "mock_sessions_folder"
-    
+
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(side_effect=Exception("Read error"))
 
     event = IncomingNotificationDataBase(

@@ -1,6 +1,7 @@
 venv/
 Yuc.Aibots.Framework.code-workspace
 .env*
+.config*
 **/__pycache__/
 app.log
 qodana.yaml
@@ -16,3 +17,5 @@ logs/*
 coverage.xml
 codebase.md
 *.log
+plugins/action_interactions/custom/*
+/output.csv

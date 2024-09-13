@@ -36,7 +36,7 @@ def test_plugin_name_setter(main_actions_plugin):
 @patch('core.action_interactions.action_interactions_plugin_base.pkgutil.iter_modules')
 @patch('core.action_interactions.action_interactions_plugin_base.inspect.getmembers')
 @patch('pathlib.Path.resolve')
-def test_load_actions(mock_resolve, mock_getmembers, mock_iter_modules, mock_import_module, 
+def test_load_actions(mock_resolve, mock_getmembers, mock_iter_modules, mock_import_module,
                       main_actions_plugin, mock_global_manager, mock_base_directory):
     # Configuration du mock pour Path.resolve()
     mock_resolve.return_value = mock_base_directory / 'plugins' / 'action_interactions' / 'default' / 'main_actions' / 'actions'

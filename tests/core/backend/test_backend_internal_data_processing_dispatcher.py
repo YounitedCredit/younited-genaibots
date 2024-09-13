@@ -75,7 +75,7 @@ async def test_append_data(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
     dispatcher.append_data('container_name', 'data_id', 'data')
     mock_plugin.append_data.assert_called_with('container_name', 'data_id', 'data')
-    
+
 @pytest.mark.asyncio
 async def test_read_data_content(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])

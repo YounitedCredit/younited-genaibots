@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -7,11 +7,11 @@ from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.azure_commandr.azure_commandr import (
     AzureCommandrPlugin,
 )
-from core.user_interactions.message_type import MessageType
+
 
 @pytest.fixture
 def mock_config():
@@ -210,9 +210,9 @@ async def test_generate_completion(azure_commandr_plugin):
     with patch.object(azure_commandr_plugin.commandr_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create:
         mock_create.return_value.choices[0].message.content = "Generated response"
         mock_create.return_value.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
-        
+
         response, genai_cost_base = await azure_commandr_plugin.generate_completion(messages, event)
-        
+
         assert response == "Generated response"
         assert genai_cost_base.total_tk == 100
         assert genai_cost_base.prompt_tk == 50
@@ -251,14 +251,14 @@ async def test_trigger_genai(azure_chatgpt_plugin):
         assert mock_send_message.call_count == 2
         mock_send_message.assert_any_call(event=ANY, message="Processing incoming data, please wait...", message_type=MessageType.COMMENT)
         mock_send_message.assert_any_call(
-            event=ANY, 
-            message=":zap::robot_face: *AutomatedUserInput*: <@BOT123> user text", 
-            message_type=MessageType.TEXT, 
+            event=ANY,
+            message=":zap::robot_face: *AutomatedUserInput*: <@BOT123> user text",
+            message_type=MessageType.TEXT,
             is_internal=True
         )
-        
+
         mock_process.assert_called_once()
-        
+
         # Vérifiez que les attributs de l'événement ont été correctement modifiés
         assert event.user_id == "automated response"
         assert event.user_name == "automated response"

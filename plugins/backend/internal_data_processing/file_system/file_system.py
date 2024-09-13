@@ -2,6 +2,7 @@ import inspect
 import json
 import os
 import traceback
+from typing import NoReturn
 
 from pydantic import BaseModel
 
@@ -9,20 +10,21 @@ from core.backend.internal_data_processing_base import InternalDataProcessingBas
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from typing import NoReturn
+
 
 class FileSystemConfig(BaseModel):
     PLUGIN_NAME: str
-    DIRECTORY: str
-    SESSIONS_CONTAINER: str
-    MESSAGES_CONTAINER: str
-    FEEDBACKS_CONTAINER: str
-    CONCATENATE_CONTAINER: str
-    PROMPTS_CONTAINER: str
-    COSTS_CONTAINER: str
-    PROCESSING_CONTAINER: str
-    ABORT_CONTAINER: str
-    VECTORS_CONTAINER: str
+    FILE_SYSTEM_DIRECTORY: str
+    FILE_SYSTEM_SESSIONS_CONTAINER: str
+    FILE_SYSTEM_MESSAGES_CONTAINER: str
+    FILE_SYSTEM_FEEDBACKS_CONTAINER: str
+    FILE_SYSTEM_CONCATENATE_CONTAINER: str
+    FILE_SYSTEM_PROMPTS_CONTAINER: str
+    FILE_SYSTEM_COSTS_CONTAINER: str
+    FILE_SYSTEM_PROCESSING_CONTAINER: str
+    FILE_SYSTEM_ABORT_CONTAINER: str
+    FILE_SYSTEM_VECTORS_CONTAINER: str
+    FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -45,6 +47,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.processing_container = None
         self.abort_container = None
         self.vectors_container = None
+        self.custom_actions_container = None
 
     @property
     def plugin_name(self):
@@ -99,19 +102,25 @@ class FileSystemPlugin(InternalDataProcessingBase):
         # Implement the vectors property
         return self.vectors_container
 
+    @property
+    def custom_actions(self):
+        # Implement the custom_actions property
+        return self.custom_actions_container
+
     def initialize(self):
         try:
             self.logger.debug("Initializing file system")
-            self.root_directory = self.file_system_config.DIRECTORY
-            self.sessions_container = self.file_system_config.SESSIONS_CONTAINER
-            self.messages_container = self.file_system_config.MESSAGES_CONTAINER
-            self.feedbacks_container = self.file_system_config.FEEDBACKS_CONTAINER
-            self.concatenate_container = self.file_system_config.CONCATENATE_CONTAINER
-            self.prompts_container = self.file_system_config.PROMPTS_CONTAINER
-            self.costs_container = self.file_system_config.COSTS_CONTAINER
-            self.processing_container = self.file_system_config.PROCESSING_CONTAINER
-            self.abort_container = self.file_system_config.ABORT_CONTAINER
-            self.vectors_container = self.file_system_config.VECTORS_CONTAINER
+            self.root_directory = self.file_system_config.FILE_SYSTEM_DIRECTORY
+            self.sessions_container = self.file_system_config.FILE_SYSTEM_SESSIONS_CONTAINER
+            self.messages_container = self.file_system_config.FILE_SYSTEM_MESSAGES_CONTAINER
+            self.feedbacks_container = self.file_system_config.FILE_SYSTEM_FEEDBACKS_CONTAINER
+            self.concatenate_container = self.file_system_config.FILE_SYSTEM_CONCATENATE_CONTAINER
+            self.prompts_container = self.file_system_config.FILE_SYSTEM_PROMPTS_CONTAINER
+            self.costs_container = self.file_system_config.FILE_SYSTEM_COSTS_CONTAINER
+            self.processing_container = self.file_system_config.FILE_SYSTEM_PROCESSING_CONTAINER
+            self.abort_container = self.file_system_config.FILE_SYSTEM_ABORT_CONTAINER
+            self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
+            self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
@@ -124,10 +133,25 @@ class FileSystemPlugin(InternalDataProcessingBase):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
     def init_shares(self):
-        containers = [self.sessions_container, self.messages_container, self.feedbacks_container, self.concatenate_container, self.prompts_container, self.costs_container, self.processing_container]
+        containers = [
+            self.sessions_container,
+            self.messages_container,
+            self.feedbacks_container,
+            self.concatenate_container,
+            self.prompts_container,
+            self.costs_container,
+            self.processing_container,
+            self.abort_container,
+            self.vectors_container,
+            self.custom_actions_container
+        ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
-            os.makedirs(directory_path, exist_ok=True)
+            try:
+                os.makedirs(directory_path, exist_ok=True)
+            except OSError as e:
+                self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
+                raise
 
     def append_data(self, container_name: str, data_identifier: str, data: str) -> NoReturn:
         # Construct the full path to the file
@@ -144,20 +168,21 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to append data to the file: {e}")
 
     async def read_data_content(self, data_container, data_file):
-
         self.logger.debug(f"Reading data content from {data_file} in {data_container}")
         file_path = os.path.join(self.root_directory, data_container, data_file)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r') as file:
+                # Utiliser 'errors="ignore"' pour ignorer les caractères non valides
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                     data = file.read()
                 self.logger.debug("Data successfully read")
                 return data
+            except UnicodeDecodeError as e:
+                self.logger.error(f"Unicode decode error: {str(e)}")
             except Exception as e:
                 self.logger.error(f"Failed to read file: {str(e)}")
                 return None
         else:
-
             self.logger.debug(f"File not found: {data_file}")
             return None
 
@@ -299,8 +324,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
     async def list_container_files(self, container_name):
         try:
             file_names = []
-            for file in os.listdir(container_name):
-                if os.path.isfile(os.path.join(container_name, file)):
+            container_path = os.path.join(self.root_directory, container_name)  # Calculate the container path
+            for file in os.listdir(container_path):
+                if os.path.isfile(os.path.join(container_path, file)):
                     file_name_without_extension = os.path.splitext(file)[0]
                     file_names.append(file_name_without_extension)
             return file_names

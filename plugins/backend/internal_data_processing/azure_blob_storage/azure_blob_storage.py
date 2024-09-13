@@ -3,7 +3,6 @@ import json
 import os
 import traceback
 
-from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from pydantic import BaseModel
@@ -17,21 +16,23 @@ AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
 
 class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
-    CONNECTION_STRING: str
-    SESSIONS_CONTAINER: str
-    MESSAGES_CONTAINER: str
-    FEEDBACKS_CONTAINER: str
-    CONCATENATE_CONTAINER: str
-    PROMPTS_CONTAINER: str
-    COSTS_CONTAINER: str
-    PROCESSING_CONTAINER: str
-    ABORT_CONTAINER: str
-    VECTORS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CONNECTION_STRING: str
+    AZURE_BLOB_STORAGE_SESSIONS_CONTAINER: str
+    AZURE_BLOB_STORAGE_MESSAGES_CONTAINER: str
+    AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER: str
+    AZURE_BLOB_STORAGE_PROMPTS_CONTAINER: str
+    AZURE_BLOB_STORAGE_COSTS_CONTAINER: str
+    AZURE_BLOB_STORAGE_PROCESSING_CONTAINER: str
+    AZURE_BLOB_STORAGE_ABORT_CONTAINER: str
+    AZURE_BLOB_STORAGE_VECTORS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
         self.logger =global_manager.logger
         super().__init__(global_manager)
+        self.initialization_failed = False
         self.plugin_manager : PluginManager = global_manager.plugin_manager
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
         config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
@@ -40,23 +41,24 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
     def initialize(self):
         self.logger.debug("Initializing Azure Blob Storage connection")
-        self.connection_string = self.azure_blob_storage_config.CONNECTION_STRING
-        self.sessions_container = self.azure_blob_storage_config.SESSIONS_CONTAINER
-        self.messages_container = self.azure_blob_storage_config.MESSAGES_CONTAINER
-        self.feedbacks_container = self.azure_blob_storage_config.FEEDBACKS_CONTAINER
-        self.concatenate_container = self.azure_blob_storage_config.CONCATENATE_CONTAINER
-        self.prompts_container = self.azure_blob_storage_config.PROMPTS_CONTAINER
-        self.costs_container = self.azure_blob_storage_config.COSTS_CONTAINER
-        self.processing_container = self.azure_blob_storage_config.PROCESSING_CONTAINER
-        self.abort_container = self.azure_blob_storage_config.ABORT_CONTAINER
-        self.vectors_container = self.azure_blob_storage_config.VECTORS_CONTAINER
+        self.connection_string = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
+        self.sessions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
+        self.messages_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_CONTAINER
+        self.feedbacks_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER
+        self.concatenate_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER
+        self.prompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_PROMPTS_CONTAINER
+        self.costs_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_COSTS_CONTAINER
+        self.processing_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_PROCESSING_CONTAINER
+        self.abort_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_ABORT_CONTAINER
+        self.vectors_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_VECTORS_CONTAINER
+        self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
             credential = DefaultAzureCredential()
-            self.blob_service_client = BlobServiceClient(account_url=self.azure_blob_storage_config.CONNECTION_STRING, credential=credential)
+            self.blob_service_client = BlobServiceClient(account_url=self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING, credential=credential)
             self.logger.debug("BlobServiceClient successfully created")
-        except AzureError as e:
+        except Exception as e:
             self.initialization_failed = True
             self.logger.exception(f"Failed to create BlobServiceClient: {str(e)}")
 
@@ -112,6 +114,11 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def vectors(self):
         # Implement the vectors property
         return self.vectors_container
+
+    @property
+    def custom_actions(self):
+        # Implement the custom_actions property
+        return self.custom_actions_container
 
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
@@ -324,16 +331,14 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
     async def list_container_files(self, container_name: str):
         try:
-            blob_list = self.blob_service_client.get_container_client(container_name).list_blobs()
             file_names = []
-            for blob in blob_list:
-                base_name = os.path.basename(blob.name)
-                file_name_without_extension = os.path.splitext(base_name)[0]
-                file_names.append(file_name_without_extension)
+            blob_client = self.blob_service_client.get_container_client(container_name)
+            async for blob in blob_client.list_blobs():
+                file_names.append(os.path.basename(blob.name))
             return file_names
-        except AzureError as e:
-            self.logger.error(f"An error occurred while listing blobs: {e}")
-            return []
+        except Exception as e:
+            self.logger.error(f"Error listing files in container {container_name}: {e}")
+            raise
 
     async def update_prompt_system_message(self, channel_id, thread_id, message):
         try:

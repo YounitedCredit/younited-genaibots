@@ -11,7 +11,7 @@ opentelemetry-sdk
 pillow~=10.3.0
 pytz~=2024.1
 PyYAML~=6.0.1
-pypdf~=4.2.0
+pypdf~=4.3.1
 pytest~=8.1.1
 pytest-asyncio
 python-dotenv~=1.0.1
@@ -31,9 +31,11 @@ azure.monitor.opentelemetry.exporter
 azure-storage-blob
 azure-monitor-opentelemetry
 
+
 ## User Interactions plugins
 # Slack plugin dependencies
 slack-sdk
+
 # Teams plugin dependencies
 botbuilder~=0.0.1
 botbuilder-core
@@ -46,8 +48,10 @@ tiktoken
 mistralai
 # Gemini pro via vertex ai
 vertexai
+# ai earch
+azure-search-documents
 
-## ACTIONS
+## ACTIONS interactions plugins
 # DEfault - vector search
 matplotlib
 plotly~=5.22.0
@@ -56,6 +60,7 @@ scikit-learn
 
 # Azure Devops
 azure-devops
+
 # Azure Actions plugin dependencies
 beautifulsoup4~=4.12.3
 azure.mgmt.resource

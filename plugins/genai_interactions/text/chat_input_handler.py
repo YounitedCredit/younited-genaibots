@@ -3,8 +3,10 @@ import asyncio
 import json
 import re
 import traceback
-
+from typing import List
+import datetime
 import yaml
+from datetime import datetime
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -12,11 +14,10 @@ from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
 from core.global_manager import GlobalManager
-from core.user_interactions.message_type import MessageType
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from utils.config_manager.config_model import BotConfig
 from utils.plugin_manager.plugin_manager import PluginManager
 
@@ -44,9 +45,12 @@ class ChatInputHandler():
                 return await self.handle_message_event(event_data)
             elif event_data.event_label == 'thread_message':
                 return await self.handle_thread_message_event(event_data)
+            else:
+                raise ValueError(f"Unknown event label: {event_data.event_label}")
         except Exception as e:
             self.logger.error(f"Error while handling event data: {e}")
             raise
+
 
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
@@ -98,10 +102,173 @@ class ChatInputHandler():
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
 
-            # Add new message to the JSON
+            # If no messages are found in storage, fetch conversation from Slack
+            if not messages:
+                self.logger.info(f"No conversation history found for thread {event_data.thread_id}, fetching from Slack.")
+                fetched_messages = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+
+                # Add system instructions for core and main prompt
+                await self.global_manager.prompt_manager.initialize()
+                init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+
+                # Insert the system instructions at the beginning of the conversation
+                messages.append({"role": "system", "content": init_prompt})
+
+                # Process and convert each fetched message, including handling images and files
+                for fetched_event_data in fetched_messages:
+                    user_content_text = [{
+                        "type": "text",
+                        "text": f"Timestamp: {str(fetched_event_data.converted_timestamp)}, "
+                                f"[Slack username]: {str(fetched_event_data.user_name)}, "
+                                f"[Slack user id]: {str(fetched_event_data.user_id)}, "
+                                f"[Slack user email]: {fetched_event_data.user_email}, "
+                                f"[Directly mentioning you]: {str(fetched_event_data.is_mention)}, "
+                                f"[message]: {str(fetched_event_data.text)}"
+                    }]
+
+                    # Handle images if present
+                    user_content_images = []
+                    if fetched_event_data.images:
+                        for base64_image in fetched_event_data.images:
+                            image_message = {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}",
+                                    "detail": "high"
+                                }
+                            }
+                            user_content_images.append(image_message)
+
+                    # Handle file content if present
+                    if fetched_event_data.files_content:
+                        for file_content in fetched_event_data.files_content:
+                            file_message = {"type": "text", "text": file_content}
+                            user_content_text.append(file_message)
+
+                    user_content = user_content_text + user_content_images
+                    messages.append({"role": "user", "content": user_content})
+            else:
+                # Fetch conversation history if RECORD_NONPROCESSED_MESSAGES is False
+                relevant_events = []
+                current_event_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
+
+                # Ensure event_data.converted_timestamp is a datetime object
+                if isinstance(event_data.converted_timestamp, str):
+                    try:
+                        event_data.converted_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
+                    except ValueError as e:
+                        self.logger.error(f"Error parsing event_data timestamp: {event_data.converted_timestamp} - {e}")
+                        raise
+                    
+                if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
+                    self.logger.info("Fetching conversation history as RECORD_NONPROCESSED_MESSAGES is False.")
+                    conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+
+                    # Retrieve the last message timestamp from the current session
+                    last_message_timestamp = None
+                    for message in reversed(messages):
+                        if message["role"] == "user":
+                            last_message_content = message["content"]
+                            if isinstance(last_message_content, str):
+                                last_message_text = last_message_content
+                            elif isinstance(last_message_content, list) and last_message_content:
+                                last_message_text = last_message_content[0].get("text", "")
+                            else:
+                                last_message_text = ""
+
+                            last_message_timestamp_str = last_message_text.split(",")[0].split(": ")[1]
+                            last_message_timestamp = datetime.strptime(last_message_timestamp_str, "%Y-%m-%d %H:%M:%S")
+                            break
+
+                    # Compute relevant events within the specified period
+                    for past_event in conversation_history:
+                        past_event_timestamp = datetime.strptime(past_event.converted_timestamp, "%Y-%m-%d %H:%M:%S")
+                        if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+                            self.logger.info(f"Processing past event: {past_event.to_dict()}")
+                            relevant_events.append(past_event)
+
+                    # Process and convert each relevant event
+                    for relevant_event in relevant_events:
+                        user_content_text = [{
+                            "type": "text",
+                            "text": f"Timestamp: {str(relevant_event.converted_timestamp)}, "
+                                    f"[Slack username]: {str(relevant_event.user_name)}, "
+                                    f"[Slack user id]: {str(relevant_event.user_id)}, "
+                                    f"[Slack user email]: {relevant_event.user_email}, "
+                                    f"[Directly mentioning you]: {str(relevant_event.is_mention)}, "
+                                    f"[message]: {str(relevant_event.text)}"
+                        }]
+
+                        # Handle images if present
+                        user_content_images = []
+                        if relevant_event.images:
+                            for base64_image in relevant_event.images:
+                                image_message = {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                        "detail": "high"
+                                    }
+                                }
+                                user_content_images.append(image_message)
+
+                        # Handle file content if present
+                        if relevant_event.files_content:
+                            for file_content in relevant_event.files_content:
+                                file_message = {"type": "text", "text": file_content}
+                                user_content_text.append(file_message)
+
+                        user_content = user_content_text + user_content_images
+                        messages.append({"role": "user", "content": user_content})
+
+                # Add the new incoming message to the conversation
+                constructed_message = {
+                    "role": "user",
+                    "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
+                            f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
+                            f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+                }
+
+                user_content_text = [{"type": "text", "text": constructed_message["content"]}]
+                user_content_images = []
+
+                if event_data.images:
+                    for base64_image in event_data.images:
+                        image_message = {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
+                        user_content_images.append(image_message)
+
+                if event_data.files_content:
+                    for file_content in event_data.files_content:
+                        file_message = {"type": "text", "text": file_content}
+                        user_content_text.append(file_message)
+
+                user_content = user_content_text + user_content_images
+                messages.append({"role": "user", "content": user_content})
+
+                # Handle unmentioned or mentioned thread messages based on the configuration
+                if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+                    # If bot is mentioned, retrieve previously stored unmentioned messages and extend
+                    messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
+                elif event_data.is_mention == False and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+                    # If bot is not mentioned, store the message for later processing
+                    await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
+                    return None
+
+                # Generate response based on updated messages
+                return await self.generate_response(event_data, messages)
+        
+            # Add the new incoming message to the conversation
             constructed_message = {
                 "role": "user",
-                "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, [Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+                "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
+                        f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
+                        f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
             }
 
             user_content_text = [{"type": "text", "text": constructed_message["content"]}]
@@ -126,30 +293,33 @@ class ChatInputHandler():
             user_content = user_content_text + user_content_images
             messages.append({"role": "user", "content": user_content})
 
+            # Handle unmentioned or mentioned thread messages based on the configuration
             if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # If bot is mentioned or require_mention_thread_message is true, retrieve and extend with previously stored messages
+                # If bot is mentioned, retrieve previously stored unmentioned messages and extend
                 messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
             elif event_data.is_mention == False and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # If bot is not mentioned, store the message for later
+                # If bot is not mentioned, store the message for later processing
                 await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
                 return None
 
-            if not event_data.images and not event_data.files_content:
-                messages.append(constructed_message)
-
+            # Generate response based on updated messages
             return await self.generate_response(event_data, messages)
         except Exception as e:
             self.logger.error(f"Error while handling thread message event: {e}")
             raise
-
+    
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
+        completion = None  # Initialize to None
         try:
             original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp
             if event_data.is_mention or event_data.event_label == "message":
                 self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
-                await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(event_data, channel_id=event_data.channel_id, timestamp= event_data.timestamp)
-                completion = await self.call_completion(event_data.channel_id,original_msg_ts, messages, event_data)
-                await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(event=event_data, channel_id=event_data.channel_id, timestamp= event_data.timestamp)
+                await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
+                    event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+                completion = await self.call_completion(
+                    event_data.channel_id, original_msg_ts, messages, event_data)
+                await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
+                    event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
             return completion
         except Exception as e:
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
@@ -186,24 +356,36 @@ class ChatInputHandler():
 
         await self.calculate_and_update_costs(genai_cost_base, costs, blob_name, event_data)
 
+        # Step 1: Remove markers
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
-        # Log Genai response to appropriate channel
+        # Step 2: Log the raw GenAI response for debugging purposes
         await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response YAML", is_internal=True)
 
         try:
+            # Step 3: Handle JSON conversion
             if self.conversion_format == "json":
-                gpt_response = gpt_response.replace("\\\\n", "\\n")
+                # Strip leading/trailing newlines
+                gpt_response = gpt_response.strip("\n")
+
+                # Try to parse the response as JSON
                 response_json = json.loads(gpt_response)
+
+            # Step 4b: Handle YAML conversion if needed
             elif self.conversion_format == "yaml":
                 sanitized_yaml = self.adjust_yaml_structure(gpt_response)
                 response_json = await self.yaml_to_json(event_data=event_data, yaml_string=sanitized_yaml)
+
             else:
+                # Log warning and try JSON as a fallback
                 self.logger.warning(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
                 response_json = json.loads(gpt_response)
 
-        except Exception as e:
+        except json.JSONDecodeError as e:
+            # Step 5: Handle and report JSON decoding errors
             await self.user_interaction_dispatcher.send_message(event=event_data, message=f"An error occurred while converting the completion: {e}", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Oops something went wrong, try again or contact the bot owner", message_type=MessageType.COMMENT)
+            self.logger.error(f"Failed to parse JSON: {e}")
             return None
 
         # Save the entire conversation to the session blob
@@ -230,6 +412,7 @@ class ChatInputHandler():
         adjusted_lines = []
         inside_parameters_block = False
         multiline_literal_indentation = 0
+        current_indentation_level = 0
 
         for line in lines:
             # If we're inside a multiline block, we check the indentation level
@@ -239,37 +422,48 @@ class ChatInputHandler():
 
             stripped_line = line.strip()
 
-            # Escape asterisks in the YAML string
-            stripped_line = stripped_line.replace('*', '\\*')
+            # Escape asterisks in the YAML string (only outside multiline blocks)
+            if multiline_literal_indentation == 0:
+                stripped_line = stripped_line.replace('*', '\\*')
 
             # No leading spaces for 'response:'
             if stripped_line.startswith('response:'):
                 adjusted_lines.append(stripped_line)
                 inside_parameters_block = False
+                current_indentation_level = 0
 
             # 2 spaces before '- Action:'
             elif stripped_line.startswith('- Action:'):
                 adjusted_lines.append('  ' + stripped_line)
                 inside_parameters_block = False
+                current_indentation_level = 2
 
             # 6 spaces before 'ActionName:' or 'Parameters:'
             elif stripped_line.startswith('ActionName:') or stripped_line.startswith('Parameters:'):
                 adjusted_lines.append('      ' + stripped_line)
-                inside_parameters_block = True
+                inside_parameters_block = stripped_line.startswith('Parameters:')
+                current_indentation_level = 6
 
             # Starts a multiline value
             elif inside_parameters_block and stripped_line.endswith(': |'):
-                adjusted_lines.append('        ' + stripped_line)
-                multiline_literal_indentation = 8
+                adjusted_lines.append(' ' * (current_indentation_level + 2) + stripped_line)
+                multiline_literal_indentation = current_indentation_level + 4  # Increase indentation for multiline content
 
             # Handle the lines within a multiline block
             elif multiline_literal_indentation > 0:
-                # The line is part of a multiline block, keep its current indentation
                 adjusted_lines.append(line)
 
             # Regular parameter value lines under 'Parameters:'
-            elif inside_parameters_block and re.match(r"^\w+:", stripped_line):
-                adjusted_lines.append('        ' + stripped_line)
+            elif inside_parameters_block and ':' in stripped_line:
+                adjusted_lines.append(' ' * (current_indentation_level + 2) + stripped_line)
+                if stripped_line.endswith(':'):
+                    # Increase indentation level for nested dictionaries
+                    current_indentation_level += 2
+
+            # Decrease indentation when leaving a nested block
+            elif inside_parameters_block and not stripped_line:
+                current_indentation_level = max(current_indentation_level - 2, 6)
+                adjusted_lines.append(line)
 
             # Keep the original indentation for everything else
             else:
@@ -278,7 +472,6 @@ class ChatInputHandler():
         # Reconstruct the adjusted YAML content
         adjusted_yaml_content = '\n'.join(adjusted_lines)
         return adjusted_yaml_content
-
 
     async def yaml_to_json(self, event_data, yaml_string):
         try:
@@ -289,11 +482,10 @@ class ChatInputHandler():
             for action in python_dict['response']:
                 if 'value' in action['Action']['Parameters']:
                     value_str = action['Action']['Parameters']['value']
-                    if value_str.startswith('```yaml') and value_str.endswith('```'):
+                    if value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
                         # Remove the markdown code block syntax
-                        yaml_str = value_str[9:-3].strip()  # Adjusted to remove 'yaml' and the following space
-                        # Remove leading and trailing newlines
-                        yaml_str = yaml_str.strip('\n')
+                        yaml_str = value_str.strip()[7:-3].strip()
+                        # Parse the YAML content
                         action['Action']['Parameters']['value'] = yaml.safe_load(yaml_str)
 
             return python_dict
@@ -306,9 +498,14 @@ class ChatInputHandler():
                 message_type=MessageType.COMMENT,
                 is_internal=True
             )
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="😓 Sorry something went wrong with this thread formatting. Create a new thread and try again! (consult logs for deeper infos)", message_type=MessageType.TEXT, is_internal=False)
+            await self.user_interaction_dispatcher.send_message(
+                event=event_data,
+                message="😓 Sorry something went wrong with this thread formatting. Create a new thread and try again! (consult logs for deeper infos)",
+                message_type=MessageType.TEXT,
+                is_internal=False
+            )
             return None
-
+        
     async def calculate_and_update_costs(self, cost_params: GenAICostBase, costs_blob_container_name, blob_name, event:IncomingNotificationDataBase):
         # Initialize total_cost, input_cost, and output_cost to 0
         total_cost = input_cost = output_cost = 0
@@ -353,3 +550,18 @@ class ChatInputHandler():
 
         return total_cost, input_cost, output_cost
 
+    async def trigger_genai_with_thread(self, event_data: IncomingNotificationDataBase, messages: List[dict]):
+        """
+        Trigger the Generative AI to generate a response for the entire conversation thread.
+        """
+        try:
+            self.logger.info("Triggering GenAI with the reconstructed conversation thread...")
+
+            # Call GenAI using the full thread's messages
+            completion = await self.call_completion(event_data.channel_id, event_data.thread_id, messages, event_data)
+
+            return completion
+
+        except Exception as e:
+            self.logger.error(f"Error while triggering GenAI for thread: {e}")
+            raise

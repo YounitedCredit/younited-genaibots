@@ -1,8 +1,14 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from botbuilder.core import TurnContext, CardFactory
-from botbuilder.schema import Activity, ChannelAccount, ConversationAccount, CardAction
+from botbuilder.core import TurnContext
+from botbuilder.schema import (
+    Activity,
+    CardAction,
+    ChannelAccount,
+    ConversationAccount,
+    HeroCard,
+)
 from botbuilder.schema._connector_client_enums import ActionTypes
 
 from plugins.user_interactions.instant_messaging.teams.bots import (
@@ -12,7 +18,6 @@ from plugins.user_interactions.instant_messaging.teams.bots import (
     TeamsConversationBot,
 )
 
-from botbuilder.schema import HeroCard
 
 @pytest.fixture
 def turn_context():
@@ -130,11 +135,11 @@ async def test_mention_adaptive_card_activity(bot, turn_context):
          patch('json.load') as mock_json_load, \
          patch('builtins.open', create=True) as mock_open, \
          patch('os.path.join') as mock_path_join:
-        
+
         mock_member = TeamsChannelAccount(name="Test User", user_principal_name="test@example.com")
         mock_member.additional_properties = {"aadObjectId": "test_aad_id"}
         mock_get_member.return_value = mock_member
-        
+
         mock_json_load.return_value = {
             "body": [{"text": "Hello ${userName}"}],
             "msteams": {
@@ -148,9 +153,9 @@ async def test_mention_adaptive_card_activity(bot, turn_context):
             }
         }
         mock_path_join.return_value = "fake_path"
-        
+
         await bot._mention_adaptive_card_activity(turn_context)
-        
+
         turn_context.send_activity.assert_called_once()
 
 @pytest.mark.asyncio
@@ -170,7 +175,7 @@ async def test_send_welcome_card(bot, turn_context):
     assert hero_card.title == "Welcome Card"
     assert hero_card.text == "Click the buttons."
     assert len(hero_card.buttons) == len(buttons)  # Le bouton "Update Card" n'est pas ajouté
-    
+
     # Vérifiez que les boutons originaux sont présents
     for original_button, card_button in zip(buttons, hero_card.buttons):
         assert original_button.title == card_button.title
@@ -181,10 +186,10 @@ async def test_send_welcome_card(bot, turn_context):
 async def test_send_update_card(bot, turn_context):
     buttons = [CardAction(type=ActionTypes.message_back, title="Test", text="test")]
     turn_context.activity.value = {"count": 0}
-    
+
     with patch('botbuilder.core.CardFactory.hero_card') as mock_card_factory:
         await bot._send_update_card(turn_context, buttons)
-        
+
         mock_card_factory.assert_called_once()
         turn_context.update_activity.assert_called_once()
 
@@ -196,7 +201,7 @@ async def test_send_update_card(bot, turn_context):
     assert hero_card.title == "Updated card"
     assert hero_card.text == "Update count 1"
     assert len(hero_card.buttons) == len(buttons)  # Le bouton "Update Card" n'est pas ajouté
-    
+
     # Vérifiez que les boutons originaux sont présents
     for original_button, card_button in zip(buttons, hero_card.buttons):
         assert original_button.title == card_button.title

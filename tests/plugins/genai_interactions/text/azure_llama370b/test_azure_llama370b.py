@@ -7,12 +7,11 @@ from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
+from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.azure_llama370b.azure_llama370b import (
     AzureLlama370bPlugin,
 )
 
-from core.user_interactions.message_type import MessageType
 
 @pytest.fixture
 def mock_config():
@@ -183,12 +182,12 @@ async def test_trigger_genai_long_text(azure_llama370b_plugin):
         # Vérifications
         mock_send_message.assert_called_once_with(event=event, message="Processing incoming data, please wait...", message_type=MessageType.COMMENT)
         mock_upload_file.assert_called_once_with(
-            event=event, 
-            file_content=f"<@BOT123> {long_text}", 
-            filename="Bot reply.txt", 
-            title=":zap::robot_face: Automated User Input", 
+            event=event,
+            file_content=f"<@BOT123> {long_text}",
+            filename="Bot reply.txt",
+            title=":zap::robot_face: Automated User Input",
             is_internal=True
         )
-        
+
         mock_process.assert_called_once()
         mock_format_trigger_genai_message.assert_called_once_with(event=event, message=long_text)

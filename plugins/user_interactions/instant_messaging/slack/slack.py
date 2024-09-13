@@ -5,7 +5,7 @@ import hmac
 import json
 import time
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 from urllib.parse import parse_qs
 
 import requests
@@ -21,7 +21,6 @@ from core.user_interactions.message_type import MessageType
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
-from utils.logging.logger_loader import logging
 from utils.plugin_manager.plugin_manager import PluginManager
 
 from .utils.slack_input_handler import SlackInputHandler
@@ -31,9 +30,9 @@ from .utils.slack_reactions import SlackReactions
 
 class SlackConfig(BaseModel):
     PLUGIN_NAME: str
-    ROUTE_PATH: str
-    ROUTE_METHODS: List[str]
-    PLUGIN_DIRECTORY: str
+    SLACK_ROUTE_PATH: str
+    SLACK_ROUTE_METHODS: List[str]
+    SLACK_PLUGIN_DIRECTORY: str
     SLACK_MESSAGE_TTL: int
     SLACK_SIGNING_SECRET: str
     SLACK_BOT_TOKEN: str
@@ -45,10 +44,11 @@ class SlackConfig(BaseModel):
     SLACK_AUTHORIZED_WEBHOOKS: str
     SLACK_FEEDBACK_CHANNEL: str
     SLACK_FEEDBACK_BOT_ID: str
-    MAX_MESSAGE_LENGTH: int
-    INTERNAL_CHANNEL: str
-    WORKSPACE_NAME: str
-    BEHAVIOR_PLUGIN_NAME: str
+    SLACK_MAX_MESSAGE_LENGTH: int
+    SLACK_INTERNAL_CHANNEL: str
+    SLACK_WORKSPACE_NAME: str
+    SLACK_BEHAVIOR_PLUGIN_NAME: str
+    SLACK_AUTHORIZE_DIRECT_MESSAGE: bool
 
 class SlackPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -88,22 +88,21 @@ class SlackPlugin(UserInteractionsPluginBase):
         self.slack_output_handler = SlackOutputHandler(self.global_manager,self.slack_config)
 
         self.SLACK_MESSAGE_TTL = self.slack_config.SLACK_MESSAGE_TTL
-
         self.SLACK_AUTHORIZED_CHANNELS = self.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
         self.SLACK_AUTHORIZED_APPS = self.slack_config.SLACK_AUTHORIZED_APPS.split(",")
         self.SLACK_AUTHORIZED_WEBHOOKS = self.slack_config.SLACK_AUTHORIZED_WEBHOOKS.split(",")
         self.SLACK_FEEDBACK_CHANNEL = self.slack_config.SLACK_FEEDBACK_CHANNEL
         self.slack_bot_token = self.slack_config.SLACK_BOT_TOKEN
         self.slack_signing_secret = self.slack_config.SLACK_SIGNING_SECRET
-        self._route_path = self.slack_config.ROUTE_PATH
-        self._route_methods = self.slack_config.ROUTE_METHODS
+        self._route_path = self.slack_config.SLACK_ROUTE_PATH
+        self._route_methods = self.slack_config.SLACK_ROUTE_METHODS
         self.bot_user_id = self.slack_config.SLACK_BOT_USER_ID
-        self.MAX_MESSAGE_LENGTH = self.slack_config.MAX_MESSAGE_LENGTH
-        self.INTERNAL_CHANNEL = self.slack_config.INTERNAL_CHANNEL
-        self.WORKSPACE_NAME = self.slack_config.WORKSPACE_NAME
+        self.MAX_MESSAGE_LENGTH = self.slack_config.SLACK_MAX_MESSAGE_LENGTH
+        self.INTERNAL_CHANNEL = self.slack_config.SLACK_INTERNAL_CHANNEL
+        self.WORKSPACE_NAME = self.slack_config.SLACK_WORKSPACE_NAME
         self.plugin_name = self.slack_config.PLUGIN_NAME
         self.FEEDBACK_BOT_USER_ID = self.slack_config.SLACK_FEEDBACK_BOT_ID
-
+        self.SLACK_AUTHORIZE_DIRECT_MESSAGE = self.slack_config.SLACK_AUTHORIZE_DIRECT_MESSAGE
         # Dispatchers
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
@@ -221,7 +220,7 @@ class SlackPlugin(UserInteractionsPluginBase):
         await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
             event_data=event_data,
             event_origin=self.plugin_name,
-            plugin_name=self.slack_config.BEHAVIOR_PLUGIN_NAME
+            plugin_name=self.slack_config.SLACK_BEHAVIOR_PLUGIN_NAME
         )
 
     async def validate_request(self, event_data=None, headers=None, raw_body_str=None):
@@ -286,20 +285,25 @@ class SlackPlugin(UserInteractionsPluginBase):
         if event.get('user') == self.bot_user_id:
             self.logger.info("Discarding request: message from the bot itself")
             return False
-        
+
         if ((api_app_id is not None and user_id is not None and app_id is not None) or (api_app_id is not None and app_id is None)):
             if api_app_id not in self.SLACK_AUTHORIZED_WEBHOOKS and api_app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized webhook: {api_app_id}")
                 return False
-        
+
         if app_id is not None and api_app_id is None :
             if app_id not in self.SLACK_AUTHORIZED_APPS and app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized app: {app_id}")
                 return False
 
-        if channel_id not in self.SLACK_AUTHORIZED_CHANNELS and channel_id != self.SLACK_FEEDBACK_CHANNEL:
-            self.logger.info(f"Discarding request: ignoring event from unauthorized channel: {channel_id}")
-            return False
+        if channel_id.startswith('D'):
+            if not self.SLACK_AUTHORIZE_DIRECT_MESSAGE:
+                self.logger.info(f"Discarding request: ignoring direct message from unauthorized channel: {channel_id}")
+                return False
+        else:
+            if channel_id not in self.SLACK_AUTHORIZED_CHANNELS and channel_id != self.SLACK_FEEDBACK_CHANNEL:
+                self.logger.info(f"Discarding request: ignoring event from unauthorized channel: {channel_id}")
+                return False
 
         if channel_id == self.SLACK_FEEDBACK_CHANNEL and user_id != self.FEEDBACK_BOT_USER_ID:
             self.logger.info(f"Discarding request: ignoring event from unauthorized user in feedback channel: {user_id}")
@@ -350,7 +354,7 @@ class SlackPlugin(UserInteractionsPluginBase):
     async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
         if not isinstance(message_type, MessageType):
             raise ValueError(f"Invalid message type: {message_type}. Expected MessageType enum.")
-        
+
         headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
         event_copy = copy.deepcopy(event)
         channel_id = event_copy.channel_id
@@ -439,7 +443,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             payload['blocks'] = json.dumps(blocks)
         else:
             raise ValueError(f"Invalid message type. Use {', '.join([e.value for e in MessageType])}.")
-        
+
         return payload
 
     def handle_response(self, response, message_block):
@@ -528,3 +532,34 @@ class SlackPlugin(UserInteractionsPluginBase):
         bot_id = self.bot_user_id
         formatted_message = f"<@{bot_id}> {message}"
         return formatted_message
+
+    async def fetch_conversation_history(
+        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+    ) -> List[IncomingNotificationDataBase]:
+        """
+        Fetch the conversation history via SlackOutputHandler.
+        If channel_id and thread_id are provided, they will be used instead of the event's channel and thread IDs.
+        """
+        try:
+            # Use provided channel_id and thread_id, or fallback to the event values
+            final_channel_id = channel_id if channel_id else event.channel_id
+            final_thread_id = thread_id if thread_id else event.thread_id
+
+            # Use SlackOutputHandler to fetch conversation history
+            messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id, thread_id=final_thread_id)
+
+            # Convert each message into IncomingNotificationDataBase
+            event_data_list = []
+            for message in messages:
+                # Convert each Slack message into an IncomingNotificationDataBase object
+                event_data = await self.request_to_notification_data({"event": message})
+                if event_data:
+                    event_data_list.append(event_data)
+
+            # Log the number of events found
+            self.logger.info(f"Fetched {len(event_data_list)} events from the conversation history.")
+
+            return event_data_list
+        except Exception as e:
+            self.logger.error(f"Error fetching conversation history: {e}")
+            return []

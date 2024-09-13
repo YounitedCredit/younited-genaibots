@@ -41,7 +41,7 @@ class LongText(ActionBase):
 
             return True
         except Exception as e:
-            
+
             self.logger.error(f"An error occurred: {str(e)}")
             return False
 

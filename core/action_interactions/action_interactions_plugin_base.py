@@ -55,14 +55,14 @@ class ActionInteractionsPluginBase(PluginBase, ABC):
         return issubclass(cls, ActionBase) and cls is not ActionBase
 
     def _add_action_class(self, cls, loaded_actions):
-        
+
         try:
             if __package__ not in self.global_manager.available_actions:
-                self.global_manager.available_actions[__package__] = {}            
-            
+                self.global_manager.available_actions[__package__] = {}
+
             self.global_manager.available_actions[__package__][cls.__name__] = cls(self.global_manager)
             loaded_actions.append(cls.__name__)
-            
+
         except Exception as e:
             self.logger.error(f"Failed to instantiate action class {cls.__name__}: {e}")
 
