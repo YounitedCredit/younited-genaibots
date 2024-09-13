@@ -107,9 +107,11 @@ def mock_config_manager(mock_utils, mock_plugins):
             FEEDBACK_GENERAL_BEHAVIOR="feedback_general_behavior",
             REQUIRE_MENTION_NEW_MESSAGE=True,
             REQUIRE_MENTION_THREAD_MESSAGE=True,
+            GET_ALL_THREAD_FROM_MESSAGE_LINKS=True,
             LOG_DEBUG_LEVEL="DEBUG",
             SHOW_COST_IN_THREAD=True,
             ACKNOWLEDGE_NONPROCESSED_MESSAGE=True,
+            GET_ALL_THREAD_FROM_MESSAGE_LINKS=False,
             GET_URL_CONTENT=True,
             ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="action_interactions_default_plugin_name",
             INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="internal_data_processing_default_plugin_name",
@@ -121,7 +123,7 @@ def mock_config_manager(mock_utils, mock_plugins):
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
-            LOAD_ACTIONS_FROM_BACKEND = False
+            LOAD_ACTIONS_FROM_BACKEND = False            
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,

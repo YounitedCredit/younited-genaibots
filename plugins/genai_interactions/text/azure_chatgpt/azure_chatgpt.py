@@ -394,7 +394,38 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 seed=69
             )
 
+            # Extract the full response between the markers
             response = completion.choices[0].message.content
+            start_marker = "[BEGINIMDETECT]"
+            end_marker = "[ENDIMDETECT]"
+
+            # Ensure that the markers exist in the response
+            if start_marker in response and end_marker in response:
+                # Extract the JSON content between the markers
+                json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
+                
+                # Load the JSON content
+                try:
+                    response_dict = json.loads(json_content)
+
+                    # Locate the "UserInteraction" action and replace escape sequences
+                    for action in response_dict.get("response", []):
+                        if action["Action"]["ActionName"] == "UserInteraction":
+                            value = action["Action"]["Parameters"]["value"]
+                            
+                            # Replace the escape sequences (\\n) with real newlines (\n)
+                            formatted_value = value.replace("\\n", "\n")
+                            action["Action"]["Parameters"]["value"] = formatted_value
+
+                    # Rebuild the formatted JSON with indentation
+                    formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
+                    response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
+                
+                except json.JSONDecodeError as e:
+                    # Log error if JSON parsing fails
+                    self.logger.error(f"Error decoding JSON: {e}")
+            else:
+                self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
             # Extract the GPT response and token usage details
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = completion.usage.total_tokens

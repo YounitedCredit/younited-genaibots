@@ -383,56 +383,129 @@ class SlackInputHandler:
 
     async def _process_single_slack_link(self, link, original_text, main_timestamp, user_id, depth=0):
         try:
-            if depth > 5:  # depth limit to prevent infinite recursion
+            if depth > 5:
                 return f"[Maximum depth reached for Slack link: {link}]"
 
             self.logger.debug(f"Processing Slack link (depth {depth}): {link}")
-            channel_id, message_ts, thread_ts, _ = await self.extract_info_from_url(link)
-            self.logger.debug(f"Extracted info: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}")
             
-            result = await self.get_message_content(channel_id, message_ts, thread_ts, original_link=link)
-            
+            # Extract channel, message, and thread info from the URL
+            channel_id, message_ts, thread_ts, is_thread = await self.extract_info_from_url(link)
+            self.logger.debug(f"Extracted info: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, is_thread={is_thread}")
+
+            # Case 1: If it's a thread link (is_thread == False and no thread_ts), always fetch the entire thread
+            if not is_thread and not thread_ts:
+                self.logger.info(f"Fetching entire thread for message_ts: {message_ts} (Thread link)")
+                result = await self.get_message_content(channel_id, message_ts, thread_ts=message_ts, original_link=link)
+
+            # Case 2: If it's a message inside a thread (is_thread == True), handle based on GET_ALL_THREAD_FROM_MESSAGE_LINKS
+            elif is_thread:
+                if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS:
+                    self.logger.info(f"GET_ALL_THREAD_FROM_MESSAGE_LINKS is True, fetching entire thread for message: {message_ts} in thread: {thread_ts}")
+                    # Fetch the full thread and return all the messages in the thread
+                    result = await self.get_message_content(channel_id, message_ts, thread_ts=None, original_link=link)
+                else:
+                    # Fetch only the specific message
+                    self.logger.info(f"Fetching single message for message_ts: {thread_ts}")
+                    result = await self.get_message_content(channel_id, thread_ts, thread_ts=None, original_link=link)
+
+            # Handle case where no messages are found
             if not result['messages']:
                 return f"No messages found for the given Slack link: {link}"
-            
+
+            # Extract metadata and messages
             metadata = result['metadata']
             content_type = result['content_type']
             messages = result['messages']
+
+            # Tag the exact message that was linked
+            tagged_message = None
+            if is_thread:
+                # When it's a message inside a thread, compare against `thread_ts`
+                for message in messages:
+                    if message['ts'] == thread_ts:
+                        tagged_message = message
+                        break
+            else:
+                # When it's a link to a full thread, compare against `message_ts`
+                for message in messages:
+                    if message['ts'] == message_ts:
+                        tagged_message = message
+                        break
             
-            # Process recursively each slack link in the message
+            if not tagged_message:
+                self.logger.error(f"No matching message found for the timestamp: {thread_ts if is_thread else message_ts}")
+                return f"No exact message found for the given Slack link: {link}"
+
+            
+            # Process the message text and handle nested links recursively
             processed_messages = []
             for message in messages:
                 processed_text = await self._process_slack_links_in_text(message['text'], depth + 1)
                 message['text'] = processed_text
                 processed_messages.append(message)
-            
+
+            # Format the content for display
             formatted_content = await self._format_message_content(processed_messages)
-            
+
+            # Fetch user info for the author of the exact message
+            tagged_message_user_id = tagged_message.get('user', None)
+            if tagged_message_user_id:
+                user_name, user_email, _ = await self.get_user_info(tagged_message_user_id)
+            else:
+                user_name, user_email = 'Unknown', 'Unknown'
+
+            # Create a metadata string for the source info, including the exact message information and config setting note
             metadata_str = (f"Source: {metadata['source_link']}\n"
                             f"Channel ID: {metadata['channel_id']}\n"
                             f"Thread ID: {metadata['thread_id']}\n"
-                            f"Content Type: {content_type}")
-            
+                            f"Content Type: {content_type}\n")
+
+            if tagged_message:
+                # Include the content of the exact message that was referenced in the link, along with user info
+                tagged_message_content = tagged_message.get('text', 'No content found')
+                metadata_str += (f"Note: The exact message referenced in the link is tagged below.\n"
+                                f"Message content: \"{tagged_message_content}\"\n"
+                                f"Author: {user_name} (Email: {user_email})\n")
+
+            # If the entire thread was retrieved due to the config, add an explanation
+            if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS and is_thread:
+                metadata_str += "Note: Due to the configuration settings, the entire thread was retrieved for analysis.\n"
+
+            # Combine the metadata and formatted message content
             full_message_text = (f"\n[Automated Response] Slack link content (depth {depth}):\n"
                                 f"{metadata_str}\n\n"
                                 f"{formatted_content}")
-            
+
             return full_message_text
 
+        except ValueError as ve:
+            self.logger.error(f"Invalid Slack URL: {link}. Error: {str(ve)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to process Slack link: {e}", exc_info=True)
-            return f"Failed to retrieve message from Url: {str(e)}"
-        
-    async def _process_slack_links_in_text(self, text, depth):
-        matches = re.findall(r'<(https:\/\/[a-zA-Z0-9\.]+\.slack\.com\/archives\/.*?)>', text)
+            self.logger.error(f"Failed to process Slack link: {link}. Error: {str(e)}", exc_info=True)
+            raise
 
-        for full_url, display_url in matches:
+            
+    async def _process_slack_links_in_text(self, text, depth):
+        #
+        matches = re.findall(r'<(https:\/\/[a-zA-Z0-9\.]+\.slack\.com\/archives\/[^|>]+)(?:\|([^>]+))?>', text)
+
+        for match in matches:
+            full_url = match[0]
+            display_url = match[1] if len(match) > 1 else full_url
+            
             try:
                 linked_content = await self._process_single_slack_link(full_url, "", "", "", depth=depth)
+                # Remplacer le lien Slack original par le contenu traité
                 text = text.replace(f'<{full_url}|{display_url}>', f"[Linked content: {linked_content}]")
+                text = text.replace(f'<{full_url}>', f"[Linked content: {linked_content}]")  # Pour les cas sans texte d'affichage
             except Exception as e:
-                self.logger.error(f"Failed to process nested Slack link in text: {e}")
-        
+                self.logger.error(f"Failed to process nested Slack link: {full_url}. Error: {e}", exc_info=True)
+                # Remplacer le lien par un message d'erreur
+                error_message = f"[Failed to retrieve content for Slack link: {full_url}]"
+                text = text.replace(f'<{full_url}|{display_url}>', error_message)
+                text = text.replace(f'<{full_url}>', error_message)
+
         return text
 
     async def _process_urls(self, text):
@@ -550,25 +623,30 @@ class SlackInputHandler:
         try:
             self.logger.debug(f"get_message_content called with: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, original_link={original_link}")
 
+            # Function to check if two timestamps match within a tolerance
             def ts_match(ts1, ts2, tolerance=0.001):
                 return abs(float(ts1) - float(ts2)) < tolerance
 
+            # If no thread_ts is provided, assume the message_ts is for the thread
             if thread_ts is None:
                 thread_ts = message_ts
-            
+
             self.logger.debug(f"Using thread_ts: {thread_ts}")
 
+            # Fetch all messages in the thread
             data = await self._fetch_thread_messages(channel_id, thread_ts)
             messages = data.get('messages', [])
             self.logger.debug(f"Fetched {len(messages)} messages from thread")
 
+            # Prepare metadata for the response
             metadata = {
                 "source_link": original_link,
                 "channel_id": channel_id,
                 "thread_id": thread_ts,
-                "is_full_thread": ts_match(message_ts, thread_ts)
+                "is_full_thread": True  # Assume it's the full thread unless proven otherwise
             }
 
+            # Case 1: If message_ts matches thread_ts, this is a request for the full thread
             if ts_match(message_ts, thread_ts):
                 self.logger.debug(f"message_ts matches thread_ts, returning all thread messages")
                 return {
@@ -576,23 +654,27 @@ class SlackInputHandler:
                     "content_type": "full_thread",
                     "messages": messages
                 }
-            else:
-                matching_messages = [m for m in messages if ts_match(m['ts'], message_ts)]
-                
-                if matching_messages:
-                    self.logger.debug(f"Found {len(matching_messages)} matching messages")
-                    return {
-                        "metadata": metadata,
-                        "content_type": "single_message",
-                        "messages": matching_messages
-                    }
-                else:
-                    self.logger.debug("No exact match found. Returning all thread messages")
-                    return {
-                        "metadata": metadata,
-                        "content_type": "full_thread",
-                        "messages": messages
-                    }
+
+            # Case 2: If message_ts does not match thread_ts, search for the specific message
+            matching_messages = [m for m in messages if ts_match(m['ts'], message_ts)]
+
+            # If the specific message is found, return just that message
+            if matching_messages:
+                self.logger.debug(f"Found {len(matching_messages)} matching messages")
+                metadata["is_full_thread"] = False
+                return {
+                    "metadata": metadata,
+                    "content_type": "single_message",
+                    "messages": matching_messages
+                }
+            
+            # Case 3: If no specific match is found, return the entire thread
+            self.logger.debug("No exact match found. Returning all thread messages")
+            return {
+                "metadata": metadata,
+                "content_type": "full_thread",
+                "messages": messages
+            }
 
         except Exception as e:
             self.logger.error(f"Error in get_message_content: {e}", exc_info=True)
@@ -671,29 +753,64 @@ class SlackInputHandler:
     def _extract_messages(self, response):
         return response.get('messages', [])
 
+    async def get_bot_info(self, bot_id):
+        try:
+            response = await self.async_client.bots_info(bot=bot_id)
+            if response['ok']:
+                bot_info = response.get('bot', {})
+                bot_name = bot_info.get('name', 'Unknown Bot')
+                return bot_name
+            else:
+                self.logger.error(f"Failed to fetch bot info: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            self.logger.error(f"Error fetching bot info: {e}")
+        return 'Unknown Bot'
+
     async def _format_message_content(self, messages):
         formatted_messages = []
         for message in messages:
             if message is None:
                 continue
+
+            # Extract user_id and check if it's a bot message
             user_id = message.get('user', 'Unknown')
-            username, user_email, _ = await self.get_user_info(user_id)
+            subtype = message.get('subtype', '')
+
+            # Handle bot message case
+            if subtype == 'bot_message':
+                bot_id = message.get('bot_id', 'Unknown')
+                if bot_id != 'Unknown':
+                    # Fetch bot info using bot_id
+                    bot_name = await self.get_bot_info(bot_id)
+                    username = bot_name
+                    user_email = 'Bot/App (No email)'
+                else:
+                    username = 'Unknown Bot'
+                    user_email = 'Unknown'
+            else:
+                username, user_email, _ = await self.get_user_info(user_id)
+                
+            # Format the message timestamp
             timestamp = await self.format_slack_timestamp(message.get('ts', ''))
+
+            # Check if the message directly mentions the bot
             is_mention = f"<@{self.SLACK_BOT_USER_ID}>" in message.get('text', '')
-            
+
+            # Extract text content
             text = message.get('text', '')
             if 'blocks' in message:
                 block = message["blocks"]
                 slack_block_processor = SlackBlockProcessor()
                 text = slack_block_processor.extract_text_from_blocks(blocks=block)
 
+            # Format the message content
             formatted_message = (
                 f"Timestamp: {timestamp}\n"
                 f"[Slack username]: {username}\n"
-                f"[Slack user id]: {user_id}\n"
+                f"[Slack user id]: {user_id if subtype != 'bot_message' else bot_id}\n"
                 f"[Slack user email]: {user_email}\n"
                 f"[Directly mentioning you]: {is_mention}\n"
-                f"[message]: {text}\n"
+                f"[Message]: {text}\n"
             )
             formatted_messages.append(formatted_message)
 

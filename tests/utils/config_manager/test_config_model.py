@@ -42,7 +42,8 @@ def test_bot_config():
         "LLM_CONVERSION_FORMAT": "conversion_format",
         "BREAK_KEYWORD": "break",
         "START_KEYWORD": "start",
-        "LOAD_ACTIONS_FROM_BACKEND": True
+        "LOAD_ACTIONS_FROM_BACKEND": True,
+        "GET_ALL_THREAD_FROM_MESSAGE_LINKS": False
     }
     bot_config = BotConfig(**valid_data)
     assert bot_config.CORE_PROMPT == "core_prompt"
