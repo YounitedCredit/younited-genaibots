@@ -30,11 +30,11 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
-    ROUTE_PATH: str
-    ROUTE_METHODS: List[str]
-    BEHAVIOR_PLUGIN_NAME: str
-    MESSAGE_URL: str
-    REACTION_URL: str
+    GENERIC_REST_ROUTE_PATH: str
+    GENERIC_REST_ROUTE_METHODS: List[str]
+    GENERIC_REST_BEHAVIOR_PLUGIN_NAME: str
+    GENERIC_REST_MESSAGE_URL: str
+    GENERIC_REST_REACTION_URL: str
 
 class GenericRestPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -50,8 +50,8 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self.rest_config = RestConfig(**config_dict)
 
     def initialize(self):
-        self._route_path = self.rest_config.ROUTE_PATH
-        self._route_methods = self.rest_config.ROUTE_METHODS
+        self._route_path = self.rest_config.GENERIC_REST_ROUTE_PATH
+        self._route_methods = self.rest_config.GENERIC_REST_ROUTE_METHODS
         self.plugin_name = self.rest_config.PLUGIN_NAME
 
         # Dispatchers
@@ -83,8 +83,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             self.logger.debug(f"request received: {request}")
             raw_body = await request.body()
             raw_body_str = raw_body.decode('utf-8')
-            event_data = json.loads(raw_body_str)
-
+            event_data_dict = json.loads(raw_body_str)
+            event_data = IncomingNotificationDataBase.from_dict(event_data_dict)
+            event_data.origin_plugin_name = self.plugin_name
             headers = request.headers
             self.logger.info(f"Request received from <{request.url.path}>")
 
@@ -116,8 +117,6 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                 self.logger.debug(f"Data received: {data}")
                 return False
 
-            # Convert dict to IncomingNotificationDataBase
-            notification_data = IncomingNotificationDataBase.from_dict(data)
         except json.JSONDecodeError:
             self.logger.error("Invalid JSON received")
             return False
@@ -128,19 +127,19 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self.logger.info("Request validated")
         return True
 
-    async def process_event_data(self, event_data, headers, raw_body_str):
+    async def process_event_data(self, event_data : IncomingNotificationDataBase, headers, raw_body_str):
         try:
             validate_request = await self.validate_request(event_data, headers, raw_body_str)
 
             if validate_request == True:
                 try:
-                    user_id = event_data.get('user_id')
-                    channel_id = event_data.get('channel_id')
+                    user_id = event_data.user_id
+                    channel_id = event_data.channel_id
                     self.logger.info(f"Valid <GENERIC_REST> request received from user {user_id} in channel {channel_id}, processing..")
                     await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
                         event_data=event_data,
                         event_origin= self.plugin_name,
-                        plugin_name=self.rest_config.BEHAVIOR_PLUGIN_NAME
+                        plugin_name=self.rest_config.GENERIC_REST_BEHAVIOR_PLUGIN_NAME
                     )
 
                 except Exception as e:
@@ -156,7 +155,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         notification : OutgoingNotificationDataBase = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event,event_type= OutgoingNotificationEventTypes.MESSAGE)
         notification.text = message
         notification.message_type = message_type
-        await self.post_notification(notification, self.rest_config.MESSAGE_URL)
+        await self.post_notification(notification, self.rest_config.GENERIC_REST_MESSAGE_URL)
 
     async def upload_file(self, event, file_content, filename, title, is_internal=False):
         raise NotImplementedError
@@ -165,13 +164,13 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         notification : OutgoingNotificationDataBase = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event,event_type= OutgoingNotificationEventTypes.REACTION_ADD)
         notification.event_type = OutgoingNotificationEventTypes.REACTION_ADD
         notification.reaction_name = reaction_name
-        await self.post_notification(notification, self.rest_config.REACTION_URL)
+        await self.post_notification(notification, self.rest_config.GENERIC_REST_REACTION_URL)
 
     async def remove_reaction(self, event, channel_id, timestamp, reaction_name):
         notification : OutgoingNotificationDataBase = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event,event_type= OutgoingNotificationEventTypes.REACTION_REMOVE)
         notification.event_type = OutgoingNotificationEventTypes.REACTION_REMOVE
         notification.reaction_name = reaction_name
-        await self.post_notification(notification, self.rest_config.REACTION_URL)
+        await self.post_notification(notification, self.rest_config.GENERIC_REST_REACTION_URL)
 
     async def request_to_notification_data(self, event_data):
         notification_data : IncomingNotificationDataBase = IncomingNotificationDataBase.from_dict(event_data)
