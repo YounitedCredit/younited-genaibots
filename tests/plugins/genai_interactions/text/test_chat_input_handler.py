@@ -179,7 +179,7 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         assert len(messages[1]['content']) == 3
         assert messages[1]['content'][0]['type'] == 'text'
         expected_text = (
-            f"Timestamp: {incoming_notification.converted_timestamp}, [username]: {incoming_notification.user_name}, "
+            f"Timestamp: {incoming_notification.timestamp}, [username]: {incoming_notification.user_name}, "
             f"[user id]: {incoming_notification.user_id}, [user email]: {incoming_notification.user_email}, "
             f"[Directly mentioning you]: {incoming_notification.is_mention}, [message]: {incoming_notification.text}"
         )

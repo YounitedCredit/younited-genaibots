@@ -1,7 +1,7 @@
 import asyncio
 import json
 from typing import List, Optional
-
+from datetime import datetime
 import aiohttp
 from fastapi import Request
 from pydantic import BaseModel
@@ -39,8 +39,8 @@ class RestConfig(BaseModel):
 class GenericRestPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
-        self.global_manager :GlobalManager = global_manager
-        self.plugin_manager :PluginManager = global_manager.plugin_manager
+        self.global_manager: GlobalManager = global_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.logger = global_manager.logger
         self._reactions = GenericRestReactions()
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
@@ -101,14 +101,23 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             self.logger.exception(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
             return Response("Internal server error", status_code=500)
 
-    async def validate_request(self, event_data = None, headers = None, raw_body_str = None):
+    async def validate_request(self, event_data=None, headers=None, raw_body_str=None):
         try:
             # Convert JSON to dict
             data = json.loads(raw_body_str)
 
             # Get required keys from IncomingNotificationDataBase
-            default_instance = IncomingNotificationDataBase.from_dict({})
-            required_keys = default_instance.to_dict().keys()
+            required_keys = IncomingNotificationDataBase(
+                timestamp="", 
+                converted_timestamp="", 
+                event_label="", 
+                channel_id="", 
+                thread_id="", 
+                response_id="", 
+                is_mention=False, 
+                text="", 
+                origin=""
+            ).to_dict().keys()
 
             # Check if all required keys are in data
             if not all(key in data for key in required_keys):
@@ -127,23 +136,24 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self.logger.info("Request validated")
         return True
 
-    async def process_event_data(self, event_data : IncomingNotificationDataBase, headers, raw_body_str):
+    async def process_event_data(self, event_data, headers, raw_body_str):
         try:
             validate_request = await self.validate_request(event_data, headers, raw_body_str)
 
-            if validate_request == True:
+            if validate_request:
                 try:
                     user_id = event_data.user_id
                     channel_id = event_data.channel_id
+                    event_data.converted_timestamp = await self.format_event_timestamp(event_data.response_id)
                     self.logger.info(f"Valid <GENERIC_REST> request received from user {user_id} in channel {channel_id}, processing..")
                     await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
-                        event_data=event_data,
-                        event_origin= self.plugin_name,
+                        event_data=event_data.to_dict(),
+                        event_origin=self.plugin_name,
                         plugin_name=self.rest_config.GENERIC_REST_BEHAVIOR_PLUGIN_NAME
                     )
 
                 except Exception as e:
-                    logging.error(f"An error occurred while processing user input: {e}")
+                    self.logger.error(f"An error occurred while processing user input: {e}")
                     raise
             else:
                 self.logger.info("Request discarded")
@@ -152,29 +162,57 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             raise  # re-raise the exception
 
     async def send_message(self, message, event, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
-        notification : OutgoingNotificationDataBase = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event,event_type= OutgoingNotificationEventTypes.MESSAGE)
-        notification.text = message
-        notification.message_type = message_type
-        await self.post_notification(notification, self.rest_config.GENERIC_REST_MESSAGE_URL)
+        notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.MESSAGE)
+        notification.is_internal = is_internal
+
+        if show_ref:
+            text= await self.add_reference_message(event)
+            notification.text = text
+            await self.post_notification(notification, self.rest_config.GENERIC_REST_MESSAGE_URL)
+        else:
+            notification.text = message
+            notification.message_type = message_type
+            await self.post_notification(notification, self.rest_config.GENERIC_REST_MESSAGE_URL)
+
+    async def add_reference_message(self, event):        
+        text =  f"[ref msg link]> | thread: `{event.channel_id}-{event.response_id}`"
+        return text
 
     async def upload_file(self, event, file_content, filename, title, is_internal=False):
-        raise NotImplementedError
+        # NOT IMPLEMENTED YET
+        pass
 
-    async def add_reaction(self, event : IncomingNotificationDataBase, channel_id, timestamp, reaction_name):
-        notification : OutgoingNotificationDataBase = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event,event_type= OutgoingNotificationEventTypes.REACTION_ADD)
+    async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name):
+        notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.REACTION_ADD)
         notification.event_type = OutgoingNotificationEventTypes.REACTION_ADD
         notification.reaction_name = reaction_name
         await self.post_notification(notification, self.rest_config.GENERIC_REST_REACTION_URL)
 
     async def remove_reaction(self, event, channel_id, timestamp, reaction_name):
-        notification : OutgoingNotificationDataBase = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event,event_type= OutgoingNotificationEventTypes.REACTION_REMOVE)
+        notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.REACTION_REMOVE)
         notification.event_type = OutgoingNotificationEventTypes.REACTION_REMOVE
         notification.reaction_name = reaction_name
         await self.post_notification(notification, self.rest_config.GENERIC_REST_REACTION_URL)
 
-    async def request_to_notification_data(self, event_data):
-        notification_data : IncomingNotificationDataBase = IncomingNotificationDataBase.from_dict(event_data)
-        return notification_data
+    async def format_event_timestamp(self, slack_timestamp: str) -> str:
+        # Convert Slack timestamp to float
+        timestamp_float = float(slack_timestamp)
+
+        # Convert the Unix timestamp to a datetime object
+        dt = datetime.fromtimestamp(timestamp_float)
+
+        # Format the datetime object to a readable string
+        formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+        return formatted_time
+    
+    async def request_to_notification_data(self, event_data: IncomingNotificationDataBase):
+        if isinstance(event_data, IncomingNotificationDataBase):
+            event_data.converted_timestamp = await self.format_event_timestamp(event_data.timestamp)
+            return event_data
+        else:
+            notification_data = IncomingNotificationDataBase.from_dict(event_data)
+            notification_data.converted_timestamp = await self.format_event_timestamp(notification_data.timestamp)
+            return notification_data
 
     def format_trigger_genai_message(self, message):
         raise NotImplementedError
@@ -189,9 +227,10 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                 headers=headers
             ) as response:
                 if response.status != 200:
-                    self.logger.error(f"Failed to post notification: {await response.text()}")
+                    self.logger.error(f"Failed to post notification to {url}. Status: {response.status}, Response: {await response.text()}, Data sent: {data}")
                 else:
-                    self.logger.info("Notification posted successfully.")
+                    self.logger.info(f"Notification posted successfully to {url}")
+                    self.logger.debug(f"Data sent: {data}")
 
     async def fetch_conversation_history(
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None

@@ -312,7 +312,12 @@ class ChatInputHandler():
         completion = None  # Initialize to None
         try:
             original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp
-            if event_data.is_mention or event_data.event_label == "message":
+            if (event_data.is_mention or 
+                (event_data.event_label == "message" and not self.bot_config.REQUIRE_MENTION_NEW_MESSAGE) or 
+                (event_data.event_label == "thread_message" and not self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE) or 
+                (event_data.event_label == "message" and self.bot_config.REQUIRE_MENTION_NEW_MESSAGE and event_data.is_mention) or 
+                (event_data.event_label == "thread_message" and self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and event_data.is_mention)):
+                # Process the event
                 self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
                 await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
                     event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)

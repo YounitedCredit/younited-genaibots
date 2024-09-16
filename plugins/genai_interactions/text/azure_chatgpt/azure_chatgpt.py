@@ -124,7 +124,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 await self.dispatcher.send_message(
                     event.user_id,
                     "Something went wrong. Please try again or contact the bot owner.",
-                    message_type=MessageType.USER
+                    message_type=MessageType.COMMENT
                 )
                 return None
 
@@ -139,7 +139,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             await self.user_interaction_dispatcher.send_message(
                 event.user_id,
                 "Something went wrong. Please try again or contact the bot owner.",
-                message_type=MessageType.USER
+                message_type=MessageType.COMMENT
             )
 
             # Send internal message with error details
@@ -367,7 +367,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         # Check if we should use the assistant
-        self.logger.info("generate completion called")
+        self.logger.info("Generate completion triggered...")
         if self.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT:
             return await self.generate_completion_assistant(messages, event_data)
 

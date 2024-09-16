@@ -53,7 +53,7 @@ class OutgoingNotificationDataBase:
         Returns the attributes of the object as a dictionary.
     """
 
-    def __init__(self, channel_id, event_type : OutgoingNotificationEventTypes, is_mention, origin, response_id, thread_id, timestamp, user_email, user_id, user_name, files_content=None, images=None, origin_plugin_name=None, raw_data=None, reaction_name=None, message_type : MessageType = None, text = None):
+    def __init__(self, channel_id, event_type : OutgoingNotificationEventTypes, is_mention, origin, response_id, thread_id, timestamp, user_email, user_id, user_name, files_content=None, images=None, origin_plugin_name=None, raw_data=None, reaction_name=None, message_type : MessageType = None, text = None, is_internal = False):
         self.channel_id = channel_id
         self.event_type = event_type
         self.files_content = files_content if files_content is not None else []
@@ -71,6 +71,7 @@ class OutgoingNotificationDataBase:
         self.user_email = user_email
         self.user_id = user_id
         self.user_name = user_name
+        self.is_internal = is_internal
 
     def to_dict(self):
         return {
@@ -90,7 +91,8 @@ class OutgoingNotificationDataBase:
             'timestamp': self.timestamp,
             'user_email': self.user_email,
             'user_id': self.user_id,
-            'user_name': self.user_name
+            'user_name': self.user_name,
+            'is_internal': self.is_internal
         }
 
     @classmethod
@@ -112,7 +114,8 @@ class OutgoingNotificationDataBase:
             timestamp=data.get('timestamp'),
             user_email=data.get('user_email'),
             user_id=data.get('user_id'),
-            user_name=data.get('user_name')
+            user_name=data.get('user_name'),
+            is_inetrnal=data.get('is_internal')
         )
 
     @classmethod

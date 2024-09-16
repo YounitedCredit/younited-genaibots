@@ -87,9 +87,9 @@ PLUGINS:
         PLUGIN_NAME: "generic_rest"
         GENERIC_REST_ROUTE_PATH: "/api/get_generic_rest_notification"
         GENERIC_REST_ROUTE_METHODS: ["POST"]
-        GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "ca_default_behavior"
-        GENERIC_REST_MESSAGE_URL: "http://localhost:8000"
-        GENERIC_REST_REACTION_URL: "http://localhost:8000"
+        GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
+        GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message"
+        GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message"
 
     INSTANT_MESSAGING:
       SLACK:
