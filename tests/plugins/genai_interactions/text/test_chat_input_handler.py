@@ -145,6 +145,8 @@ async def test_handle_message_event_with_images(chat_input_handler, incoming_not
 @pytest.mark.asyncio
 async def test_handle_message_event_with_files(chat_input_handler, incoming_notification):
     incoming_notification.files_content = ["file content 1", "file content 2"]
+    incoming_notification.images = ["base64_image_data_1", "base64_image_data_2"]
+    incoming_notification.converted_timestamp = "2024-01-01T00:00:00Z"  # Horodatage statique pour le test
 
     # Mock the necessary methods
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
@@ -175,15 +177,33 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         )
         assert messages[0]['content'] == expected_system_content
 
+        # Validate the user message
         assert messages[1]['role'] == 'user'
-        assert len(messages[1]['content']) == 3
-        assert messages[1]['content'][0]['type'] == 'text'
+        user_content = messages[1]['content']
+
+        # Validate the text portion of the user message
+        assert user_content[0]['type'] == 'text'
         expected_text = (
-            f"Timestamp: {incoming_notification.timestamp}, [username]: {incoming_notification.user_name}, "
+            f"Timestamp: {incoming_notification.converted_timestamp}, [username]: {incoming_notification.user_name}, "
             f"[user id]: {incoming_notification.user_id}, [user email]: {incoming_notification.user_email}, "
             f"[Directly mentioning you]: {incoming_notification.is_mention}, [message]: {incoming_notification.text}"
         )
-        assert messages[1]['content'][0]['text'] == expected_text
+        assert user_content[0]['text'] == expected_text
+
+        # Validate that file contents are included
+        assert user_content[1]['type'] == 'text'
+        assert user_content[1]['text'] == "file content 1"
+        assert user_content[2]['type'] == 'text'
+        assert user_content[2]['text'] == "file content 2"
+
+        # Validate that image messages are included
+        assert user_content[3]['type'] == 'image_url'
+        assert user_content[3]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_1"
+        assert user_content[4]['type'] == 'image_url'
+        assert user_content[4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
+
+        # Now assert the total length of user_content
+        assert len(user_content) == 5  # 1 text message, 2 files, and 2 images
 
 @pytest.mark.asyncio
 async def test_filter_messages(chat_input_handler):

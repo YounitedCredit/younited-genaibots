@@ -106,18 +106,18 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             # Convert JSON to dict
             data = json.loads(raw_body_str)
 
-            # Get required keys from IncomingNotificationDataBase
-            required_keys = IncomingNotificationDataBase(
+            # Get required keys from IncomingNotificationDataBase but exclude fields not expected in the incoming data
+            required_keys = set(IncomingNotificationDataBase(
                 timestamp="", 
-                converted_timestamp="", 
+                converted_timestamp="",  # This is likely not in the incoming request data
                 event_label="", 
                 channel_id="", 
                 thread_id="", 
                 response_id="", 
-                is_mention=False, 
+                is_mention=False,  # This might also be set later in the process
                 text="", 
                 origin=""
-            ).to_dict().keys()
+            ).to_dict().keys()) - {'converted_timestamp', 'is_mention'}
 
             # Check if all required keys are in data
             if not all(key in data for key in required_keys):
@@ -135,6 +135,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
 
         self.logger.info("Request validated")
         return True
+
 
     async def process_event_data(self, event_data, headers, raw_body_str):
         try:
@@ -178,9 +179,8 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         text =  f"[ref msg link]> | thread: `{event.channel_id}-{event.response_id}`"
         return text
 
-    async def upload_file(self, event, file_content, filename, title, is_internal=False):
-        # NOT IMPLEMENTED YET
-        pass
+    async def upload_file(self, event, file_content, filename, title):
+        raise NotImplementedError("This method is not implemented yet.")
 
     async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name):
         notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.REACTION_ADD)

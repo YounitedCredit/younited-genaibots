@@ -4,7 +4,7 @@ from core.user_interactions.incoming_notification_data_base import (
 from core.user_interactions.message_type import MessageType
 
 from .outgoing_notification_event_types import OutgoingNotificationEventTypes
-
+from .outgoing_notification_content_type import OutgoingNotificationContentType
 
 class OutgoingNotificationDataBase:
     """
@@ -99,11 +99,11 @@ class OutgoingNotificationDataBase:
     def from_dict(cls, data):
         return cls(
             channel_id=data.get('channel_id'),
-            event_type=data.get('event_type'),
+            event_type=OutgoingNotificationEventTypes(data.get('event_type')),  # Reconversion en enum
             files_content=data.get('files_content'),
             images=data.get('images'),
             is_mention=data.get('is_mention'),
-            message_type= data.get('message_type'),
+            message_type=OutgoingNotificationContentType(data.get('message_type')),
             origin=data.get('origin'),
             origin_plugin_name=data.get('origin_plugin_name'),
             raw_data=data.get('raw_data'),
@@ -115,8 +115,9 @@ class OutgoingNotificationDataBase:
             user_email=data.get('user_email'),
             user_id=data.get('user_id'),
             user_name=data.get('user_name'),
-            is_inetrnal=data.get('is_internal')
+            is_internal=data.get('is_internal')
         )
+
 
     @classmethod
     def from_incoming_notification_data(cls, incoming_notification_data: IncomingNotificationDataBase, event_type: OutgoingNotificationEventTypes):

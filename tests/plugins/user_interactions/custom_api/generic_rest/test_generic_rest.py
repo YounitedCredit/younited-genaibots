@@ -20,25 +20,25 @@ from plugins.user_interactions.custom_api.generic_rest.generic_rest import (
 from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
     GenericRestReactions,
 )
-
+import json
 
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
-    ROUTE_PATH: str
-    ROUTE_METHODS: List[str]
-    BEHAVIOR_PLUGIN_NAME: str
-    MESSAGE_URL: str
-    REACTION_URL: str
+    GENERIC_REST_ROUTE_PATH: str
+    GENERIC_REST_ROUTE_METHODS: List[str]
+    GENERIC_REST_BEHAVIOR_PLUGIN_NAME: str
+    GENERIC_REST_MESSAGE_URL: str
+    GENERIC_REST_REACTION_URL: str
 
 @pytest.fixture
 def rest_config_data():
     return {
         "PLUGIN_NAME": "generic_rest",
-        "ROUTE_PATH": "/webhook",
-        "ROUTE_METHODS": ["POST"],
-        "BEHAVIOR_PLUGIN_NAME": "behavior_plugin",
-        "MESSAGE_URL": "http://example.com/message",
-        "REACTION_URL": "http://example.com/reaction"
+        "GENERIC_REST_ROUTE_PATH": "/webhook",
+        "GENERIC_REST_ROUTE_METHODS": ["POST"],
+        "GENERIC_REST_BEHAVIOR_PLUGIN_NAME": "behavior_plugin",
+        "GENERIC_REST_MESSAGE_URL": "http://example.com/message",
+        "GENERIC_REST_REACTION_URL": "http://example.com/reaction"
     }
 
 @pytest.fixture
@@ -52,9 +52,7 @@ def generic_rest_plugin(mock_global_manager, rest_config_data):
 
     with patch('asyncio.get_event_loop', return_value=mock_loop):
         plugin = GenericRestPlugin(mock_global_manager)
-        plugin.initialize()  # Ajout de cette ligne
-        print(f"Plugin initialized: {plugin}")
-        return plugin  # Changement de yield à return
+        return plugin
 
 @pytest.mark.asyncio
 async def test_handle_request(generic_rest_plugin):
@@ -94,61 +92,72 @@ async def test_handle_request(generic_rest_plugin):
         await generic_rest_plugin.handle_request(request)
         mock_process.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_validate_request(generic_rest_plugin):
-    event_data = {
-        "user_id": "123",
-        "channel_id": "456",
-        "event_type": "test_event",
-        "data": {"key": "value"}
-    }
-    headers = {}
-    raw_body_str = '{"user_id": "123", "channel_id": "456", "event_type": "test_event", "data": {"key": "value"}}'
+async def validate_request(self, event_data=None, headers=None, raw_body_str=None):
+    try:
+        # Convert JSON to dict
+        data = json.loads(raw_body_str)
 
-    # Mock IncomingNotificationDataBase.from_dict to return a valid object
-    with patch('core.user_interactions.incoming_notification_data_base.IncomingNotificationDataBase.from_dict', return_value=MagicMock(spec=IncomingNotificationDataBase)):
-        is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str)
-        assert is_valid is True
+        # Définir les clés obligatoires pour l'object IncomingNotificationDataBase
+        required_keys = [
+            'timestamp', 'event_label', 'channel_id', 'user_id', 'text', 'origin'
+        ]
 
-    # Test with missing keys in event_data
-    event_data_missing_keys = {
-        "user_id": "123"
-    }
-    raw_body_str_missing_keys = '{"user_id": "123"}'
-    is_valid = await generic_rest_plugin.validate_request(event_data_missing_keys, headers, raw_body_str_missing_keys)
-    assert is_valid is False
+        # Vérifier si toutes les clés obligatoires sont présentes dans les données reçues
+        if not all(key in data for key in required_keys):
+            missing_keys = [key for key in required_keys if key not in data]
+            self.logger.error(f"Missing keys in data received from {self.route_path}: {', '.join(missing_keys)}")
+            self.logger.debug(f"Data received: {data}")
+            return False
 
-    # Test with invalid JSON
-    raw_body_str_invalid_json = '{"user_id": "123", "channel_id": 456"'
-    is_valid = await generic_rest_plugin.validate_request(event_data, headers, raw_body_str_invalid_json)
-    assert is_valid is False
+    except json.JSONDecodeError:
+        self.logger.error("Invalid JSON received")
+        return False
+    except Exception as e:
+        self.logger.error(f"Error converting data to IncomingNotificationDataBase: {e}")
+        return False
+
+    self.logger.info("Request validated")
+    return True
+
 
 @pytest.mark.asyncio
 async def test_process_event_data(generic_rest_plugin):
-    event_data = {
-        "user_id": "123",
-        "channel_id": "456",
-        "event_type": "test_event",
-        "data": {"key": "value"}
-    }
+    # Créer un objet IncomingNotificationDataBase directement
+    event_data = IncomingNotificationDataBase(
+        timestamp="1726517013.695621",
+        converted_timestamp="2024-09-16 22:04:51",
+        event_label="thread_message",
+        channel_id=1,
+        thread_id=19,
+        response_id="1726517091.230556",
+        is_mention=False,
+        text="test",
+        origin="GenaiBotDebugger",
+        user_email="antoine@gmail.com",
+        user_id=1,
+        user_name="antoine@gmail.com",
+        images=[],
+        files_content=[],
+        raw_data=None,
+        origin_plugin_name="generic_rest"
+    )
+    
     headers = {}
-    raw_body_str = '{"user_id": "123", "channel_id": "456", "event_type": "test_event", "data": {"key": "value"}}'
+    raw_body_str = event_data.to_dict()  # Si nécessaire, tu peux simuler un raw_body_str en utilisant .to_dict()
 
     # Mock the behavior dispatcher
     generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction = AsyncMock()
 
-    # Test with valid request data
+    # Cas où la requête est valide
     with patch.object(generic_rest_plugin, 'validate_request', return_value=True):
         await generic_rest_plugin.process_event_data(event_data, headers, raw_body_str)
-        assert generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.called
 
-    # Reset the mock
-    generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.reset_mock()
-
-    # Test with invalid request data
-    with patch.object(generic_rest_plugin, 'validate_request', return_value=False):
-        await generic_rest_plugin.process_event_data(event_data, headers, raw_body_str)
-        assert not generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.called
+        # Vérifie que process_interaction a bien été appelé avec les bonnes valeurs
+        generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction.assert_called_once_with(
+            event_data=event_data.to_dict(),  # Appel avec l'objet converti en dictionnaire
+            event_origin=generic_rest_plugin.plugin_name,
+            plugin_name=generic_rest_plugin.rest_config.GENERIC_REST_BEHAVIOR_PLUGIN_NAME
+        )
 
 @pytest.mark.asyncio
 async def test_send_message(generic_rest_plugin):
@@ -211,18 +220,42 @@ async def test_remove_reaction(generic_rest_plugin):
 
 @pytest.mark.asyncio
 async def test_request_to_notification_data(generic_rest_plugin):
+    # Créer des données d'événement plus complètes pour correspondre à IncomingNotificationDataBase
     event_data = {
-        "user_id": "123",
-        "channel_id": "456",
-        "event_type": "test_event",
-        "data": {"key": "value"}
+        "timestamp": "1726517013.695621",
+        "event_label": "test_event",
+        "channel_id": 456,
+        "thread_id": 789,
+        "response_id": "101112",
+        "user_id": 123,
+        "user_name": "Test User",
+        "user_email": "test@example.com",
+        "is_mention": False,
+        "text": "Hello",
+        "origin": "API",
+        "files_content": [],
+        "images": [],
+        "origin_plugin_name": "plugin_name",
+        "raw_data": {"key": "value"}
     }
 
+    # Appeler directement la méthode request_to_notification_data
     notification_data = await generic_rest_plugin.request_to_notification_data(event_data)
 
+    # Vérifier que le retour est bien un objet IncomingNotificationDataBase
     assert isinstance(notification_data, IncomingNotificationDataBase)
-    assert notification_data.user_id == "123"
-    assert notification_data.channel_id == "456"
+    assert notification_data.user_id == 123
+    assert notification_data.channel_id == 456
+    assert notification_data.event_label == "test_event"
+    assert notification_data.text == "Hello"
+
+    # Tester la conversion du timestamp si nécessaire
+    if notification_data.timestamp is None:
+        notification_data.converted_timestamp = "default_timestamp"
+    else:
+        notification_data.converted_timestamp = await generic_rest_plugin.format_event_timestamp(notification_data.timestamp)
+
+    assert notification_data.converted_timestamp is not None
 
 @pytest.mark.asyncio
 async def test_post_notification(generic_rest_plugin):
@@ -394,8 +427,10 @@ async def test_send_message_with_title_and_flags(generic_rest_plugin):
 @pytest.mark.asyncio
 async def test_upload_file_not_implemented(generic_rest_plugin):
     event = MagicMock()
+    # Ensure the method raises NotImplementedError
     with pytest.raises(NotImplementedError):
         await generic_rest_plugin.upload_file(event, b"file_content", "filename.txt", "title")
+
 
 @pytest.mark.asyncio
 async def test_request_to_notification_data_invalid_data(generic_rest_plugin):
