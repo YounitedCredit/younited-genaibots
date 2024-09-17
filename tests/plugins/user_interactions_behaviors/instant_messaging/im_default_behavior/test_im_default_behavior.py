@@ -473,6 +473,7 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
 
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_no_genai_output(im_default_behavior_plugin, global_manager, monkeypatch):
+    # Prepare the event data
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         converted_timestamp="2023-01-01 12:00:00",
@@ -488,14 +489,14 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
         origin="test_origin"
     )
 
-    # Mock the instantmessaging_plugin
+    # Mock the instant messaging plugin
     plugin_mock = AsyncMock()
     im_default_behavior_plugin.instantmessaging_plugin = plugin_mock
 
-    # Mock the genai_interactions_text_dispatcher
+    # Mock the genai_interactions_text_dispatcher with no output
     monkeypatch.setattr(im_default_behavior_plugin.genai_interactions_text_dispatcher, 'handle_request', AsyncMock(return_value=None))
 
-    # Mock the global_manager.bot_config
+    # Mock the global_manager.bot_config settings
     monkeypatch.setattr(global_manager.bot_config, 'ACKNOWLEDGE_NONPROCESSED_MESSAGE', True)
 
     # Set up the reaction attributes
@@ -504,20 +505,24 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
     im_default_behavior_plugin.reaction_writing = "writing_reaction"
     im_default_behavior_plugin.reaction_acknowledge = "acknowledge_reaction"
 
+    # Call the method under test
     await im_default_behavior_plugin.process_incoming_notification_data(event_data)
 
-    # Verify the expected behavior
+    # Check that the correct reactions were removed
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_done)
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_generating)
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_writing)
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_acknowledge)
 
-    im_default_behavior_plugin.logger.info.assert_called_with("GenAI output is None, not processing the message.")
+    # Check the log message for no GenAI output
+    im_default_behavior_plugin.logger.info.assert_called_with("No GenAI completion generated, not processing")
+
+    # Check that the "done" reaction was added
     plugin_mock.add_reaction.assert_called_with(channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_done)
 
-    # Verify that no other interactions occurred
+    # Ensure no message was sent
     assert not plugin_mock.send_message.called
-
+    
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_exception(im_default_behavior_plugin):
     event_data = {

@@ -7,7 +7,7 @@ import pytest
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 
 
-class MockInternalDataProcessing(InternalDataProcessingBase):
+class MockInternalDataProcessing(InternalDataProcessingBase):    
     def __init__(self):
         self._data = {
             "sessions": [],
@@ -18,7 +18,8 @@ class MockInternalDataProcessing(InternalDataProcessingBase):
             "costs": [],
             "abort": False,
             "processing": [],
-            "vectors": []
+            "vectors": [],
+            "subprompts": []  # Ajout de la propriété subprompts
         }
         self._plugin_name = "MockInternalDataProcessor"
 
@@ -58,6 +59,10 @@ class MockInternalDataProcessing(InternalDataProcessingBase):
     @property
     def vectors(self):
         return self._data["vectors"]
+
+    @property
+    def subprompts(self):  # Ajout du getter pour subprompts
+        return self._data["subprompts"]
 
     # Méthodes abstraites avec implémentations simples ou retours de mock
     def append_data(self, data_identifier, data):
@@ -101,7 +106,6 @@ class MockInternalDataProcessing(InternalDataProcessingBase):
     def initialize(self):
         # Initialisation peut être vide ou logique simple si nécessaire
         pass
-
 
 @pytest.fixture
 def mock_processor():

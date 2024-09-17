@@ -11,6 +11,8 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
+from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
+
 from core.user_interactions.message_type import MessageType
 from core.user_interactions.outgoing_notification_data_base import (
     OutgoingNotificationDataBase,
@@ -35,6 +37,7 @@ class RestConfig(BaseModel):
     GENERIC_REST_BEHAVIOR_PLUGIN_NAME: str
     GENERIC_REST_MESSAGE_URL: str
     GENERIC_REST_REACTION_URL: str
+    GENERIC_REST_BOT_ID: str
 
 class GenericRestPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -57,6 +60,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         # Dispatchers
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.user_interactions_dispatcher : UserInteractionsDispatcher  = self.global_manager.user_interactions_dispatcher
 
     @property
     def route_path(self):
@@ -216,7 +220,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             return notification_data
 
     def format_trigger_genai_message(self, message):
-        bot_id = "BotDebugger"
+        bot_id = self.global_manager.bot_config.get_bot_id()
         formatted_message = f"<@{bot_id}> {message}"
         return formatted_message
 
@@ -239,4 +243,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
-        return None
+        return None    
+        
+    def get_bot_id(self) -> str:
+        return self.rest_config.GENERIC_REST_BOT_ID

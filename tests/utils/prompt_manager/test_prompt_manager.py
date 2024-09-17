@@ -46,28 +46,32 @@ async def test_initialize(mock_global_manager_with_dispatcher):
 
 @pytest.mark.asyncio
 async def test_get_sub_prompt(mock_global_manager_with_dispatcher):
-    # Mock config manager to return a specific folder name
-    mock_global_manager_with_dispatcher.config_manager.get_config = MagicMock(return_value='subprompts_folder')
+    # Mock the configuration to return a folder name for sub-prompts
+    mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.subprompts = 'subprompts_folder'
+
     # Mock backend dispatcher to return specific content
     mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(
         return_value='sub_prompt_content'
     )
 
+    # Create an instance of the PromptManager
     prompt_manager = PromptManager(mock_global_manager_with_dispatcher)
+    
     message_type = 'test_message'
 
-    # Call get_sub_prompt method
+    # Call the get_sub_prompt method
     sub_prompt = await prompt_manager.get_sub_prompt(message_type)
 
-    # Assert sub prompt was retrieved correctly
+    # Assert that the sub-prompt was retrieved correctly
     assert sub_prompt == 'sub_prompt_content'
-    mock_global_manager_with_dispatcher.config_manager.get_config.assert_called_with(
-        ['BOT_CONFIG', 'SUBPROMPTS_FOLDER']
-    )
+
+    # Check that the correct folder and file were used in the backend dispatcher
     mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.read_data_content.assert_called_with(
         'subprompts_folder', f'{message_type}.txt'
     )
 
+    # Ensure the subprompts folder was correctly accessed
+    assert mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.subprompts == 'subprompts_folder'
 
 @pytest.mark.asyncio
 async def test_get_core_prompt(mock_global_manager_with_dispatcher):

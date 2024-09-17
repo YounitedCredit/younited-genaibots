@@ -139,3 +139,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         plugin_name = event.origin_plugin_name
         plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return await plugin.fetch_conversation_history(event=event, channel_id=channel_id, thread_id=thread_id)
+    
+    def get_bot_id(self, plugin_name=None) -> str:
+        """
+        Get the bot ID from the plugin.
+        """
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
+        return plugin.get_bot_id()

@@ -397,3 +397,6 @@ class TeamsPlugin(UserInteractionsPluginBase):
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
         pass
+
+    def get_bot_id(self) -> str:
+        return self.teams_config.TEAMS_APP_ID

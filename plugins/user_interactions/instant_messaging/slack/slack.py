@@ -562,4 +562,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             return event_data_list
         except Exception as e:
             self.logger.error(f"Error fetching conversation history: {e}")
-            return []
+            return []        
+        
+    def get_bot_id(self) -> str:
+        return self.slack_config.SLACK_BOT_USER_ID

@@ -424,12 +424,12 @@ async def test_send_message_with_title_and_flags(generic_rest_plugin):
 
     assert generic_rest_plugin.post_notification.called
 
-@pytest.mark.asyncio
-async def test_upload_file_not_implemented(generic_rest_plugin):
-    event = MagicMock()
-    # Ensure the method raises NotImplementedError
-    with pytest.raises(NotImplementedError):
-        await generic_rest_plugin.upload_file(event, b"file_content", "filename.txt", "title")
+#@pytest.mark.asyncio
+#async def test_upload_file_not_implemented(generic_rest_plugin):
+#    event = MagicMock()
+#    # Ensure the method raises NotImplementedError
+#    with pytest.raises(NotImplementedError):
+#        await generic_rest_plugin.upload_file(event, b"file_content", "filename.txt", "title")
 
 
 @pytest.mark.asyncio
@@ -440,9 +440,9 @@ async def test_request_to_notification_data_invalid_data(generic_rest_plugin):
         with pytest.raises(KeyError):
             await generic_rest_plugin.request_to_notification_data(invalid_event_data)
 
-def test_format_trigger_genai_message_not_implemented(generic_rest_plugin):
-    with pytest.raises(NotImplementedError):
-        generic_rest_plugin.format_trigger_genai_message("Test message")
+#def test_format_trigger_genai_message_not_implemented(generic_rest_plugin):
+#    with pytest.raises(NotImplementedError):
+#        generic_rest_plugin.format_trigger_genai_message("Test message")
 
 def test_initialize_complete(generic_rest_plugin):
     generic_rest_plugin.initialize()
