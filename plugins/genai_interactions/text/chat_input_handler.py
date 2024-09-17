@@ -366,7 +366,9 @@ class ChatInputHandler():
             for action in python_dict['response']:
                 if 'value' in action['Action']['Parameters']:
                     value_str = action['Action']['Parameters']['value']
-                    if value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
+                    
+                    # Only process if value_str is a string and formatted as YAML
+                    if isinstance(value_str, str) and value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
                         # Remove the markdown code block syntax
                         yaml_str = value_str.strip()[7:-3].strip()
                         # Parse the YAML content

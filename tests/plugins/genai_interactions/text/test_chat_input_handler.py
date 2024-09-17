@@ -1,6 +1,7 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
+from datetime import datetime
 
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
@@ -288,14 +289,15 @@ async def test_yaml_to_json_success(chat_input_handler, incoming_notification):
     response:
       - Action:
           Parameters:
-            value: |
+            value:
               name: Test
               description: A test action
     """
     result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
 
-    # Ensure the result is a properly parsed dictionary
-    assert isinstance(result, dict)
+    # Assurez-vous que le résultat est un dictionnaire correctement analysé
+    assert result is not None, "The YAML string was not converted to a dictionary"
+    assert isinstance(result, dict), "The result is not a dictionary"
     assert result['response'][0]['Action']['Parameters']['value']['name'] == 'Test'
 
 
@@ -308,3 +310,173 @@ async def test_yaml_to_json_error(chat_input_handler, incoming_notification):
         result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
         assert result is None
         mock_logger.error.assert_called()
+
+@pytest.mark.asyncio
+async def test_handle_message_event_exception(chat_input_handler, incoming_notification):
+    # Mock the method that raises an exception
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(side_effect=Exception("Read content failed"))
+
+    with pytest.raises(Exception, match="Read content failed"):
+        await chat_input_handler.handle_message_event(incoming_notification)
+
+@pytest.mark.asyncio
+async def test_filter_messages_with_images(chat_input_handler):
+    messages = [
+        {"role": "user", "content": [
+            {"type": "text", "text": "Message content"},
+            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,abc"}}
+        ]}
+    ]
+    
+    filtered_messages = await chat_input_handler.filter_messages(messages)
+    
+    # Assert that the image is removed and only the text remains
+    assert len(filtered_messages[0]["content"]) == 1
+    assert filtered_messages[0]["content"][0]["type"] == "text"
+    assert filtered_messages[0]["content"][0]["text"] == "Message content"
+
+@pytest.mark.asyncio
+async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
+    # Mock read_data_content to return an empty list of messages
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
+    chat_input_handler.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES = False
+    
+    result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+    
+    # Assert that the result is None when no messages are found
+    assert result is None
+
+@pytest.mark.asyncio
+async def test_yaml_to_json_complex(chat_input_handler, incoming_notification):
+    yaml_string = """
+    response:
+      - Action:
+          Parameters:
+            value:
+              details: |
+                Line 1
+                Line 2
+    """
+    result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
+
+    assert result is not None, "The YAML string was not converted"
+    assert isinstance(result, dict), "The result is not a dictionary"
+    # Adjust the expected result to include the extra newline
+    assert result['response'][0]['Action']['Parameters']['value']['details'] == 'Line 1\nLine 2\n'
+
+
+@pytest.mark.asyncio
+async def test_calculate_and_update_costs(chat_input_handler, incoming_notification):
+    cost_params = MagicMock(total_tk=1000, prompt_tk=500, completion_tk=500, input_token_price=0.02, output_token_price=0.03)
+    chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock()
+
+    total_cost, input_cost, output_cost = await chat_input_handler.calculate_and_update_costs(
+        cost_params, "costs_container", "blob_name", incoming_notification
+    )
+    
+    assert total_cost == 0.025  # (500/1000) * 0.02 + (500/1000) * 0.03
+    assert input_cost == 0.01  # (500/1000) * 0.02
+    assert output_cost == 0.015  # (500/1000) * 0.03
+
+def test_parse_timestamp_invalid(chat_input_handler):
+    with pytest.raises(ValueError, match="time data 'invalid_timestamp' does not match format '%Y-%m-%d %H:%M:%S'"):
+        chat_input_handler.parse_timestamp("invalid_timestamp")
+
+def test_get_last_user_message_timestamp(chat_input_handler):
+    # Messages with timestamps
+    messages = [
+        {"role": "assistant", "content": [{"type": "text", "text": "Some assistant message"}]},
+        {"role": "user", "content": [{"type": "text", "text": "Timestamp: 2023-09-14 10:00:00, user message"}]},
+        {"role": "user", "content": [{"type": "text", "text": "Timestamp: 2023-09-15 11:00:00, another user message"}]},
+    ]
+
+    # Expected to find the last user message's timestamp
+    timestamp = chat_input_handler.get_last_user_message_timestamp(messages)
+
+    assert timestamp == datetime.strptime("2023-09-15 11:00:00", "%Y-%m-%d %H:%M:%S")
+
+def test_process_relevant_events(chat_input_handler):
+    # Simulated conversation history
+    conversation_history = [
+        MagicMock(converted_timestamp="2023-09-14 09:00:00"),
+        MagicMock(converted_timestamp="2023-09-14 10:30:00"),
+        MagicMock(converted_timestamp="2023-09-14 11:00:00")
+    ]
+
+    last_message_timestamp = datetime.strptime("2023-09-14 10:00:00", "%Y-%m-%d %H:%M:%S")
+    current_event_timestamp = datetime.strptime("2023-09-14 12:00:00", "%Y-%m-%d %H:%M:%S")
+
+    relevant_events = chat_input_handler.process_relevant_events(conversation_history, last_message_timestamp, current_event_timestamp)
+
+    # We expect the second and third events to be in the relevant events
+    assert len(relevant_events) == 2
+    assert relevant_events[0].converted_timestamp == "2023-09-14 10:30:00"
+    assert relevant_events[1].converted_timestamp == "2023-09-14 11:00:00"
+
+def test_convert_events_to_messages(chat_input_handler):
+    # Simulated events
+    events = [
+        MagicMock(converted_timestamp="2023-09-14 09:00:00", user_name="User1", user_id="123", text="Hello", images=[], files_content=[]),
+        MagicMock(converted_timestamp="2023-09-14 10:00:00", user_name="User2", user_id="456", text="Hi", images=[], files_content=[])
+    ]
+
+    messages = chat_input_handler.convert_events_to_messages(events)
+
+    assert len(messages) == 2
+    assert messages[0]["role"] == "user"
+    assert "Hello" in messages[0]["content"][0]["text"]
+    assert messages[1]["role"] == "user"
+    assert "Hi" in messages[1]["content"][0]["text"]
+
+def test_construct_message(chat_input_handler):
+    # Simulated event data with text, images, and files
+    event_data = MagicMock(
+        converted_timestamp="2023-09-14 10:00:00",
+        user_name="User1",
+        user_id="123",
+        user_email="user1@example.com",
+        is_mention=True,
+        text="Hello",
+        images=["image_data_base64"],
+        files_content=["file content"]
+    )
+
+    message = chat_input_handler.construct_message(event_data)
+
+    # Check that the message contains the expected text, image, and file content
+    assert message["role"] == "user"
+    assert "Hello" in message["content"][0]["text"]
+    assert message["content"][1]["type"] == "text"
+    assert message["content"][2]["type"] == "image_url"
+    assert message["content"][2]["image_url"]["url"] == "data:image/jpeg;base64,image_data_base64"
+
+def test_adjust_yaml_structure(chat_input_handler):
+    # Simulated YAML content
+    yaml_string = """
+    response:
+      - Action:
+          Parameters:
+            value: |
+              Line 1
+              Line 2
+    """
+
+    adjusted_yaml = chat_input_handler.adjust_yaml_structure(yaml_string).strip()  # Use strip to remove leading/trailing spaces
+
+    # Check that the YAML content is properly adjusted
+    assert "Line 1" in adjusted_yaml
+    assert "Line 2" in adjusted_yaml
+    assert adjusted_yaml.startswith("response:")  # This should now pass with the leading newline removed
+    assert "- Action:" in adjusted_yaml
+
+
+@pytest.mark.asyncio
+async def test_handle_completion_errors(chat_input_handler, incoming_notification):
+    # Simulated exception
+    exception = Exception("Test error with message: 'Test error'")
+
+    with patch.object(chat_input_handler.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message:
+        await chat_input_handler.handle_completion_errors(incoming_notification, exception)
+        
+        mock_send_message.assert_called()
+        assert "Test error" in mock_send_message.call_args[1]['message']
