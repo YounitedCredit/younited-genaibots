@@ -179,8 +179,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         text =  f"[ref msg link]> | thread: `{event.channel_id}-{event.response_id}`"
         return text
 
-    async def upload_file(self, event, file_content, filename, title):
-        raise NotImplementedError("This method is not implemented yet.")
+    async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False):
+        pass
+        #raise NotImplementedError("This method is not implemented yet.")
 
     async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name):
         notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.REACTION_ADD)
@@ -236,4 +237,4 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
-        pass
+        return None
