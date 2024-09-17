@@ -131,7 +131,7 @@ class ChatInputHandler():
 
         except Exception as e:
             self.logger.error(f"Error while handling thread message event: {e}")
-            raise
+            return None
 
     def parse_timestamp(self, timestamp_str):
         try:
@@ -262,8 +262,8 @@ class ChatInputHandler():
 
             else:
                 # Log warning and try JSON as a fallback
-                self.logger.warning(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
-                response_json = json.loads(gpt_response)
+                self.logger.error(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
+                return None
 
         except json.JSONDecodeError as e:
             # Step 5: Handle and report JSON decoding errors

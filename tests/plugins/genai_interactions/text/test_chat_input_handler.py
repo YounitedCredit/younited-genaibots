@@ -184,3 +184,127 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         assert user_content[4]['type'] == 'image_url'
         assert user_content[4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
         assert len(user_content) == 5
+
+@pytest.mark.asyncio
+async def test_call_completion_success(chat_input_handler, incoming_notification):
+    mock_messages = [{"role": "user", "content": "test message"}]
+
+    # Mock the generate_completion method to return a valid JSON response string
+    valid_json_response = '{"response": "generated completion"}'
+    chat_input_handler.chat_plugin.generate_completion = AsyncMock(return_value=(valid_json_response, MagicMock()))
+
+    # Mock the update_pricing method
+    chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock(return_value=MagicMock())
+
+    # Mock conversion_format to JSON
+    chat_input_handler.conversion_format = "json"
+
+    # Mock the session write method
+    chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
+
+    # Test JSON format
+    result = await chat_input_handler.call_completion(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification)
+
+    # Vérifiez si le résultat est bien ce qui est attendu et analysé en JSON
+    assert result is not None
+    assert result["response"] == "generated completion"
+
+
+
+@pytest.mark.asyncio
+async def test_call_completion_failure(chat_input_handler, incoming_notification):
+    # Test the call_completion method when an exception occurs
+    mock_messages = [{"role": "user", "content": "test message"}]
+    
+    # Mock the generate_completion method to raise an exception
+    chat_input_handler.chat_plugin.generate_completion = AsyncMock(side_effect=Exception("Mocked exception"))
+
+    with patch.object(chat_input_handler, 'handle_completion_errors', new_callable=AsyncMock) as mock_handle_completion_errors:
+        await chat_input_handler.call_completion(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification)
+        mock_handle_completion_errors.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_trigger_genai_with_thread(chat_input_handler, incoming_notification):
+    # Test triggering GenAI with a thread of messages
+    mock_messages = [{"role": "user", "content": "test message"}]
+
+    with patch.object(chat_input_handler, 'call_completion', new_callable=AsyncMock) as mock_call_completion:
+        mock_call_completion.return_value = "generated thread response"
+        result = await chat_input_handler.trigger_genai_with_thread(incoming_notification, mock_messages)
+        assert result == "generated thread response"
+        mock_call_completion.assert_called_once_with(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification)
+
+
+@pytest.mark.asyncio
+async def test_handle_event_data_invalid_label(chat_input_handler, incoming_notification):
+    # Test handling event data with an invalid event label
+    incoming_notification.event_label = "unknown_label"
+    with pytest.raises(ValueError, match="Unknown event label: unknown_label"):
+        await chat_input_handler.handle_event_data(incoming_notification)
+
+
+@pytest.mark.asyncio
+async def test_handle_message_event_with_large_file_content(chat_input_handler, incoming_notification):
+    # Test handling a message event with a large number of file contents
+    incoming_notification.files_content = ["file content"] * 21  # More than 20 files
+    incoming_notification.images = []
+
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
+    chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock()
+
+    with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        await chat_input_handler.handle_message_event(incoming_notification)
+        messages = mock_generate_response.call_args[0][1]
+        assert len(messages[1]['content']) == 23  # 21 file contents + constructed message + reminder message
+
+
+@pytest.mark.asyncio
+async def test_generate_response_with_error(chat_input_handler, incoming_notification):
+    # Test generate_response method when an error occurs in call_completion
+    mock_messages = [{"role": "system", "content": "test system prompt"}]
+
+    # Mock the call_completion method to raise an exception
+    chat_input_handler.call_completion = AsyncMock(side_effect=Exception("Test exception"))
+
+    with pytest.raises(Exception, match="Test exception"):
+        await chat_input_handler.generate_response(incoming_notification, mock_messages)
+
+
+@pytest.mark.asyncio
+async def test_handle_thread_message_event_with_no_messages(chat_input_handler, incoming_notification):
+    incoming_notification.is_mention = False
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
+    chat_input_handler.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES = False
+
+    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'store_unmentioned_messages', new_callable=AsyncMock) as mock_store_unmentioned_messages:
+        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_yaml_to_json_success(chat_input_handler, incoming_notification):
+    yaml_string = """
+    response:
+      - Action:
+          Parameters:
+            value: |
+              name: Test
+              description: A test action
+    """
+    result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
+
+    # Ensure the result is a properly parsed dictionary
+    assert isinstance(result, dict)
+    assert result['response'][0]['Action']['Parameters']['value']['name'] == 'Test'
+
+
+@pytest.mark.asyncio
+async def test_yaml_to_json_error(chat_input_handler, incoming_notification):
+    # Test yaml_to_json with an invalid YAML string
+    yaml_string = "invalid: yaml: string"
+
+    with patch.object(chat_input_handler, 'logger') as mock_logger:
+        result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
+        assert result is None
+        mock_logger.error.assert_called()
