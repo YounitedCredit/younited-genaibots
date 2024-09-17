@@ -87,6 +87,14 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for concatenate data.
         """
         raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def subprompts(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
 
 
     @abstractmethod

@@ -21,7 +21,7 @@ class PromptManager:
 
     async def get_sub_prompt(self, message_type):
         # Get the sub_prompts folder name from the configuration
-        sub_prompts_folder = self.config_manager.get_config(['BOT_CONFIG', 'SUBPROMPTS_FOLDER'])
+        sub_prompts_folder = self.backend_internal_data_processing_dispatcher.subprompts
         sub_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(sub_prompts_folder, f"{message_type}.txt")
         if not sub_prompt:
             self.logger.error(f"Error while retrieving sub prompt: {message_type} is empty")

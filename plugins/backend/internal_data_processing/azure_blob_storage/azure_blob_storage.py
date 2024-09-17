@@ -27,6 +27,7 @@ class AzureBlobStorageConfig(BaseModel):
     AZURE_BLOB_STORAGE_ABORT_CONTAINER: str
     AZURE_BLOB_STORAGE_VECTORS_CONTAINER: str
     AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER: str
+    AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -52,6 +53,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.abort_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_ABORT_CONTAINER
         self.vectors_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_VECTORS_CONTAINER
         self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
+        self.subprompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
@@ -120,6 +122,11 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         # Implement the custom_actions property
         return self.custom_actions_container
 
+    @property
+    def subprompts(self):
+        # Implement the subprompts property
+        return self.subprompts_container
+    
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 

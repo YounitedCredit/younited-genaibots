@@ -94,6 +94,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def vectors(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.vectors
+    
+    @property
+    def subprompts(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.subprompts
 
     def append_data(self, container_name: str, data_identifier: str, data: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(container_name)
