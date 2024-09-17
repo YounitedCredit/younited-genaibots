@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.vectorization.aisearch_import import (
+from Tools.Vectorization.aisearch_import import (
     create_index_if_not_exists,
     import_data,
     load_index_definition,

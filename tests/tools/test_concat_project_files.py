@@ -1,7 +1,7 @@
 import os
 from unittest.mock import call, mock_open, patch
 
-from tools.concat_project_files import (
+from Tools.concat_project_files import (
     clean_markdown,
     concat_files,
     decode_filename,

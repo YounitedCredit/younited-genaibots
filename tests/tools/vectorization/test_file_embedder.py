@@ -11,7 +11,7 @@ project_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.insert(0, project_root)
 
 try:
-    from tools.vectorization.file_embedder import (
+    from Tools.Vectorization.file_embedder import (
         clean_text,
         clean_title,
         convert_to_azure_search_json,
