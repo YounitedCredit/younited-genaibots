@@ -76,7 +76,7 @@ class GenaiInteractionsTextDispatcher(GenAIInteractionsTextPluginBase):
     async def trigger_genai(self, event: IncomingNotificationDataBase, plugin_name = None):
         plugin : GenAIInteractionsTextPluginBase = self.get_plugin(plugin_name)
         ts = event.thread_id
-        channel_id = event.channel_id
+        channel_id = str(event.channel_id)
         session_name = f"{channel_id.replace(':','_')}-{ts}.txt"
         abort_container = self.global_manager.backend_internal_data_processing_dispatcher.abort
         aborted = await self.global_manager.backend_internal_data_processing_dispatcher.read_data_content(abort_container, session_name)

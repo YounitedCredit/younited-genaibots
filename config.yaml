@@ -91,6 +91,7 @@ PLUGINS:
         GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
         GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message"
         GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message"
+        GENERIC_REST_BOT_ID: "$(GENERIC_REST_BOT_ID)"
 
     INSTANT_MESSAGING:
       SLACK:

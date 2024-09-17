@@ -216,7 +216,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             return notification_data
 
     def format_trigger_genai_message(self, message):
-        raise NotImplementedError
+        bot_id = "BotDebugger"
+        formatted_message = f"<@{bot_id}> {message}"
+        return formatted_message
 
     async def post_notification(self, notification: OutgoingNotificationDataBase, url):
         headers = {'Content-Type': 'application/json'}
