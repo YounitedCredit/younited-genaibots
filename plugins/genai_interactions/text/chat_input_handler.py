@@ -155,9 +155,9 @@ class ChatInputHandler():
                 # Ensure event_data.converted_timestamp is a datetime object
                 if isinstance(event_data.converted_timestamp, str):
                     try:
-                        event_data.converted_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
+                        converted_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
                     except ValueError as e:
-                        self.logger.error(f"Error parsing event_data timestamp: {event_data.converted_timestamp} - {e}")
+                        self.logger.error(f"Error parsing event_data timestamp: {converted_timestamp} - {e}")
                         raise
                     
                 if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
