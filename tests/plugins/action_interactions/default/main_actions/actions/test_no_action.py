@@ -25,7 +25,6 @@ async def test_no_action_execute(mock_global_manager):
     action_input = ActionInput(action_name='no_action', parameters={})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',

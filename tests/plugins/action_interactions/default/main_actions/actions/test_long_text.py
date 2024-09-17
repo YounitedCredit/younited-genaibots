@@ -18,7 +18,6 @@ async def test_long_text_execution(mock_global_manager):
     action_input = ActionInput(action_name='long_text', parameters={'value': 'Test content', 'is_finished': False})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='',
@@ -70,7 +69,6 @@ async def test_process_continuation(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -107,7 +105,6 @@ async def test_process_end_of_conversation(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -137,7 +134,6 @@ async def test_long_text_execution_error_handling(mock_global_manager):
     action_input = ActionInput(action_name='long_text', parameters={'value': 'Test content', 'is_finished': False})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2023-01-01T12:00:00Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_1',
@@ -162,7 +158,6 @@ async def test_long_text_execution_empty_value(mock_global_manager):
     action_input = ActionInput(action_name='long_text', parameters={'value': '', 'is_finished': False})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2023-01-01T12:00:00Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_1',
@@ -191,7 +186,6 @@ async def test_process_continuation_error(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2023-01-01T12:00:00Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_1',
@@ -218,7 +212,6 @@ async def test_process_end_of_conversation_error(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2023-01-01T12:00:00Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_1',

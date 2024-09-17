@@ -389,7 +389,6 @@ async def test_process_interaction_start_keyword(im_default_behavior_plugin, glo
     monkeypatch.setattr(global_manager.bot_config, 'START_KEYWORD', "start")
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="thread_message",
         channel_id="C123",
         thread_id="thread_1",
@@ -415,7 +414,6 @@ async def test_process_interaction_thread_message_no_mention(im_default_behavior
     monkeypatch.setattr(global_manager.bot_config, 'REQUIRE_MENTION_THREAD_MESSAGE', True)
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="thread_message",
         channel_id="C123",
         thread_id="thread_1",
@@ -441,7 +439,6 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
     monkeypatch.setattr(global_manager.bot_config, 'REQUIRE_MENTION_NEW_MESSAGE', True)
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="message",
         channel_id="C123",
         thread_id=None,
@@ -483,7 +480,6 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
     # Prepare the event data
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="message",
         channel_id="C123",
         thread_id=None,

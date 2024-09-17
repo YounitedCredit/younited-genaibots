@@ -212,7 +212,6 @@ def mock_incoming_notification_data_base():
     event_data = MagicMock(
         spec=IncomingNotificationDataBase,
         timestamp="timestamp",
-        converted_timestamp="converted_timestamp",
         event_label="event_label",
         channel_id="channel_id",
         thread_id="thread_id",

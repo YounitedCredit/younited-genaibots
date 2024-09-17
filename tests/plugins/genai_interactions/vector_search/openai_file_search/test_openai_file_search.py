@@ -95,7 +95,7 @@ async def test_handle_request(openai_file_search_plugin):
         user_id="user_id",
         text="user text",
         timestamp="timestamp",
-        converted_timestamp="converted_timestamp",
+        
         event_label="message",
         response_id="response_id",
         user_name="user_name",
@@ -146,7 +146,7 @@ def test_validate_request(openai_file_search_plugin):
         user_id="user_id",
         text="user text",
         timestamp="timestamp",
-        converted_timestamp="converted_timestamp",
+        
         event_label="message",
         response_id="response_id",
         user_name="user_name",

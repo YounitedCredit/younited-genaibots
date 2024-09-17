@@ -22,7 +22,6 @@ def mock_backend_internal_data_processing_dispatcher():
 def create_mock_incoming_notification():
     return IncomingNotificationDataBase(
         timestamp="2023-01-01 00:00:00",
-        converted_timestamp="2023-01-01 00:00:00",
         event_label="test_event",
         channel_id="test_channel",
         thread_id="test_thread",

@@ -29,7 +29,6 @@ async def test_user_interaction_execute(mock_global_manager):
     action_input = ActionInput(action_name='user_interaction', parameters={'value': 'Test message'})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -71,7 +70,6 @@ async def test_user_interaction_execute_empty_message(mock_global_manager):
     action_input = ActionInput(action_name='user_interaction', parameters={'value': ''})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',

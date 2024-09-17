@@ -355,7 +355,6 @@ class TeamsPlugin(UserInteractionsPluginBase):
                                 files_content, event_data):
         return TeamsEventData(
             timestamp=ts,
-            converted_timestamp=timestamp,
             event_label=event_label,
             channel_id=channel_id,
             thread_id=thread_id,

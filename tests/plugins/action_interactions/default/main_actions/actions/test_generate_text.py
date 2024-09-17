@@ -31,7 +31,6 @@ async def test_generate_text_execute(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp="2023-07-03T12:34:56Z",
-        converted_timestamp="2023-07-03T12:34:56Z",
         event_label="test_event",
         channel_id='channel_123',
         thread_id='thread_456',
@@ -80,7 +79,6 @@ async def test_generate_text_execute_model_not_exists(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp="2023-07-03T12:34:56Z",
-        converted_timestamp="2023-07-03T12:34:56Z",
         event_label="test_event",
         channel_id='channel_123',
         thread_id='thread_456',
@@ -123,7 +121,6 @@ async def test_generate_text_execute_exception_handling(mock_global_manager):
 
     event = IncomingNotificationDataBase(
         timestamp="2023-07-03T12:34:56Z",
-        converted_timestamp="2023-07-03T12:34:56Z",
         event_label="test_event",
         channel_id='channel_123',
         thread_id='thread_456',

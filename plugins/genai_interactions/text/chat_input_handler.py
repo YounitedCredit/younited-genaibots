@@ -6,7 +6,7 @@ import traceback
 from typing import List
 import datetime
 import yaml
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -51,14 +51,25 @@ class ChatInputHandler():
             self.logger.error(f"Error while handling event data: {e}")
             raise
 
+    def format_timestamp(self, slack_timestamp: str) -> str:
+        # Convert Slack timestamp to UTC datetime
+        timestamp_float = float(slack_timestamp)
+
+        # Convert the Unix timestamp to a UTC datetime object
+        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
+
+        # Format the datetime object to a readable string
+        formatted_time = utc_dt.strftime('%Y-%m-%d %H:%M:%S')
+        return formatted_time
 
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
+            formatted_timestamp = self.format_timestamp(event_data.timestamp)
             feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
             general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
             await self.global_manager.prompt_manager.initialize()
             init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
-            constructed_message = f"Timestamp: {str(event_data.converted_timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+            constructed_message = f"Timestamp: {str(formatted_timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
 
             if general_behavior_content:
                 init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
@@ -108,7 +119,7 @@ class ChatInputHandler():
                 return await self.process_new_message(event_data, messages)
 
             # Process conversation history if required
-            current_event_timestamp = self.parse_timestamp(event_data.converted_timestamp)
+            current_event_timestamp = event_data.timestamp
             if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
                 conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
                 if conversation_history:
@@ -147,13 +158,28 @@ class ChatInputHandler():
                 return self.parse_timestamp(timestamp_str)
         return None
 
-    def process_relevant_events(self, conversation_history, last_message_timestamp, current_event_timestamp):
+    def process_relevant_events(
+        self, 
+        conversation_history: List[IncomingNotificationDataBase], 
+        last_message_timestamp: datetime, 
+        current_event_timestamp: str
+    ) -> List[IncomingNotificationDataBase]:
         relevant_events = []
+        
+        # Convert current_event_timestamp from Unix timestamp to datetime
+        current_event_timestamp_dt = datetime.fromtimestamp(float(current_event_timestamp), tz=timezone.utc)
+        
+        # Ensure last_message_timestamp is offset-aware
+        if last_message_timestamp.tzinfo is None:
+            last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
+        
         for past_event in conversation_history:
-            past_event_timestamp = self.parse_timestamp(past_event.converted_timestamp)
-            if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+            # Convert past_event.timestamp from Unix timestamp to datetime
+            past_event_timestamp_dt = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
+            if last_message_timestamp < past_event_timestamp_dt < current_event_timestamp_dt:
                 self.logger.info(f"Processing past event: {past_event.to_dict()}")
                 relevant_events.append(past_event)
+                
         return relevant_events
 
     def convert_events_to_messages(self, events):
@@ -163,11 +189,12 @@ class ChatInputHandler():
             messages.append(user_content)
         return messages
 
-    def construct_message(self, event_data):
+    def construct_message(self, event_data : IncomingNotificationDataBase):
         # Format the message content properly
+        event_time = self.format_timestamp(event_data.timestamp)
         constructed_message = {
             "role": "user",
-            "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
+            "content": f"Timestamp: {str(event_time)}, [Slack username]: {str(event_data.user_name)}, "
                     f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
                     f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
         }

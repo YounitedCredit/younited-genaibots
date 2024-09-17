@@ -42,7 +42,6 @@ def action_input():
 def incoming_notification():
     return IncomingNotificationDataBase(
         timestamp="2023-01-01T00:00:00Z",
-        converted_timestamp="2023-01-01T00:00:00Z",
         event_label="test_event",
         channel_id="test_channel",
         thread_id="test_thread",

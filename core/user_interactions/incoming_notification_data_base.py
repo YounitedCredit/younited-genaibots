@@ -8,8 +8,6 @@ class IncomingNotificationDataBase:
     ----------
     timestamp : str
         The timestamp when the notification was created (in universal time format like Slack's .ts).
-    converted_timestamp : str
-        The timestamp converted to a specific format.
     event_label : str
         The label of the event that triggered the notification.
     channel_id : str
@@ -48,7 +46,6 @@ class IncomingNotificationDataBase:
     def __init__(
         self,
         timestamp: str,
-        converted_timestamp: str,
         event_label: str,
         channel_id: str,
         thread_id: str,
@@ -68,7 +65,6 @@ class IncomingNotificationDataBase:
         raw_data: Optional[Dict] = None
     ) -> None:
         self.timestamp: str = timestamp
-        self.converted_timestamp: str = converted_timestamp
         self.event_label: str = event_label
         self.channel_id: str = str(channel_id)  # Ensures channel_id is always a string
         self.thread_id: str = str(thread_id)  # Ensures thread_id is always a string
@@ -90,7 +86,6 @@ class IncomingNotificationDataBase:
     def to_dict(self) -> Dict[str, Optional[str]]:
         return {
             'timestamp': self.timestamp,
-            'converted_timestamp': self.converted_timestamp,
             'event_label': self.event_label,
             'channel_id': self.channel_id,
             'thread_id': self.thread_id,
@@ -114,7 +109,6 @@ class IncomingNotificationDataBase:
     def from_dict(cls, data: Dict[str, Optional[str]]) -> 'IncomingNotificationDataBase':
         return cls(
             timestamp=data.get('timestamp', ''),
-            converted_timestamp=data.get('converted_timestamp', ''),
             event_label=data.get('event_label', ''),
             channel_id=str(data.get('channel_id', '')),
             thread_id=str(data.get('thread_id', '')),

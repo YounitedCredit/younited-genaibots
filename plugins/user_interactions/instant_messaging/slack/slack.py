@@ -553,7 +553,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             for message in messages:
                 # Convert each Slack message into an IncomingNotificationDataBase object
                 event_data = await self.request_to_notification_data({"event": message})
-                if event_data:
+                if event_data and event_data.timestamp != event.timestamp:
                     event_data_list.append(event_data)
 
             # Log the number of events found
@@ -562,7 +562,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             return event_data_list
         except Exception as e:
             self.logger.error(f"Error fetching conversation history: {e}")
-            return []        
+            return []   
         
     def get_bot_id(self) -> str:
         return self.slack_config.SLACK_BOT_USER_ID

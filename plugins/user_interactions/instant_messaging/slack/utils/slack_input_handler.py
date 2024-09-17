@@ -100,22 +100,7 @@ class SlackInputHandler:
         else:
             return True
 
-    async def format_slack_timestamp(self, slack_timestamp: str) -> str:
-        # Convert Slack timestamp to UTC datetime
-        timestamp_float = float(slack_timestamp)
 
-        # Convert the Unix timestamp to a UTC datetime object
-        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
-
-        # Define the Paris timezone
-        paris_tz = ZoneInfo("Europe/Paris")
-
-        # Convert UTC datetime to Paris time
-        paris_dt = utc_dt.astimezone(paris_tz)
-
-        # Format the datetime object to a readable string
-        paris_time = paris_dt.strftime('%Y-%m-%d %H:%M:%S')
-        return paris_time
 
     # Function to get user info
     async def get_user_info(self, user_id):
@@ -133,13 +118,6 @@ class SlackInputHandler:
                 self.logger.error(f"Error fetching user info: {e}")
                 return 'Unknown', 'Unknown', user_id
         return 'Unknown', 'Unknown', user_id
-
-    async def format_slack_timestamp(self, slack_timestamp: str) -> str:
-        timestamp_float = float(slack_timestamp)
-        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
-        paris_tz = ZoneInfo("Europe/Paris")
-        paris_dt = utc_dt.astimezone(paris_tz)
-        return paris_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     def extract_event_details(self, event):
         try:
@@ -556,14 +534,12 @@ class SlackInputHandler:
                 self.logger.error(f"An error occurred while trying to get {url}: {e}")
                 return f"An error occurred while trying to get {url}: {e}\n"
 
-    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):
-        converted_timestamp = await self.format_slack_timestamp(ts)
+    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):        
         user_name, user_email, _ = await self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
 
         return SlackEventData(
             timestamp=ts,
-            converted_timestamp=converted_timestamp,
             event_label=event_label,
             channel_id=channel_id,
             thread_id=thread_id,
@@ -581,23 +557,6 @@ class SlackInputHandler:
             files_content=files_content,
             origin_plugin_name=self.slack_config.PLUGIN_NAME
         )
-
-    async def format_slack_timestamp(self, slack_timestamp: str) -> str:
-        # Convert Slack timestamp to UTC datetime
-        timestamp_float = float(slack_timestamp)
-
-        # Convert the Unix timestamp to a UTC datetime object
-        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
-
-        # Define the Paris timezone
-        paris_tz = ZoneInfo("Europe/Paris")
-
-        # Convert UTC datetime to Paris time
-        paris_dt = utc_dt.astimezone(paris_tz)
-
-        # Format the datetime object to a readable string
-        paris_time = paris_dt.strftime('%Y-%m-%d %H:%M:%S')
-        return paris_time
 
     async def extract_info_from_url(self, message_url):
         match = re.search(

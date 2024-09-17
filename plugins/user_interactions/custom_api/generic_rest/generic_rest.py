@@ -113,7 +113,6 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             # Get required keys from IncomingNotificationDataBase but exclude fields not expected in the incoming data
             required_keys = set(IncomingNotificationDataBase(
                 timestamp="", 
-                converted_timestamp="",  # This is likely not in the incoming request data
                 event_label="", 
                 channel_id="", 
                 thread_id="", 
@@ -121,7 +120,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                 is_mention=False,  # This might also be set later in the process
                 text="", 
                 origin=""
-            ).to_dict().keys()) - {'converted_timestamp', 'is_mention'}
+            ).to_dict().keys()) - {'is_mention'}
 
             # Check if all required keys are in data
             if not all(key in data for key in required_keys):
@@ -141,15 +140,14 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         return True
 
 
-    async def process_event_data(self, event_data, headers, raw_body_str):
+    async def process_event_data(self, event_data : IncomingNotificationDataBase, headers, raw_body_str):
         try:
             validate_request = await self.validate_request(event_data, headers, raw_body_str)
 
             if validate_request:
                 try:
                     user_id = event_data.user_id
-                    channel_id = event_data.channel_id
-                    event_data.converted_timestamp = await self.format_event_timestamp(event_data.response_id)
+                    channel_id = event_data.channel_id                    
                     self.logger.info(f"Valid <GENERIC_REST> request received from user {user_id} in channel {channel_id}, processing..")
                     await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
                         event_data=event_data.to_dict(),
@@ -212,11 +210,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
     
     async def request_to_notification_data(self, event_data: IncomingNotificationDataBase):
         if isinstance(event_data, IncomingNotificationDataBase):
-            event_data.converted_timestamp = await self.format_event_timestamp(event_data.timestamp)
             return event_data
         else:
             notification_data = IncomingNotificationDataBase.from_dict(event_data)
-            notification_data.converted_timestamp = await self.format_event_timestamp(notification_data.timestamp)
             return notification_data
 
     def format_trigger_genai_message(self, message):

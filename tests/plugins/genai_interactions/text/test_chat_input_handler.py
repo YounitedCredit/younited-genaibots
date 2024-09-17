@@ -28,8 +28,7 @@ def incoming_notification():
         thread_id="thread_id",
         user_id="user_id",
         text="user text",
-        timestamp="timestamp",
-        converted_timestamp="2023-09-13 10:00:00",  
+        timestamp="timestamp", 
         event_label="message",
         response_id="response_id",
         user_name="user_name",
@@ -141,7 +140,6 @@ async def test_handle_message_event_with_images(chat_input_handler, incoming_not
 async def test_handle_message_event_with_files(chat_input_handler, incoming_notification):
     incoming_notification.files_content = ["file content 1", "file content 2"]
     incoming_notification.images = ["base64_image_data_1", "base64_image_data_2"]
-    incoming_notification.converted_timestamp = "2024-01-01T00:00:00Z"  
 
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
     chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
@@ -398,9 +396,9 @@ def test_get_last_user_message_timestamp(chat_input_handler):
 def test_process_relevant_events(chat_input_handler):
     # Simulated conversation history
     conversation_history = [
-        MagicMock(converted_timestamp="2023-09-14 09:00:00"),
-        MagicMock(converted_timestamp="2023-09-14 10:30:00"),
-        MagicMock(converted_timestamp="2023-09-14 11:00:00")
+        MagicMock(),
+        MagicMock(),
+        MagicMock()
     ]
 
     last_message_timestamp = datetime.strptime("2023-09-14 10:00:00", "%Y-%m-%d %H:%M:%S")
@@ -410,14 +408,12 @@ def test_process_relevant_events(chat_input_handler):
 
     # We expect the second and third events to be in the relevant events
     assert len(relevant_events) == 2
-    assert relevant_events[0].converted_timestamp == "2023-09-14 10:30:00"
-    assert relevant_events[1].converted_timestamp == "2023-09-14 11:00:00"
 
 def test_convert_events_to_messages(chat_input_handler):
     # Simulated events
     events = [
-        MagicMock(converted_timestamp="2023-09-14 09:00:00", user_name="User1", user_id="123", text="Hello", images=[], files_content=[]),
-        MagicMock(converted_timestamp="2023-09-14 10:00:00", user_name="User2", user_id="456", text="Hi", images=[], files_content=[])
+        MagicMock(user_name="User1", user_id="123", text="Hello", images=[], files_content=[]),
+        MagicMock(user_name="User2", user_id="456", text="Hi", images=[], files_content=[])
     ]
 
     messages = chat_input_handler.convert_events_to_messages(events)
@@ -431,7 +427,6 @@ def test_convert_events_to_messages(chat_input_handler):
 def test_construct_message(chat_input_handler):
     # Simulated event data with text, images, and files
     event_data = MagicMock(
-        converted_timestamp="2023-09-14 10:00:00",
         user_name="User1",
         user_id="123",
         user_email="user1@example.com",
