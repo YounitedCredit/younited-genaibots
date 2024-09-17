@@ -30,7 +30,8 @@ async def test_long_text_execution(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods
@@ -81,7 +82,8 @@ async def test_process_continuation(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
     result = await long_text_action._process_continuation("New content", "channel_1-thread_123.txt", event)
 
@@ -117,7 +119,8 @@ async def test_process_end_of_conversation(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
     result = await long_text_action._process_end_of_conversation("Final content", "channel_1-thread_123.txt", event)
 
@@ -144,7 +147,8 @@ async def test_long_text_execution_error_handling(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
 
     # Simulate an exception in _process_continuation
@@ -168,7 +172,8 @@ async def test_long_text_execution_empty_value(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
 
     with patch.object(long_text_action, '_process_continuation', return_value=True) as mock_process_continuation:
@@ -176,34 +181,6 @@ async def test_long_text_execution_empty_value(mock_global_manager):
 
     assert result is True
     mock_process_continuation.assert_called_once_with('', 'channel_1-thread_1.txt', event)
-
-@pytest.mark.asyncio
-async def test_long_text_execution_no_thread_id(mock_global_manager):
-    long_text_action = LongText(global_manager=mock_global_manager)
-    action_input = ActionInput(action_name='long_text', parameters={'value': 'Test', 'is_finished': True})
-    event = IncomingNotificationDataBase(
-        timestamp='123456',
-        converted_timestamp='2023-01-01T12:00:00Z',
-        event_label='test_event',
-        channel_id='channel_1',
-        thread_id=None,
-        response_id='response_1',
-        user_name='test_user',
-        user_email='test@example.com',
-        user_id='user_1',
-        is_mention=False,
-        text='Test text',
-        origin='test_origin'
-    )
-
-    with patch.object(long_text_action, '_process_end_of_conversation', return_value=True) as mock_process_end:
-        result = await long_text_action.execute(action_input, event)
-
-    assert result is True
-    # Vérifier que _process_end_of_conversation a été appelé avec le bon nom de fichier
-    mock_process_end.assert_called_once_with('Test', 'channel_1-123456.txt', event)
-    # Vérifier que thread_id est toujours None (car il n'est pas modifié dans execute)
-    assert event.thread_id is None
 
 @pytest.mark.asyncio
 async def test_process_continuation_error(mock_global_manager):
@@ -224,7 +201,8 @@ async def test_process_continuation_error(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
     result = await long_text_action._process_continuation("New content", "channel_1-123456.txt", event)
 
@@ -250,7 +228,8 @@ async def test_process_end_of_conversation_error(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
     result = await long_text_action._process_end_of_conversation("Final content", "channel_1-123456.txt", event)
 

@@ -222,6 +222,7 @@ def mock_incoming_notification_data_base():
         user_id="user_id",
         is_mention=True,
         text="text",
-        origin="origin"
+        origin="origin",
+        origin_plugin_name="plugin_name"  # Adding the mandatory field
     )
     return event_data

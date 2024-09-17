@@ -34,7 +34,8 @@ def incoming_notification():
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin"
+        origin="origin",
+        origin_plugin_name="plugin_name"
     )
 
 @pytest.mark.asyncio

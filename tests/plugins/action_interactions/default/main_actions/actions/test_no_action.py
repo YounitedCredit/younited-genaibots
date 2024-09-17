@@ -37,7 +37,8 @@ async def test_no_action_execute(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods if any (no methods to mock in this case)

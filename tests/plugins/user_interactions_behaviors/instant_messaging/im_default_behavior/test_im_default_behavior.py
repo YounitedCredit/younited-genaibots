@@ -70,7 +70,8 @@ async def test_process_interaction_general_event(im_default_behavior_plugin, glo
         "user_email": "test_user@example.com",
         "user_id": "user_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
 
@@ -120,7 +121,8 @@ async def test_process_incoming_notification_data(im_default_behavior_plugin, gl
         "user_email": "test_user@example.com",
         "user_id": "user_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
 
@@ -250,7 +252,8 @@ async def test_process_interaction_thread_break_keyword(im_default_behavior_plug
         "timestamp": "1234567890.123456",
         "thread_id": "thread_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
@@ -271,7 +274,8 @@ async def test_process_interaction_break_keyword(im_default_behavior_plugin, glo
         "timestamp": "1234567890.123456",
         "thread_id": "thread_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
 
     im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
@@ -395,7 +399,8 @@ async def test_process_interaction_start_keyword(im_default_behavior_plugin, glo
         user_id="U123",
         is_mention=True,
         text="start",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
     monkeypatch.setattr(im_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
     plugin_mock = AsyncMock()
@@ -420,7 +425,8 @@ async def test_process_interaction_thread_message_no_mention(im_default_behavior
         user_id="U123",
         is_mention=False,
         text="Hello",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
     monkeypatch.setattr(im_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
     plugin_mock = AsyncMock()
@@ -445,7 +451,8 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
         user_id="U123",
         is_mention=False,  # Not mentioning the bot
         text="Hello",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
     monkeypatch.setattr(im_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
     plugin_mock = AsyncMock()
@@ -486,7 +493,8 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
         user_id="U123",
         is_mention=True,
         text="hello",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
 
     # Mock the instant messaging plugin
@@ -531,7 +539,8 @@ async def test_process_incoming_notification_data_exception(im_default_behavior_
         "channel_id": "C123",
         "timestamp": "1234567890.123456",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name": "origin_plugin_name"
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
 
@@ -553,7 +562,8 @@ async def test_process_interaction_exception(im_default_behavior_plugin):
         "channel_id": "C123",
         "timestamp": "1234567890.123456",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name": "origin_plugin_name"
     }
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(side_effect=Exception("Test exception"))
     plugin_mock = AsyncMock()

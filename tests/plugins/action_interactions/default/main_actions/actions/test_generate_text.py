@@ -41,7 +41,8 @@ async def test_generate_text_execute(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
 
     # Mock necessary methods and attributes
@@ -89,7 +90,8 @@ async def test_generate_text_execute_model_not_exists(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
 
     # Mock necessary methods and attributes
@@ -131,7 +133,8 @@ async def test_generate_text_execute_exception_handling(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='test text',
-        origin='test_origin'
+        origin='test_origin',
+        origin_plugin_name='test_plugin'
     )
 
     # Mock necessary methods and attributes to raise an exception

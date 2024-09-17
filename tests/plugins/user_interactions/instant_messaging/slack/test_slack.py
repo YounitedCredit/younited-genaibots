@@ -7,6 +7,7 @@ import time
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import importlib
 import pytest
 from fastapi import Request
 from pydantic import BaseModel
@@ -539,7 +540,8 @@ async def test_send_message_user(slack_plugin, requests_mock):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="plugin_name"
     )
     message_type = MessageType.TEXT
 
@@ -584,7 +586,8 @@ async def test_send_message_app(slack_plugin, requests_mock):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     message_type = MessageType.TEXT
 
@@ -629,7 +632,8 @@ async def test_send_message_api_app(slack_plugin, requests_mock):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     message_type = MessageType.TEXT
 
@@ -671,7 +675,8 @@ async def test_add_reaction_user_message(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -702,7 +707,8 @@ async def test_add_reaction_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -733,7 +739,8 @@ async def test_add_reaction_api_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -764,7 +771,8 @@ async def test_remove_reaction_user_message(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -795,7 +803,8 @@ async def test_remove_reaction_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -826,7 +835,8 @@ async def test_remove_reaction_api_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -887,7 +897,8 @@ async def test_request_to_notification_data_user(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Hello, world!",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     ))
 
     result = await slack_plugin.request_to_notification_data(event_data)
@@ -925,7 +936,8 @@ async def test_request_to_notification_data_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Hello, world!",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     ))
 
     result = await slack_plugin.request_to_notification_data(event_data)
@@ -964,7 +976,8 @@ async def test_request_to_notification_data_api_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Hello, world!",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="origin_plugin_name"
     ))
 
     result = await slack_plugin.request_to_notification_data(event_data)
@@ -1053,7 +1066,8 @@ async def test_add_reference_message_user(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     message_blocks = ["Hello, world!"]
 
@@ -1082,7 +1096,8 @@ async def test_add_reference_message_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     message_blocks = ["Hello, world!"]
 
@@ -1111,7 +1126,8 @@ async def test_add_reference_message_api_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     message_blocks = ["Hello, world!"]
 
@@ -1142,7 +1158,8 @@ async def test_handle_internal_message(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
 
@@ -1197,7 +1214,8 @@ async def test_send_message(slack_plugin, requests_mock):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     message_type = MessageType.TEXT
 
@@ -1235,7 +1253,8 @@ async def test_upload_file(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     file_content = b"Test file content"
     filename = "test.txt"
@@ -1271,7 +1290,8 @@ async def test_handle_internal_channel(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
 
@@ -1305,7 +1325,8 @@ async def test_wait_for_internal_message(slack_plugin, monkeypatch):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
 
@@ -1421,7 +1442,8 @@ async def test_upload_file_no_internal_channel(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     file_content = b"Test file content"
     filename = "test.txt"
@@ -1485,7 +1507,8 @@ async def test_wait_for_internal_message_timeout(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack"
+        origin="slack",
+        origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
 

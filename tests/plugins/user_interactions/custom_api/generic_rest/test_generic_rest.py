@@ -29,6 +29,7 @@ class RestConfig(BaseModel):
     GENERIC_REST_BEHAVIOR_PLUGIN_NAME: str
     GENERIC_REST_MESSAGE_URL: str
     GENERIC_REST_REACTION_URL: str
+    GENERIC_REST_BOT_ID: str
 
 @pytest.fixture
 def rest_config_data():
@@ -38,7 +39,8 @@ def rest_config_data():
         "GENERIC_REST_ROUTE_METHODS": ["POST"],
         "GENERIC_REST_BEHAVIOR_PLUGIN_NAME": "behavior_plugin",
         "GENERIC_REST_MESSAGE_URL": "http://example.com/message",
-        "GENERIC_REST_REACTION_URL": "http://example.com/reaction"
+        "GENERIC_REST_REACTION_URL": "http://example.com/reaction",
+        "GENERIC_REST_BOT_ID": "bot_id",
     }
 
 @pytest.fixture
@@ -245,7 +247,7 @@ async def test_request_to_notification_data(generic_rest_plugin):
     # Vérifier que le retour est bien un objet IncomingNotificationDataBase
     assert isinstance(notification_data, IncomingNotificationDataBase)
     assert notification_data.user_id == 123
-    assert notification_data.channel_id == 456
+    assert notification_data.channel_id == "456"
     assert notification_data.event_label == "test_event"
     assert notification_data.text == "Hello"
 

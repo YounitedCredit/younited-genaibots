@@ -159,7 +159,8 @@ async def test_handle_request_exception(azure_aisearch_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin"
+        origin="origin",
+        origin_plugin_name="origin_plugin_name"
     )
     with patch.object(azure_aisearch_plugin, 'handle_action', new_callable=AsyncMock) as mock_handle_action:
         mock_handle_action.side_effect = Exception("Test exception")

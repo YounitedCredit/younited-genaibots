@@ -101,7 +101,8 @@ async def test_handle_request(openai_file_search_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin"
+        origin="origin",
+        origin_plugin_name="origin_plugin_name"
     )
 
     with patch.object(openai_file_search_plugin, 'handle_action', new_callable=AsyncMock) as mock_handle_action:
@@ -151,7 +152,8 @@ def test_validate_request(openai_file_search_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin"
+        origin="origin",
+        origin_plugin_name="origin_plugin_name"
     )
     assert openai_file_search_plugin.validate_request(event) == True
 
