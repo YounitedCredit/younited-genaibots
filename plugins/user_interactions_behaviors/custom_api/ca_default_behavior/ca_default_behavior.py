@@ -54,6 +54,17 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
             event: IncomingNotificationDataBase = await self.user_interactions_dispatcher.request_to_notification_data(event_data, plugin_name=event_origin)
 
+             # Create a session info in processing container
+            ts = event.timestamp
+            channel_id = event.channel_id
+            session_name = f"{str(channel_id).replace(':','_')}-{ts}.txt"
+
+            processing_container = self.backend_internal_data_processing_dispatcher.processing
+            abort_container = self.backend_internal_data_processing_dispatcher.abort
+
+            await self.backend_internal_data_processing_dispatcher.write_data_content(processing_container, session_name, data="processing")
+            self.logger.info(f"Processing session data for {session_name} created successfully.")
+
             # Retrieve bot configuration settings            
             record_nonprocessed_messages = self.bot_config.RECORD_NONPROCESSED_MESSAGES
             require_mention_new_message = self.bot_config.REQUIRE_MENTION_NEW_MESSAGE
@@ -91,17 +102,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             start_keyword = self.global_manager.bot_config.START_KEYWORD
             await self.instantmessaging_plugin.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name= self.reaction_acknowledge)
 
-            # Create a session info in processing container
-            ts = event.timestamp
-            channel_id = event.channel_id
-            session_name = f"{str(channel_id).replace(':','_')}-{ts}.txt"
-
-            processing_container = self.backend_internal_data_processing_dispatcher.processing
-            abort_container = self.backend_internal_data_processing_dispatcher.abort
-
-            await self.backend_internal_data_processing_dispatcher.write_data_content(processing_container, session_name, data="processing")
-            self.logger.info(f"Processing session data for {session_name} created successfully.")
-
+           
             # If the event is a thread message
             if event.event_label == "thread_message":
                 # Check if the text message is the break keyword

@@ -381,8 +381,12 @@ class SlackPlugin(UserInteractionsPluginBase):
             self.handle_response(response, message_block)
             if i == 0 and is_new_message_added:
                 is_new_message_added = False
-
-        return response
+        
+        if response:
+            return response
+        else:
+            self.logger.error(f"empty response received from slack")
+            return None
 
     async def add_reference_message(self, event, message_blocks, response_id):
         msg_url, msg_text = await self.slack_input_handler.get_message_permalink_and_text(event.channel_id, event.timestamp)
@@ -392,7 +396,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             return True
         return False
 
-    async def handle_internal_message(self, event, event_copy, response_id, already_found_internal_ts, show_ref):
+    async def handle_internal_message(self, event, event_copy: IncomingNotificationDataBase, response_id, already_found_internal_ts, show_ref):
         if self.INTERNAL_CHANNEL is None:
             self.logger.warning("An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
             return response_id, event.channel_id
@@ -419,7 +423,6 @@ class SlackPlugin(UserInteractionsPluginBase):
             if search_internal_ts is None:
                 self.logger.warning("Internal message not found after 40 seconds, sending the message in the original thread.")
             else:
-                self.logger.info(f"search_internal_ts: {search_internal_ts}")
                 event_copy.thread_id = search_internal_ts
 
         return response_id, self.INTERNAL_CHANNEL
@@ -500,7 +503,7 @@ class SlackPlugin(UserInteractionsPluginBase):
         if search_internal_ts is None:
             self.logger.warning("Internal message not found after 15 seconds, sending the message in the original thread.")
         else:
-            self.logger.info(f"search_internal_ts: {search_internal_ts}")
+            self.logger.info(f"internal thread found: {search_internal_ts}")
             event_copy.thread_id = search_internal_ts
 
 
@@ -547,13 +550,13 @@ class SlackPlugin(UserInteractionsPluginBase):
 
             # Use SlackOutputHandler to fetch conversation history
             messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id, thread_id=final_thread_id)
-
+            
             # Convert each message into IncomingNotificationDataBase
             event_data_list = []
             for message in messages:
                 # Convert each Slack message into an IncomingNotificationDataBase object
                 event_data = await self.request_to_notification_data({"event": message})
-                if event_data and event_data.timestamp != event.timestamp:
+                if event_data and event_data.timestamp != event.timestamp and event_data.user_id != self.bot_user_id:
                     event_data_list.append(event_data)
 
             # Log the number of events found

@@ -246,7 +246,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 self.logger.error(f"Failed to retrieve or delete messages: {str(e)}")
                 return []
         else:
-            self.logger.warning("File not found")
+            self.logger.warning("File not found: {data_file}")
             return []
 
     async def remove_data_content(self, data_container, data_file):

@@ -857,7 +857,14 @@ class SlackInputHandler:
                 if messages:
                     # Get the user's name
                     if "user" in messages[0] and (self.SLACK_AUTHORIZED_APPS[0] == "" or not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS)):
-                        self.logger.info(f"user:{messages} ")
+                        for message in messages:
+                            self.logger.info(
+                                f"user: user_id={message.get('user', 'N/A')}, "
+                                f"message_id={message.get('client_msg_id', 'N/A')}, "
+                                f"channel_id={message.get('channel', 'N/A')}, "
+                                f"thread_id={message.get('thread_ts', 'N/A')}, "
+                                f"timestamp={message.get('ts', 'N/A')}"
+                            )
                         user_id = messages[0]['user']
                         user_info_response = await self.async_client.users_info(user=user_id)
                         if user_info_response['ok']:

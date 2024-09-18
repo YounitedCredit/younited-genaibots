@@ -7,6 +7,7 @@ from typing import List
 import datetime
 import yaml
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -64,12 +65,11 @@ class ChatInputHandler():
 
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
-            formatted_timestamp = self.format_timestamp(event_data.timestamp)
             feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
             general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
             await self.global_manager.prompt_manager.initialize()
             init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
-            constructed_message = f"Timestamp: {str(formatted_timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+            constructed_message = f"Timestamp: {str(event_data.timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
 
             if general_behavior_content:
                 init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
@@ -163,18 +163,21 @@ class ChatInputHandler():
                 return
 
             try:
-                last_message_timestamp = self.get_last_user_message_timestamp(messages)
+                last_message_timestamp_str = self.get_last_user_message_timestamp(messages)
+                last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
                 if last_message_timestamp.tzinfo is None:
                     last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
             except Exception as e:
-                self.logger.error(f"Error getting last user message timestamp: {e}")
+                self.logger.error(f"Error getting last user message timestamp: {e}")                
                 return
 
+            bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
+            
             for past_event in conversation_history:
                 try:
                     past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
                     if last_message_timestamp < past_event_timestamp < current_event_timestamp:
-                        if past_event_timestamp != current_event_timestamp:
+                        if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id:
                             self.logger.info(
                                 f"Processing past event: channel_id={past_event.channel_id}, "
                                 f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
@@ -210,7 +213,7 @@ class ChatInputHandler():
                 else:
                     last_message_text = content
                 timestamp_str = last_message_text.split(",")[0].split(": ")[1]
-                return self.parse_timestamp(timestamp_str)
+                return timestamp_str
         return None
 
     def convert_events_to_messages(self, events):
@@ -222,7 +225,7 @@ class ChatInputHandler():
 
     def construct_message(self, event_data):
         # Construct the user message from event_data
-        format_timestamp = self.format_timestamp(event_data.timestamp)
+        format_timestamp = str(event_data.timestamp)
         constructed_message = {
             "role": "user",
             "content": f"Timestamp: {str(format_timestamp)}, [Slack username]: {str(event_data.user_name)}, "

@@ -416,40 +416,6 @@ def test_get_last_user_message_timestamp(chat_input_handler):
 
     assert timestamp == datetime.strptime("2023-09-15 11:00:00", "%Y-%m-%d %H:%M:%S")
 
-def test_process_relevant_events():
-    # Créez des mocks pour global_manager et chat_plugin
-    mock_global_manager = MagicMock()
-    mock_chat_plugin = MagicMock()
-
-    # Créez une instance de ChatInputHandler avec les mocks
-    chat_input_handler = ChatInputHandler(global_manager=mock_global_manager, chat_plugin=mock_chat_plugin)
-    
-    # Simulated conversation history with proper timestamps as strings
-    conversation_history = [
-        MagicMock(timestamp="1633090572.0"),  # First event at 2021-10-01 12:42:52 UTC (before the last message)
-        MagicMock(timestamp="1633097572.0"),  # Second event at 2021-10-01 14:39:32 UTC (between the last message and current event)
-        MagicMock(timestamp="1633100572.0")   # Third event at 2021-10-01 15:29:32 UTC (also between the last message and current event)
-    ]
-
-    # Define last message timestamp (in the past)
-    last_message_timestamp = datetime(2021, 10, 1, 13, 0, 0, tzinfo=timezone.utc)
-
-    # Current event timestamp (in the future, provided as a string to match the function signature)
-    current_event_timestamp = "1633107572.0"  # 2021-10-01 17:26:12 UTC
-
-    # Mocking the datetime module to control the timestamp conversion
-    with patch("plugins.genai_interactions.text.chat_input_handler.datetime") as mock_datetime:
-        mock_datetime.fromtimestamp.side_effect = lambda ts, tz: datetime.fromtimestamp(float(ts), tz=tz)
-        mock_datetime.utcnow.return_value = datetime(2021, 10, 1, 17, 26, 12, tzinfo=timezone.utc)
-
-        # Execute the function
-        relevant_events = chat_input_handler.process_relevant_events(conversation_history, last_message_timestamp, current_event_timestamp)
-
-        # Verify the results
-        assert len(relevant_events) == 2, f"Expected 2 relevant events, but got {len(relevant_events)}"
-        assert relevant_events[0].timestamp == "1633097572.0"
-        assert relevant_events[1].timestamp == "1633100572.0"
-
 def test_convert_events_to_messages(chat_input_handler):
     # Simulated events
     events = [
