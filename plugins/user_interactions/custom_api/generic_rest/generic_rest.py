@@ -119,7 +119,8 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                 response_id="", 
                 is_mention=False,  # This might also be set later in the process
                 text="", 
-                origin=""
+                origin="",
+                origin_plugin_name=""
             ).to_dict().keys()) - {'is_mention'}
 
             # Check if all required keys are in data

@@ -108,43 +108,92 @@ class ChatInputHandler():
             
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
-            # Retrieve content from the backend
+            # Step 1: Retrieve stored message history from the backend
             blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
 
-            # Handle missing messages
+            # Step 2: If no messages are found and RECORD_NONPROCESSED_MESSAGES is False
             if not messages and not self.bot_config.RECORD_NONPROCESSED_MESSAGES:
-                self.logger.error(f"No messages found for thread {event_data.thread_id}.")
-                return await self.process_new_message(event_data, messages)
+                return await self.handle_no_message_found(event_data)
 
-            # Process conversation history if required
-            current_event_timestamp = event_data.timestamp
+            # Step 3: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
             if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
-                conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
-                if conversation_history:
-                    last_message_timestamp = self.get_last_user_message_timestamp(messages)
-                    relevant_events = self.process_relevant_events(conversation_history, last_message_timestamp, current_event_timestamp)
-                    messages.extend(self.convert_events_to_messages(relevant_events))
+                await self.process_conversation_history(event_data, messages)
 
-            # Add the incoming message
+            # Step 4: Construct the new incoming message based on event_data and append to the message history
             constructed_message = self.construct_message(event_data)
             messages.append(constructed_message)
 
-            # Handle mention-based message processing
+            # Step 5: Handle the processing of unmentioned or mentioned thread messages based on configuration
             if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+                # Retrieve previously stored unmentioned messages if bot is mentioned
                 messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
             elif not event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, event_data.text)
+                # Store the message for later processing if the bot is not mentioned
+                await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
                 return None
 
+            # Step 6: Generate response based on the updated messages (history + new message)
             return await self.generate_response(event_data, messages)
 
         except Exception as e:
             self.logger.error(f"Error while handling thread message event: {e}")
-            return None
+            raise
+
+    async def handle_no_message_found(self, event_data: IncomingNotificationDataBase):
+        # Handle the case where no previous messages were found in the backend
+        self.logger.error(f"No messages found for thread {event_data.thread_id}. No conversation history available.")
+        return None  # Adjust this according to how you want to handle this case
+
+    async def process_conversation_history(self, event_data: IncomingNotificationDataBase, messages):
+        try:
+            # Fetch and process conversation history if RECORD_NONPROCESSED_MESSAGES is False
+            relevant_events = []
+            current_event_timestamp = datetime.fromtimestamp(float(event_data.timestamp), tz=timezone.utc)
+
+            try:
+                conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+            except Exception as e:
+                self.logger.error(f"Error fetching conversation history: {e}")
+                return
+
+            if not conversation_history:
+                self.logger.warning(f"No conversation history found for channel {event_data.channel_id}, thread {event_data.thread_id}")
+                return
+
+            try:
+                last_message_timestamp = self.get_last_user_message_timestamp(messages)
+                if last_message_timestamp.tzinfo is None:
+                    last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
+            except Exception as e:
+                self.logger.error(f"Error getting last user message timestamp: {e}")
+                return
+
+            for past_event in conversation_history:
+                try:
+                    past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
+                    if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+                        if past_event_timestamp != current_event_timestamp:
+                            self.logger.info(
+                                f"Processing past event: channel_id={past_event.channel_id}, "
+                                f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
+                            )
+                            relevant_events.append(past_event)
+                except Exception as e:
+                    self.logger.error(f"Error processing past event: {e}")
+
+            # Add the relevant events to the messages
+            try:
+                messages.extend(self.convert_events_to_messages(relevant_events))
+            except Exception as e:
+                self.logger.error(f"Error converting events to messages: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Unexpected error in process_conversation_history: {e}")
 
     def parse_timestamp(self, timestamp_str):
+        # Helper function to parse timestamps
         try:
             return datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
         except ValueError as e:
@@ -152,56 +201,36 @@ class ChatInputHandler():
             raise
 
     def get_last_user_message_timestamp(self, messages):
+        # Get the timestamp of the last user message in the stored messages
         for message in reversed(messages):
             if message["role"] == "user":
-                timestamp_str = message["content"][0]["text"].split(",")[0].split(": ")[1]
+                content = message["content"]
+                if isinstance(content, list):
+                    last_message_text = content[0].get("text", "")
+                else:
+                    last_message_text = content
+                timestamp_str = last_message_text.split(",")[0].split(": ")[1]
                 return self.parse_timestamp(timestamp_str)
         return None
 
-    def process_relevant_events(
-        self, 
-        conversation_history: List[IncomingNotificationDataBase], 
-        last_message_timestamp: datetime, 
-        current_event_timestamp: str
-    ) -> List[IncomingNotificationDataBase]:
-        relevant_events = []
-        
-        # Convert current_event_timestamp from Unix timestamp to datetime
-        current_event_timestamp_dt = datetime.fromtimestamp(float(current_event_timestamp), tz=timezone.utc)
-        
-        # Ensure last_message_timestamp is offset-aware
-        if last_message_timestamp.tzinfo is None:
-            last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
-        
-        for past_event in conversation_history:
-            # Convert past_event.timestamp from Unix timestamp to datetime
-            past_event_timestamp_dt = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
-            if last_message_timestamp < past_event_timestamp_dt < current_event_timestamp_dt:
-                self.logger.info(
-                    f"Processing past event: channel_id={past_event.channel_id}, "
-                    f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
-                )
-                relevant_events.append(past_event)
-                
-        return relevant_events
-
     def convert_events_to_messages(self, events):
+        # Convert conversation history events into the appropriate message format
         messages = []
         for event in events:
-            user_content = self.construct_message(event)
-            messages.append(user_content)
+            messages.append(self.construct_message(event))
         return messages
 
-    def construct_message(self, event_data : IncomingNotificationDataBase):
-        # Format the message content properly
-        event_time = self.format_timestamp(event_data.timestamp)
+    def construct_message(self, event_data):
+        # Construct the user message from event_data
+        format_timestamp = self.format_timestamp(event_data.timestamp)
         constructed_message = {
             "role": "user",
-            "content": f"Timestamp: {str(event_time)}, [Slack username]: {str(event_data.user_name)}, "
+            "content": f"Timestamp: {str(format_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
                     f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
                     f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
         }
 
+        # Format the content with additional images and files if applicable
         user_content_text = [{"type": "text", "text": constructed_message["content"]}]
         user_content_images = []
 
@@ -220,7 +249,6 @@ class ChatInputHandler():
                 user_content_text.append({"type": "text", "text": file_content})
 
         return {"role": "user", "content": user_content_text + user_content_images}
-
     
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
         completion = None  # Initialize to None
