@@ -60,6 +60,7 @@ Basic Example:
   }
   ```
 - The words "Action" and "ActionName" MUST NOT BE MODIFIED. These are hard-coded values. You modify the value only when you create an action.
+- Action json block must have ActionName and Parameters, even if parameters are empty.
 
 Here's a list of the core actions that you can use to generate your response to the user:
 
