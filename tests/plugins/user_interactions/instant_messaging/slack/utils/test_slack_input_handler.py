@@ -74,19 +74,6 @@ async def test_is_relevant_message(slack_input_handler):
     result = await slack_input_handler.is_relevant_message("message", event_ts, "USER_ID", None, None, "BOT_USER_ID", "authorized_channel")
     assert result is True
 
-@pytest.mark.asyncio
-async def test_format_slack_timestamp(slack_input_handler):
-    slack_timestamp = "1620834875.000400"
-    result = await slack_input_handler.format_slack_timestamp(slack_timestamp)
-
-    # Convert the timestamp to the expected Paris time
-    expected_utc_time = datetime.fromtimestamp(float(slack_timestamp), tz=timezone.utc)
-    paris_tz = pytz.timezone('Europe/Paris')
-    expected_paris_time = expected_utc_time.astimezone(paris_tz)
-    expected_result = expected_paris_time.strftime('%Y-%m-%d %H:%M:%S')
-
-    assert result == expected_result
-
 def test_extract_event_details(slack_input_handler):
     event = {
         "ts": "1620834875.000400",

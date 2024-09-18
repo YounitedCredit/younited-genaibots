@@ -26,6 +26,7 @@ async def test_observation_thought_execute(mock_global_manager):
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
+        event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
         response_id='response_123',

@@ -396,7 +396,7 @@ class SlackInputHandler:
             metadata = result['metadata']
             content_type = result['content_type']
             messages = result['messages']
-
+            messages = [message for message in messages if message['ts'] != main_timestamp]
             # Tag the exact message that was linked
             tagged_message = None
             if is_thread:
@@ -725,6 +725,17 @@ class SlackInputHandler:
             self.logger.error(f"Error fetching bot info: {e}")
         return 'Unknown Bot'
 
+    def format_slack_timestamp(self, slack_timestamp: str) -> str:
+        # Convert Slack timestamp to UTC datetime
+        timestamp_float = float(slack_timestamp)
+
+        # Convert the Unix timestamp to a UTC datetime object
+        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
+
+        # Format the datetime object to a readable string
+        formatted_time = utc_dt.strftime('%Y-%m-%d %H:%M:%S')
+        return formatted_time
+    
     async def _format_message_content(self, messages):
         formatted_messages = []
         for message in messages:
@@ -750,7 +761,7 @@ class SlackInputHandler:
                 username, user_email, _ = await self.get_user_info(user_id)
 
             # Format the message timestamp
-            timestamp = await self.format_slack_timestamp(message.get('ts', ''))
+            timestamp = self.format_slack_timestamp(message.get('ts', ''))
 
             # Check if the message directly mentions the bot
             is_mention = f"<@{self.SLACK_BOT_USER_ID}>" in message.get('text', '')

@@ -177,7 +177,10 @@ class ChatInputHandler():
             # Convert past_event.timestamp from Unix timestamp to datetime
             past_event_timestamp_dt = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
             if last_message_timestamp < past_event_timestamp_dt < current_event_timestamp_dt:
-                self.logger.info(f"Processing past event: {past_event.to_dict()}")
+                self.logger.info(
+                    f"Processing past event: channel_id={past_event.channel_id}, "
+                    f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
+                )
                 relevant_events.append(past_event)
                 
         return relevant_events

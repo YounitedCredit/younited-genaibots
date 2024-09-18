@@ -1,7 +1,7 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
@@ -28,7 +28,7 @@ def incoming_notification():
         thread_id="thread_id",
         user_id="user_id",
         text="user text",
-        timestamp="timestamp", 
+        timestamp="1633090572.000200",  # Unix timestamp example
         event_label="message",
         response_id="response_id",
         user_name="user_name",
@@ -74,18 +74,42 @@ async def test_handle_message_event(chat_input_handler, incoming_notification):
 
 @pytest.mark.asyncio
 async def test_handle_thread_message_event(chat_input_handler, incoming_notification):
-    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
+    # Assurez-vous que le bot est configuré pour requérir une mention pour stocker les messages non mentionnés
+    chat_input_handler.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE = True
+    
+    # Spécifiez que l'utilisateur n'est pas mentionné (ce qui devrait déclencher 'store_unmentioned_messages')
+    incoming_notification.is_mention = False
+    
+    # Mock les méthodes nécessaires
+    with patch.object(chat_input_handler, 'process_relevant_events', return_value=[]), \
+         patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
          patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'store_unmentioned_messages', new_callable=AsyncMock) as mock_store_unmentioned_messages, \
          patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
-
+        
+        # Simulez le contenu lu
         mock_read_data_content.return_value = json.dumps([{"role": "assistant", "content": "previous message"}])
+        
+        # Simulez une réponse générée
         mock_generate_response.return_value = "generated response"
-        incoming_notification.is_mention = False
-
+        
+        # Appelez la méthode
         result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+        
+        # Assurez-vous que le résultat est None, car l'utilisateur n'est pas mentionné
         assert result is None
+
+        # Vérifiez que 'read_data_content' a bien été appelée une fois
         mock_read_data_content.assert_called_once()
-        mock_store_unmentioned_messages.assert_called_once()
+
+        # 'store_unmentioned_messages' devrait être appelée car l'utilisateur n'est pas mentionné
+        mock_store_unmentioned_messages.assert_called_once_with(
+            incoming_notification.channel_id, 
+            incoming_notification.thread_id, 
+            incoming_notification.text
+        )
+        
+        # Vérifiez que 'generate_response' n'est pas appelée, car il ne devrait pas y avoir de réponse générée
+        mock_generate_response.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_generate_response(chat_input_handler, incoming_notification):
@@ -140,6 +164,7 @@ async def test_handle_message_event_with_images(chat_input_handler, incoming_not
 async def test_handle_message_event_with_files(chat_input_handler, incoming_notification):
     incoming_notification.files_content = ["file content 1", "file content 2"]
     incoming_notification.images = ["base64_image_data_1", "base64_image_data_2"]
+    incoming_notification.timestamp = "1633090572.000200"  # Un exemple valide de timestamp Unix
 
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
     chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
@@ -169,7 +194,7 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         user_content = messages[1]['content']
         assert user_content[0]['type'] == 'text'
         expected_text = (
-            f"Timestamp: {incoming_notification.converted_timestamp}, [username]: {incoming_notification.user_name}, "
+            f"Timestamp: {chat_input_handler.format_timestamp(incoming_notification.timestamp)}, [username]: {incoming_notification.user_name}, "
             f"[user id]: {incoming_notification.user_id}, [user email]: {incoming_notification.user_email}, "
             f"[Directly mentioning you]: {incoming_notification.is_mention}, [message]: {incoming_notification.text}"
         )
@@ -207,8 +232,6 @@ async def test_call_completion_success(chat_input_handler, incoming_notification
     # Vérifiez si le résultat est bien ce qui est attendu et analysé en JSON
     assert result is not None
     assert result["response"] == "generated completion"
-
-
 
 @pytest.mark.asyncio
 async def test_call_completion_failure(chat_input_handler, incoming_notification):
@@ -393,21 +416,39 @@ def test_get_last_user_message_timestamp(chat_input_handler):
 
     assert timestamp == datetime.strptime("2023-09-15 11:00:00", "%Y-%m-%d %H:%M:%S")
 
-def test_process_relevant_events(chat_input_handler):
-    # Simulated conversation history
+def test_process_relevant_events():
+    # Créez des mocks pour global_manager et chat_plugin
+    mock_global_manager = MagicMock()
+    mock_chat_plugin = MagicMock()
+
+    # Créez une instance de ChatInputHandler avec les mocks
+    chat_input_handler = ChatInputHandler(global_manager=mock_global_manager, chat_plugin=mock_chat_plugin)
+    
+    # Simulated conversation history with proper timestamps as strings
     conversation_history = [
-        MagicMock(),
-        MagicMock(),
-        MagicMock()
+        MagicMock(timestamp="1633090572.0"),  # First event at 2021-10-01 12:42:52 UTC (before the last message)
+        MagicMock(timestamp="1633097572.0"),  # Second event at 2021-10-01 14:39:32 UTC (between the last message and current event)
+        MagicMock(timestamp="1633100572.0")   # Third event at 2021-10-01 15:29:32 UTC (also between the last message and current event)
     ]
 
-    last_message_timestamp = datetime.strptime("2023-09-14 10:00:00", "%Y-%m-%d %H:%M:%S")
-    current_event_timestamp = datetime.strptime("2023-09-14 12:00:00", "%Y-%m-%d %H:%M:%S")
+    # Define last message timestamp (in the past)
+    last_message_timestamp = datetime(2021, 10, 1, 13, 0, 0, tzinfo=timezone.utc)
 
-    relevant_events = chat_input_handler.process_relevant_events(conversation_history, last_message_timestamp, current_event_timestamp)
+    # Current event timestamp (in the future, provided as a string to match the function signature)
+    current_event_timestamp = "1633107572.0"  # 2021-10-01 17:26:12 UTC
 
-    # We expect the second and third events to be in the relevant events
-    assert len(relevant_events) == 2
+    # Mocking the datetime module to control the timestamp conversion
+    with patch("plugins.genai_interactions.text.chat_input_handler.datetime") as mock_datetime:
+        mock_datetime.fromtimestamp.side_effect = lambda ts, tz: datetime.fromtimestamp(float(ts), tz=tz)
+        mock_datetime.utcnow.return_value = datetime(2021, 10, 1, 17, 26, 12, tzinfo=timezone.utc)
+
+        # Execute the function
+        relevant_events = chat_input_handler.process_relevant_events(conversation_history, last_message_timestamp, current_event_timestamp)
+
+        # Verify the results
+        assert len(relevant_events) == 2, f"Expected 2 relevant events, but got {len(relevant_events)}"
+        assert relevant_events[0].timestamp == "1633097572.0"
+        assert relevant_events[1].timestamp == "1633100572.0"
 
 def test_convert_events_to_messages(chat_input_handler):
     # Simulated events
