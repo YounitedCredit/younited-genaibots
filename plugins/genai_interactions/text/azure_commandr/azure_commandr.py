@@ -208,7 +208,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             else:
                 response_id = event_copy.thread_id
 
-            AUTOMATED_RESPONSE_MESSAGE = "automated response"
+            AUTOMATED_RESPONSE_MESSAGE = "AUTOMATED_RESPONSE"
             event_copy.user_id = AUTOMATED_RESPONSE_MESSAGE
             event_copy.user_name =  AUTOMATED_RESPONSE_MESSAGE
             event_copy.user_email = AUTOMATED_RESPONSE_MESSAGE

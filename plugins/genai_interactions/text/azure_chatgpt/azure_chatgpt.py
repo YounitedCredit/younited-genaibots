@@ -455,7 +455,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             else:
                 response_id = event_copy.thread_id
 
-            event_copy.user_id = AUTOMATED_RESPONSE_TRIGGER
+            event_copy.user_id = "AUTOMATED_RESPONSE"
             event_copy.user_name =  AUTOMATED_RESPONSE_TRIGGER
             event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
             event_copy.event_label = "thread_message"

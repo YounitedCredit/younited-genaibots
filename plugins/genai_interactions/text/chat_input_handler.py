@@ -177,7 +177,7 @@ class ChatInputHandler():
                 try:
                     past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
                     if last_message_timestamp < past_event_timestamp < current_event_timestamp:
-                        if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id:
+                        if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id and "AUTOMATED_RESPONSE" not in past_event.text:
                             self.logger.info(
                                 f"Processing past event: channel_id={past_event.channel_id}, "
                                 f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
