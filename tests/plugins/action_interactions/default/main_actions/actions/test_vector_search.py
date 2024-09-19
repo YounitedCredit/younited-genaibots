@@ -33,7 +33,6 @@ async def test_vector_search_execute_with_results(mock_global_manager):
     action_input = ActionInput(action_name='vector_search', parameters={'query': 'Test query', 'index_name': 'test_index', 'result_count': 5})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -45,7 +44,8 @@ async def test_vector_search_execute_with_results(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name="origin_plugin_name"
     )
 
     # Mock methods
@@ -80,7 +80,6 @@ async def test_vector_search_execute_no_results(mock_global_manager):
     action_input = ActionInput(action_name='vector_search', parameters={'query': 'Test query', 'index_name': 'test_index', 'result_count': 5})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -92,7 +91,8 @@ async def test_vector_search_execute_no_results(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name="origin_plugin_name"
     )
 
     # Mock methods
@@ -125,7 +125,6 @@ async def test_vector_search_execute_with_exception(mock_global_manager):
     action_input = ActionInput(action_name='vector_search', parameters={'query': 'Test query', 'index_name': 'test_index', 'result_count': 5})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -137,7 +136,8 @@ async def test_vector_search_execute_with_exception(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name="origin_plugin_name"
     )
 
     # Mock methods to raise an exception

@@ -9,7 +9,6 @@ from core.user_interactions.incoming_notification_data_base import (
 def sample_data_user():
     return {
         'timestamp': '2023-06-20T12:00:00Z',
-        'converted_timestamp': '2023-06-20T12:00:00+00:00',
         'event_label': 'Test Event',
         'channel_id': '123456',
         'thread_id': '654321',
@@ -33,7 +32,6 @@ def sample_data_user():
 def sample_data_app():
     return {
         'timestamp': '2023-06-20T12:00:00Z',
-        'converted_timestamp': '2023-06-20T12:00:00+00:00',
         'event_label': 'Test Event',
         'channel_id': '123456',
         'thread_id': '654321',
@@ -57,7 +55,6 @@ def sample_data_app():
 def sample_data_api_app():
     return {
         'timestamp': '2023-06-20T12:00:00Z',
-        'converted_timestamp': '2023-06-20T12:00:00+00:00',
         'event_label': 'Test Event',
         'channel_id': '123456',
         'thread_id': '654321',
@@ -81,7 +78,6 @@ def test_incoming_notification_data_base_initialization(sample_data_user):
     # Test initialization of IncomingNotificationDataBase
     notification = IncomingNotificationDataBase(**sample_data_user)
     assert notification.timestamp == sample_data_user['timestamp']
-    assert notification.converted_timestamp == sample_data_user['converted_timestamp']
     assert notification.event_label == sample_data_user['event_label']
     assert notification.channel_id == sample_data_user['channel_id']
     assert notification.thread_id == sample_data_user['thread_id']
@@ -113,7 +109,6 @@ def test_incoming_notification_data_base_from_dict(sample_data_user):
     # Test creation of IncomingNotificationDataBase from dictionary
     notification = IncomingNotificationDataBase.from_dict(sample_data_user)
     assert notification.timestamp == sample_data_user['timestamp']
-    assert notification.converted_timestamp == sample_data_user['converted_timestamp']
     assert notification.event_label == sample_data_user['event_label']
     assert notification.channel_id == sample_data_user['channel_id']
     assert notification.thread_id == sample_data_user['thread_id']
@@ -137,7 +132,6 @@ def test_incoming_notification_data_base_initialization_app(sample_data_app):
     notification = IncomingNotificationDataBase(**sample_data_app)
     print(notification.user_name)
     assert notification.timestamp == sample_data_app['timestamp']
-    assert notification.converted_timestamp == sample_data_app['converted_timestamp']
     assert notification.event_label == sample_data_app['event_label']
     assert notification.channel_id == sample_data_app['channel_id']
     assert notification.thread_id == sample_data_app['thread_id']
@@ -161,7 +155,6 @@ def test_incoming_notification_data_base_initialization_api_app(sample_data_api_
     notification = IncomingNotificationDataBase(**sample_data_api_app)
     print(notification.user_name)
     assert notification.timestamp == sample_data_api_app['timestamp']
-    assert notification.converted_timestamp == sample_data_api_app['converted_timestamp']
     assert notification.event_label == sample_data_api_app['event_label']
     assert notification.channel_id == sample_data_api_app['channel_id']
     assert notification.thread_id == sample_data_api_app['thread_id']
@@ -205,7 +198,6 @@ def test_incoming_notification_data_base_from_dict_app(sample_data_app):
     # Test creation of IncomingNotificationDataBase from dictionary
     notification = IncomingNotificationDataBase.from_dict(sample_data_app)
     assert notification.timestamp == sample_data_app['timestamp']
-    assert notification.converted_timestamp == sample_data_app['converted_timestamp']
     assert notification.event_label == sample_data_app['event_label']
     assert notification.channel_id == sample_data_app['channel_id']
     assert notification.thread_id == sample_data_app['thread_id']
@@ -228,7 +220,6 @@ def test_incoming_notification_data_base_from_dict_app(sample_data_api_app):
     # Test creation of IncomingNotificationDataBase from dictionary
     notification = IncomingNotificationDataBase.from_dict(sample_data_api_app)
     assert notification.timestamp == sample_data_api_app['timestamp']
-    assert notification.converted_timestamp == sample_data_api_app['converted_timestamp']
     assert notification.event_label == sample_data_api_app['event_label']
     assert notification.channel_id == sample_data_api_app['channel_id']
     assert notification.thread_id == sample_data_api_app['thread_id']

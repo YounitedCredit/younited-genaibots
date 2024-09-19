@@ -70,7 +70,8 @@ async def test_process_interaction_general_event(im_default_behavior_plugin, glo
         "user_email": "test_user@example.com",
         "user_id": "user_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
 
@@ -120,7 +121,8 @@ async def test_process_incoming_notification_data(im_default_behavior_plugin, gl
         "user_email": "test_user@example.com",
         "user_id": "user_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
 
@@ -250,7 +252,8 @@ async def test_process_interaction_thread_break_keyword(im_default_behavior_plug
         "timestamp": "1234567890.123456",
         "thread_id": "thread_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
@@ -271,7 +274,8 @@ async def test_process_interaction_break_keyword(im_default_behavior_plugin, glo
         "timestamp": "1234567890.123456",
         "thread_id": "thread_1",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name":'test_plugin'
     }
 
     im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
@@ -385,7 +389,6 @@ async def test_process_interaction_start_keyword(im_default_behavior_plugin, glo
     monkeypatch.setattr(global_manager.bot_config, 'START_KEYWORD', "start")
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="thread_message",
         channel_id="C123",
         thread_id="thread_1",
@@ -395,7 +398,8 @@ async def test_process_interaction_start_keyword(im_default_behavior_plugin, glo
         user_id="U123",
         is_mention=True,
         text="start",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
     monkeypatch.setattr(im_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
     plugin_mock = AsyncMock()
@@ -410,7 +414,6 @@ async def test_process_interaction_thread_message_no_mention(im_default_behavior
     monkeypatch.setattr(global_manager.bot_config, 'REQUIRE_MENTION_THREAD_MESSAGE', True)
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="thread_message",
         channel_id="C123",
         thread_id="thread_1",
@@ -420,7 +423,8 @@ async def test_process_interaction_thread_message_no_mention(im_default_behavior
         user_id="U123",
         is_mention=False,
         text="Hello",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
     monkeypatch.setattr(im_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
     plugin_mock = AsyncMock()
@@ -435,7 +439,6 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
     monkeypatch.setattr(global_manager.bot_config, 'REQUIRE_MENTION_NEW_MESSAGE', True)
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="message",
         channel_id="C123",
         thread_id=None,
@@ -445,7 +448,8 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
         user_id="U123",
         is_mention=False,  # Not mentioning the bot
         text="Hello",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
     monkeypatch.setattr(im_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
     plugin_mock = AsyncMock()
@@ -473,9 +477,9 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
 
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_no_genai_output(im_default_behavior_plugin, global_manager, monkeypatch):
+    # Prepare the event data
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
-        converted_timestamp="2023-01-01 12:00:00",
         event_label="message",
         channel_id="C123",
         thread_id=None,
@@ -485,17 +489,18 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
         user_id="U123",
         is_mention=True,
         text="hello",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
 
-    # Mock the instantmessaging_plugin
+    # Mock the instant messaging plugin
     plugin_mock = AsyncMock()
     im_default_behavior_plugin.instantmessaging_plugin = plugin_mock
 
-    # Mock the genai_interactions_text_dispatcher
+    # Mock the genai_interactions_text_dispatcher with no output
     monkeypatch.setattr(im_default_behavior_plugin.genai_interactions_text_dispatcher, 'handle_request', AsyncMock(return_value=None))
 
-    # Mock the global_manager.bot_config
+    # Mock the global_manager.bot_config settings
     monkeypatch.setattr(global_manager.bot_config, 'ACKNOWLEDGE_NONPROCESSED_MESSAGE', True)
 
     # Set up the reaction attributes
@@ -504,20 +509,24 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
     im_default_behavior_plugin.reaction_writing = "writing_reaction"
     im_default_behavior_plugin.reaction_acknowledge = "acknowledge_reaction"
 
+    # Call the method under test
     await im_default_behavior_plugin.process_incoming_notification_data(event_data)
 
-    # Verify the expected behavior
+    # Check that the correct reactions were removed
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_done)
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_generating)
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_writing)
     plugin_mock.remove_reaction.assert_any_call(event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_acknowledge)
 
-    im_default_behavior_plugin.logger.info.assert_called_with("GenAI output is None, not processing the message.")
+    # Check the log message for no GenAI output
+    im_default_behavior_plugin.logger.info.assert_called_with("No GenAI completion generated, not processing")
+
+    # Check that the "done" reaction was added
     plugin_mock.add_reaction.assert_called_with(channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_done)
 
-    # Verify that no other interactions occurred
+    # Ensure no message was sent
     assert not plugin_mock.send_message.called
-
+    
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_exception(im_default_behavior_plugin):
     event_data = {
@@ -526,7 +535,8 @@ async def test_process_incoming_notification_data_exception(im_default_behavior_
         "channel_id": "C123",
         "timestamp": "1234567890.123456",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name": "origin_plugin_name"
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
 
@@ -548,7 +558,8 @@ async def test_process_interaction_exception(im_default_behavior_plugin):
         "channel_id": "C123",
         "timestamp": "1234567890.123456",
         "is_mention": True,
-        "origin": "origin_plugin"
+        "origin": "origin_plugin",
+        "origin_plugin_name": "origin_plugin_name"
     }
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(side_effect=Exception("Test exception"))
     plugin_mock = AsyncMock()

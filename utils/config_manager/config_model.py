@@ -6,8 +6,6 @@ from pydantic import BaseModel
 class BotConfig(BaseModel):
     CORE_PROMPT: str
     MAIN_PROMPT: str
-    PROMPTS_FOLDER: str
-    SUBPROMPTS_FOLDER: str
     FEEDBACK_GENERAL_BEHAVIOR: str
     REQUIRE_MENTION_NEW_MESSAGE : bool
     REQUIRE_MENTION_THREAD_MESSAGE : bool

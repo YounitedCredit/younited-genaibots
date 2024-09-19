@@ -25,6 +25,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_ABORT_CONTAINER: str
     FILE_SYSTEM_VECTORS_CONTAINER: str
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
+    FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -48,6 +49,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.abort_container = None
         self.vectors_container = None
         self.custom_actions_container = None
+        self.subprompts_container = None
 
     @property
     def plugin_name(self):
@@ -106,6 +108,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def custom_actions(self):
         # Implement the custom_actions property
         return self.custom_actions_container
+    
+    @property
+    def subprompts(self):
+        # Implement the subprompts property
+        return self.subprompts_container
 
     def initialize(self):
         try:
@@ -121,6 +128,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.abort_container = self.file_system_config.FILE_SYSTEM_ABORT_CONTAINER
             self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
+            self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
@@ -143,7 +151,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.processing_container,
             self.abort_container,
             self.vectors_container,
-            self.custom_actions_container
+            self.custom_actions_container,
+            self.subprompts_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -237,7 +246,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 self.logger.error(f"Failed to retrieve or delete messages: {str(e)}")
                 return []
         else:
-            self.logger.warning("File not found")
+            self.logger.warning(f"File not found: {file_path}")
             return []
 
     async def remove_data_content(self, data_container, data_file):

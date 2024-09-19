@@ -74,19 +74,6 @@ async def test_is_relevant_message(slack_input_handler):
     result = await slack_input_handler.is_relevant_message("message", event_ts, "USER_ID", None, None, "BOT_USER_ID", "authorized_channel")
     assert result is True
 
-@pytest.mark.asyncio
-async def test_format_slack_timestamp(slack_input_handler):
-    slack_timestamp = "1620834875.000400"
-    result = await slack_input_handler.format_slack_timestamp(slack_timestamp)
-
-    # Convert the timestamp to the expected Paris time
-    expected_utc_time = datetime.fromtimestamp(float(slack_timestamp), tz=timezone.utc)
-    paris_tz = pytz.timezone('Europe/Paris')
-    expected_paris_time = expected_utc_time.astimezone(paris_tz)
-    expected_result = expected_paris_time.strftime('%Y-%m-%d %H:%M:%S')
-
-    assert result == expected_result
-
 def test_extract_event_details(slack_input_handler):
     event = {
         "ts": "1620834875.000400",
@@ -236,7 +223,6 @@ async def test_request_to_notification_data(slack_input_handler, mocker):
 
     assert isinstance(result, SlackEventData)
     assert result.timestamp == "1620834875.000400"
-    assert result.converted_timestamp == "2021-05-12 19:41:15"
     assert result.event_label == "message"
     assert result.channel_id == "CHANNEL_ID"
     assert result.thread_id == "1620834875.000400"
@@ -1245,7 +1231,6 @@ async def test_create_event_data_instance(slack_input_handler, mocker):
     
     assert isinstance(result, SlackEventData)
     assert result.timestamp == "1620834875.000400"
-    assert result.converted_timestamp == "2021-05-12 19:41:15"
     assert result.user_name == "John Doe"
     assert result.user_email == "john@example.com"
     assert result.user_id == "USER123"
@@ -1283,7 +1268,6 @@ async def test_request_to_notification_data_full_flow(slack_input_handler, mocke
     mocker.patch.object(slack_input_handler, "determine_event_label_and_thread_id", return_value=("message", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "_create_event_data_instance", return_value=SlackEventData(
         timestamp="1620834875.000400",
-        converted_timestamp="2021-05-12 19:41:15",
         event_label="message",
         channel_id="CHANNEL_ID",
         thread_id="1620834875.000400",
@@ -1308,7 +1292,6 @@ async def test_request_to_notification_data_full_flow(slack_input_handler, mocke
     assert result.user_name == "John Doe"
     assert result.user_email == "john@example.com"
     assert result.timestamp == "1620834875.000400"
-    assert result.converted_timestamp == "2021-05-12 19:41:15"
     assert result.event_label == "message"
     assert result.channel_id == "CHANNEL_ID"
     assert result.thread_id == "1620834875.000400"

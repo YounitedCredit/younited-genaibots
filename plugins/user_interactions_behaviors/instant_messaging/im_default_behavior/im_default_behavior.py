@@ -65,12 +65,19 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Check if the event should be processed based on the configuration
             if event.event_label == "thread_message" and not event.is_mention and require_mention_thread_message:
                 if not record_nonprocessed_messages:
-                    self.logger.info("Event is a threaded message without mention and RECORD_NONPROCESSED_MESSAGES is False, not processing.")
+                    self.logger.info(
+                        "Event is a threaded message without mention and the bot configuration "
+                        f"requires mentions for thread messages REQUIRE_MENTION_THREAD_MESSAGE: "
+                        f"{self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE}), not processing."
+                    )
                     return
                 else:
-                    self.logger.info("Event is a threaded message without mention, but RECORD_NONPROCESSED_MESSAGES is True, processing.")
-
-            if event.event_label == "message":
+                    self.logger.info(
+                        "Event is a threaded message without mention, storing the message for later "
+                        f"processing as per bot configuration REQUIRE_MENTION_THREAD_MESSAGE: "
+                        f"{self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE})."
+                    )
+            elif event.event_label == "message":
                 if require_mention_new_message and not event.is_mention:
                     self.logger.info("Event is a new message without mention and mentions are required, not processing.")
                     return
@@ -80,7 +87,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.info("Event is a new message with mention, processing.")
                 elif not record_nonprocessed_messages:
                     self.logger.info("Event is a new message without mention and non-processed messages are not recorded, not processing.")
-                    return
+                    return            
 
             self.instantmessaging_plugin : UserInteractionsPluginBase = self.user_interaction_dispatcher.get_plugin(event_origin)
             # reactions for the bot to use in the chat
@@ -141,6 +148,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.logger.error(f"Error processing incoming request: {str(e)}")
             self.logger.error(traceback.format_exc())
             await self.instantmessaging_plugin.send_message(event=event, message=f":warning: Error processing incoming request : {str(e)}", message_type=MessageType.TEXT, is_internal=True, show_ref=False)
+            self.mark_error(event, event.channel_id, event.timestamp)
             raise
         finally:
             end_time = time.time()  # Stop the timer
@@ -179,7 +187,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 await self.global_manager.action_interactions_handler.handle_request(genai_response, event)
             else:
                 # If there is no genai output, log a warning
-                self.logger.info("GenAI output is None, not processing the message.")
+                self.logger.info("No GenAI completion generated, not processing")
 
             # don't ack if the bot config says not to
             if genai_output is None:

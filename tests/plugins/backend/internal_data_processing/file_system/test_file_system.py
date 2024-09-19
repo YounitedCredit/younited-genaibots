@@ -23,7 +23,8 @@ def mock_config():
         "FILE_SYSTEM_PROCESSING_CONTAINER": "processing",
         "FILE_SYSTEM_ABORT_CONTAINER": "abort",
         "FILE_SYSTEM_VECTORS_CONTAINER": "vectors",
-        "FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER": "custom_actions"
+        "FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER": "custom_actions",
+        "FILE_SYSTEM_SUBPROMPTS_CONTAINER": "subprompts"
     }
 
 @pytest.fixture
@@ -80,7 +81,7 @@ async def test_remove_data_content_file_not_exists(file_system_plugin):
 @patch('os.makedirs')
 def test_init_shares(mock_makedirs, file_system_plugin):
     file_system_plugin.init_shares()
-    assert mock_makedirs.call_count == 10
+    assert mock_makedirs.call_count == 11
 
 @pytest.mark.asyncio
 async def test_append_data(file_system_plugin):

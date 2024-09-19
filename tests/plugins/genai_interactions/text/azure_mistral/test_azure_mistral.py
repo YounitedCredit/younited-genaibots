@@ -61,13 +61,14 @@ async def test_handle_action_with_empty_blob(azure_mistral_plugin):
                 user_id="user_id",
                 text="user text",
                 timestamp="timestamp",
-                converted_timestamp="converted_timestamp",
+                
                 event_label="event_label",
                 response_id="response_id",
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin"
+                origin="origin",
+                origin_plugin_name="origin_plugin_name"
             )
 
             result = await azure_mistral_plugin.handle_action(action_input, event)
@@ -105,13 +106,14 @@ async def test_handle_action_with_existing_blob(azure_mistral_plugin):
                 user_id="user_id",
                 text="user text",
                 timestamp="timestamp",
-                converted_timestamp="converted_timestamp",
+                
                 event_label="event_label",
                 response_id="response_id",
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin"
+                origin="origin",
+                origin_plugin_name="origin_plugin_name"
             )
 
             result = await azure_mistral_plugin.handle_action(action_input, event)
@@ -146,7 +148,7 @@ async def test_trigger_genai(azure_mistral_plugin):
         user_id="user_id",
         text="user text",
         timestamp="timestamp",
-        converted_timestamp="converted_timestamp",
+        
         event_label="event_label",
         response_id="response_id",
         user_name="user_name",
@@ -164,7 +166,7 @@ async def test_trigger_genai(azure_mistral_plugin):
 
         await azure_mistral_plugin.trigger_genai(event)
 
-        # Vérifications
+        # Verifications
         assert mock_send_message.call_count == 2
         mock_send_message.assert_any_call(event=event, message="Processing incoming data, please wait...", message_type=MessageType.COMMENT)
         mock_send_message.assert_any_call(
@@ -177,14 +179,15 @@ async def test_trigger_genai(azure_mistral_plugin):
         mock_process.assert_called_once()
         mock_format_trigger_genai_message.assert_called_once_with(event=event, message="user text")
 
-        # Vérifiez que les attributs de l'événement ont été correctement modifiés
-        assert event.user_id == "automated response"
-        assert event.user_name == "automated response"
-        assert event.user_email == "automated response"
+        # Correct the assertions to match the expected uppercase values in the event
+        assert event.user_id == "AUTOMATED_RESPONSE"
+        assert event.user_name == "AUTOMATED_RESPONSE"
+        assert event.user_email == "AUTOMATED_RESPONSE"
         assert event.event_label == "thread_message"
         assert event.text == "<@BOT123> user text"
-        assert event.is_mention == True
+        assert event.is_mention is True
         assert event.thread_id == "thread_id"
+
 
 @pytest.mark.asyncio
 async def test_trigger_genai_long_text(azure_mistral_plugin):
@@ -195,7 +198,7 @@ async def test_trigger_genai_long_text(azure_mistral_plugin):
         user_id="user_id",
         text=long_text,
         timestamp="timestamp",
-        converted_timestamp="converted_timestamp",
+        
         event_label="event_label",
         response_id="response_id",
         user_name="user_name",

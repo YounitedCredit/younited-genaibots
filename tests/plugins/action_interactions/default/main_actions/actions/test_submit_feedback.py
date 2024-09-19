@@ -24,7 +24,6 @@ async def test_submit_feedback_execute(mock_global_manager):
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -36,7 +35,8 @@ async def test_submit_feedback_execute(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name="origin_plugin_name"
     )
 
     # Mock methods
@@ -71,7 +71,6 @@ async def test_submit_feedback_execute_with_existing_content(mock_global_manager
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -83,7 +82,8 @@ async def test_submit_feedback_execute_with_existing_content(mock_global_manager
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods
@@ -117,7 +117,6 @@ async def test_submit_feedback_execute_with_missing_parameters(mock_global_manag
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -129,7 +128,8 @@ async def test_submit_feedback_execute_with_missing_parameters(mock_global_manag
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods
@@ -165,7 +165,6 @@ async def test_submit_feedback_execute_with_special_characters(mock_global_manag
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -177,7 +176,8 @@ async def test_submit_feedback_execute_with_special_characters(mock_global_manag
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods
@@ -194,7 +194,6 @@ async def test_submit_feedback_execute_with_write_exception(mock_global_manager)
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -206,7 +205,8 @@ async def test_submit_feedback_execute_with_write_exception(mock_global_manager)
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods and simulate an exception during write

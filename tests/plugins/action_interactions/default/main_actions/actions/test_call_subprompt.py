@@ -42,7 +42,6 @@ def action_input():
 def incoming_notification():
     return IncomingNotificationDataBase(
         timestamp="2023-01-01T00:00:00Z",
-        converted_timestamp="2023-01-01T00:00:00Z",
         event_label="test_event",
         channel_id="test_channel",
         thread_id="test_thread",
@@ -52,7 +51,8 @@ def incoming_notification():
         user_id="user123",
         is_mention=False,
         text="Test message",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="plugin_name"
     )
 
 @patch('plugins.action_interactions.default.main_actions.actions.call_subprompt.GetPreviousFeedback.get_previous_feedback', new_callable=AsyncMock)

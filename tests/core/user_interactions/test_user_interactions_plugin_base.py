@@ -69,6 +69,9 @@ class TestUserInteractionsPlugin(UserInteractionsPluginBase):
     def initialize(self, plugins):
         pass  # Implementation of initialize method
 
+    def get_bot_id(self) -> str:
+        return super().get_bot_id()
+
     async def fetch_conversation_history(
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:

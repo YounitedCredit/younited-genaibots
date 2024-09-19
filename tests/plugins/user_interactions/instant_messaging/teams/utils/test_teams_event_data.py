@@ -7,7 +7,6 @@ def test_teams_event_data_instantiation():
     # Example data for IncomingNotificationDataBase attributes
     event_data = {
         "timestamp": "2023-01-01T00:00:00.000Z",
-        "converted_timestamp": 1672531200,
         "event_label": "message",
         "channel_id": "channel_id",
         "thread_id": "thread_id",

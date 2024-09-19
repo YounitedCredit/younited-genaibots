@@ -207,8 +207,8 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
             else:
                 response_id = event_copy.thread_id
 
-            AUTOMATED_RESPONSE = "automated response"
-            event_copy.user_id = AUTOMATED_RESPONSE
+            AUTOMATED_RESPONSE = "AUTOMATED_RESPONSE"
+            event_copy.user_id = "AUTOMATED_RESPONSE"
             event_copy.user_name =  AUTOMATED_RESPONSE
             event_copy.user_email = AUTOMATED_RESPONSE
             event_copy.event_label = "thread_message"

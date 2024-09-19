@@ -6,7 +6,8 @@ import traceback
 from typing import List
 import datetime
 import yaml
-from datetime import datetime
+from datetime import datetime, timezone
+from decimal import Decimal
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -51,6 +52,16 @@ class ChatInputHandler():
             self.logger.error(f"Error while handling event data: {e}")
             raise
 
+    def format_timestamp(self, slack_timestamp: str) -> str:
+        # Convert Slack timestamp to UTC datetime
+        timestamp_float = float(slack_timestamp)
+
+        # Convert the Unix timestamp to a UTC datetime object
+        utc_dt = datetime.fromtimestamp(timestamp_float, tz=timezone.utc)
+
+        # Format the datetime object to a readable string
+        formatted_time = utc_dt.strftime('%Y-%m-%d %H:%M:%S')
+        return formatted_time
 
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
@@ -58,7 +69,7 @@ class ChatInputHandler():
             general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
             await self.global_manager.prompt_manager.initialize()
             init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
-            constructed_message = f"Timestamp: {str(event_data.converted_timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+            constructed_message = f"Timestamp: {str(event_data.timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
 
             if general_behavior_content:
                 init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
@@ -94,237 +105,166 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while handling message event: {e}")
             raise
-
+            
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
-            # Construct the blob name and retrieve the content
+            # Step 1: Retrieve stored message history from the backend
             blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
 
-            # If no messages are found in storage, fetch conversation from Slack
-            if not messages:
-                self.logger.info(f"No conversation history found for thread {event_data.thread_id}, fetching from Slack.")
-                fetched_messages = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+            # Step 2: If no messages are found and RECORD_NONPROCESSED_MESSAGES is False
+            if not messages and not self.bot_config.RECORD_NONPROCESSED_MESSAGES:
+                return await self.handle_no_message_found(event_data)
 
-                # Add system instructions for core and main prompt
-                await self.global_manager.prompt_manager.initialize()
-                init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+            # Step 3: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
+            if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
+                await self.process_conversation_history(event_data, messages)
 
-                # Insert the system instructions at the beginning of the conversation
-                messages.append({"role": "system", "content": init_prompt})
+            # Step 4: Construct the new incoming message based on event_data and append to the message history
+            constructed_message = self.construct_message(event_data)
+            messages.append(constructed_message)
 
-                # Process and convert each fetched message, including handling images and files
-                for fetched_event_data in fetched_messages:
-                    user_content_text = [{
-                        "type": "text",
-                        "text": f"Timestamp: {str(fetched_event_data.converted_timestamp)}, "
-                                f"[Slack username]: {str(fetched_event_data.user_name)}, "
-                                f"[Slack user id]: {str(fetched_event_data.user_id)}, "
-                                f"[Slack user email]: {fetched_event_data.user_email}, "
-                                f"[Directly mentioning you]: {str(fetched_event_data.is_mention)}, "
-                                f"[message]: {str(fetched_event_data.text)}"
-                    }]
-
-                    # Handle images if present
-                    user_content_images = []
-                    if fetched_event_data.images:
-                        for base64_image in fetched_event_data.images:
-                            image_message = {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}",
-                                    "detail": "high"
-                                }
-                            }
-                            user_content_images.append(image_message)
-
-                    # Handle file content if present
-                    if fetched_event_data.files_content:
-                        for file_content in fetched_event_data.files_content:
-                            file_message = {"type": "text", "text": file_content}
-                            user_content_text.append(file_message)
-
-                    user_content = user_content_text + user_content_images
-                    messages.append({"role": "user", "content": user_content})
-            else:
-                # Fetch conversation history if RECORD_NONPROCESSED_MESSAGES is False
-                relevant_events = []
-                current_event_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
-
-                # Ensure event_data.converted_timestamp is a datetime object
-                if isinstance(event_data.converted_timestamp, str):
-                    try:
-                        event_data.converted_timestamp = datetime.strptime(event_data.converted_timestamp, "%Y-%m-%d %H:%M:%S")
-                    except ValueError as e:
-                        self.logger.error(f"Error parsing event_data timestamp: {event_data.converted_timestamp} - {e}")
-                        raise
-                    
-                if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
-                    self.logger.info("Fetching conversation history as RECORD_NONPROCESSED_MESSAGES is False.")
-                    conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
-
-                    # Retrieve the last message timestamp from the current session
-                    last_message_timestamp = None
-                    for message in reversed(messages):
-                        if message["role"] == "user":
-                            last_message_content = message["content"]
-                            if isinstance(last_message_content, str):
-                                last_message_text = last_message_content
-                            elif isinstance(last_message_content, list) and last_message_content:
-                                last_message_text = last_message_content[0].get("text", "")
-                            else:
-                                last_message_text = ""
-
-                            last_message_timestamp_str = last_message_text.split(",")[0].split(": ")[1]
-                            last_message_timestamp = datetime.strptime(last_message_timestamp_str, "%Y-%m-%d %H:%M:%S")
-                            break
-
-                    # Compute relevant events within the specified period
-                    for past_event in conversation_history:
-                        past_event_timestamp = datetime.strptime(past_event.converted_timestamp, "%Y-%m-%d %H:%M:%S")
-                        if last_message_timestamp < past_event_timestamp < current_event_timestamp:
-                            self.logger.info(f"Processing past event: {past_event.to_dict()}")
-                            relevant_events.append(past_event)
-
-                    # Process and convert each relevant event
-                    for relevant_event in relevant_events:
-                        user_content_text = [{
-                            "type": "text",
-                            "text": f"Timestamp: {str(relevant_event.converted_timestamp)}, "
-                                    f"[Slack username]: {str(relevant_event.user_name)}, "
-                                    f"[Slack user id]: {str(relevant_event.user_id)}, "
-                                    f"[Slack user email]: {relevant_event.user_email}, "
-                                    f"[Directly mentioning you]: {str(relevant_event.is_mention)}, "
-                                    f"[message]: {str(relevant_event.text)}"
-                        }]
-
-                        # Handle images if present
-                        user_content_images = []
-                        if relevant_event.images:
-                            for base64_image in relevant_event.images:
-                                image_message = {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}",
-                                        "detail": "high"
-                                    }
-                                }
-                                user_content_images.append(image_message)
-
-                        # Handle file content if present
-                        if relevant_event.files_content:
-                            for file_content in relevant_event.files_content:
-                                file_message = {"type": "text", "text": file_content}
-                                user_content_text.append(file_message)
-
-                        user_content = user_content_text + user_content_images
-                        messages.append({"role": "user", "content": user_content})
-
-                # Add the new incoming message to the conversation
-                constructed_message = {
-                    "role": "user",
-                    "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
-                            f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
-                            f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
-                }
-
-                user_content_text = [{"type": "text", "text": constructed_message["content"]}]
-                user_content_images = []
-
-                if event_data.images:
-                    for base64_image in event_data.images:
-                        image_message = {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}",
-                                "detail": "high"
-                            }
-                        }
-                        user_content_images.append(image_message)
-
-                if event_data.files_content:
-                    for file_content in event_data.files_content:
-                        file_message = {"type": "text", "text": file_content}
-                        user_content_text.append(file_message)
-
-                user_content = user_content_text + user_content_images
-                messages.append({"role": "user", "content": user_content})
-
-                # Handle unmentioned or mentioned thread messages based on the configuration
-                if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                    # If bot is mentioned, retrieve previously stored unmentioned messages and extend
-                    messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
-                elif event_data.is_mention == False and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                    # If bot is not mentioned, store the message for later processing
-                    await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
-                    return None
-
-                # Generate response based on updated messages
-                return await self.generate_response(event_data, messages)
-        
-            # Add the new incoming message to the conversation
-            constructed_message = {
-                "role": "user",
-                "content": f"Timestamp: {str(event_data.converted_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
-                        f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
-                        f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
-            }
-
-            user_content_text = [{"type": "text", "text": constructed_message["content"]}]
-            user_content_images = []
-
-            if event_data.images:
-                for base64_image in event_data.images:
-                    image_message = {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}",
-                            "detail": "high"
-                        }
-                    }
-                    user_content_images.append(image_message)
-
-            if event_data.files_content:
-                for file_content in event_data.files_content:
-                    file_message = {"type": "text", "text": file_content}
-                    user_content_text.append(file_message)
-
-            user_content = user_content_text + user_content_images
-            messages.append({"role": "user", "content": user_content})
-
-            # Handle unmentioned or mentioned thread messages based on the configuration
+            # Step 5: Handle the processing of unmentioned or mentioned thread messages based on configuration
             if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # If bot is mentioned, retrieve previously stored unmentioned messages and extend
+                # Retrieve previously stored unmentioned messages if bot is mentioned
                 messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
-            elif event_data.is_mention == False and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # If bot is not mentioned, store the message for later processing
+            elif not event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+                # Store the message for later processing if the bot is not mentioned
                 await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
                 return None
 
-            # Generate response based on updated messages
+            # Step 6: Generate response based on the updated messages (history + new message)
             return await self.generate_response(event_data, messages)
+
         except Exception as e:
             self.logger.error(f"Error while handling thread message event: {e}")
             raise
+
+    async def handle_no_message_found(self, event_data: IncomingNotificationDataBase):
+        # Handle the case where no previous messages were found in the backend
+        self.logger.error(f"No messages found for thread {event_data.thread_id}. No conversation history available.")
+        return None  # Adjust this according to how you want to handle this case
+
+    async def process_conversation_history(self, event_data: IncomingNotificationDataBase, messages):
+        try:
+            # Fetch and process conversation history if RECORD_NONPROCESSED_MESSAGES is False
+            relevant_events = []
+            current_event_timestamp = datetime.fromtimestamp(float(event_data.timestamp), tz=timezone.utc)
+
+            try:
+                conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+            except Exception as e:
+                self.logger.error(f"Error fetching conversation history: {e}")
+                return
+
+            if not conversation_history:
+                self.logger.warning(f"No conversation history found for channel {event_data.channel_id}, thread {event_data.thread_id}")
+                return
+
+            try:
+                last_message_timestamp_str = self.get_last_user_message_timestamp(messages)
+                last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
+                if last_message_timestamp.tzinfo is None:
+                    last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
+            except Exception as e:
+                self.logger.error(f"Error getting last user message timestamp: {e}")                
+                return
+
+            bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
+            
+            for past_event in conversation_history:
+                try:
+                    past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
+                    if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+                        if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id and "AUTOMATED_RESPONSE" not in past_event.text:
+                            self.logger.info(
+                                f"Processing past event: channel_id={past_event.channel_id}, "
+                                f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
+                            )
+                            relevant_events.append(past_event)
+                except Exception as e:
+                    self.logger.error(f"Error processing past event: {e}")
+
+            # Add the relevant events to the messages
+            try:
+                messages.extend(self.convert_events_to_messages(relevant_events))
+            except Exception as e:
+                self.logger.error(f"Error converting events to messages: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Unexpected error in process_conversation_history: {e}")
+
+    def parse_timestamp(self, timestamp_str):
+        # Helper function to parse timestamps
+        try:
+            return datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            self.logger.error(f"Error parsing timestamp: {timestamp_str} - {e}")
+            raise
+
+    def get_last_user_message_timestamp(self, messages):
+        # Get the timestamp of the last user message in the stored messages
+        for message in reversed(messages):
+            if message["role"] == "user":
+                content = message["content"]
+                if isinstance(content, list):
+                    last_message_text = content[0].get("text", "")
+                else:
+                    last_message_text = content
+                timestamp_str = last_message_text.split(",")[0].split(": ")[1]
+                return timestamp_str
+        return None
+
+    def convert_events_to_messages(self, events):
+        # Convert conversation history events into the appropriate message format
+        messages = []
+        for event in events:
+            messages.append(self.construct_message(event))
+        return messages
+
+    def construct_message(self, event_data):
+        # Construct the user message from event_data
+        format_timestamp = str(event_data.timestamp)
+        constructed_message = {
+            "role": "user",
+            "content": f"Timestamp: {str(format_timestamp)}, [Slack username]: {str(event_data.user_name)}, "
+                    f"[Slack user id]: {str(event_data.user_id)}, [Slack user email]: {event_data.user_email}, "
+                    f"[Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+        }
+
+        # Format the content with additional images and files if applicable
+        user_content_text = [{"type": "text", "text": constructed_message["content"]}]
+        user_content_images = []
+
+        if event_data.images:
+            for base64_image in event_data.images:
+                user_content_images.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "high"
+                    }
+                })
+
+        if event_data.files_content:
+            for file_content in event_data.files_content:
+                user_content_text.append({"type": "text", "text": file_content})
+
+        return {"role": "user", "content": user_content_text + user_content_images}
     
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
         completion = None  # Initialize to None
         try:
-            original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp
-            if (event_data.is_mention or 
-                (event_data.event_label == "message" and not self.bot_config.REQUIRE_MENTION_NEW_MESSAGE) or 
-                (event_data.event_label == "thread_message" and not self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE) or 
-                (event_data.event_label == "message" and self.bot_config.REQUIRE_MENTION_NEW_MESSAGE and event_data.is_mention) or 
-                (event_data.event_label == "thread_message" and self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and event_data.is_mention)):
-                # Process the event
-                self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
-                await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
-                    event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
-                completion = await self.call_completion(
-                    event_data.channel_id, original_msg_ts, messages, event_data)
-                await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
-                    event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+            original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp            
+            # Process the event
+            self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
+            await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
+                event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+            completion = await self.call_completion(
+                event_data.channel_id, original_msg_ts, messages, event_data)
+            await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
+                event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
             return completion
         except Exception as e:
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
@@ -383,8 +323,8 @@ class ChatInputHandler():
 
             else:
                 # Log warning and try JSON as a fallback
-                self.logger.warning(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
-                response_json = json.loads(gpt_response)
+                self.logger.error(f"Invalid conversion format: {self.conversion_format}, trying to convert from JSON, expect failures!")
+                return None
 
         except json.JSONDecodeError as e:
             # Step 5: Handle and report JSON decoding errors
@@ -487,7 +427,9 @@ class ChatInputHandler():
             for action in python_dict['response']:
                 if 'value' in action['Action']['Parameters']:
                     value_str = action['Action']['Parameters']['value']
-                    if value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
+                    
+                    # Only process if value_str is a string and formatted as YAML
+                    if isinstance(value_str, str) and value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
                         # Remove the markdown code block syntax
                         yaml_str = value_str.strip()[7:-3].strip()
                         # Parse the YAML content

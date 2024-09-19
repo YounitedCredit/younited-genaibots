@@ -270,7 +270,6 @@ async def test_request_to_notification_data(teams_plugin, mock_request):
     assert result.user_id == 'test_user_id'
     assert result.text == 'Test message'
     assert result.timestamp == 'ts'
-    assert result.converted_timestamp == 1234567890
 
 @pytest.mark.asyncio
 async def test_process_image_attachments(teams_plugin):

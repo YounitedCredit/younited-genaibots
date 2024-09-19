@@ -201,7 +201,7 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
 
     async def trigger_genai(self, event :IncomingNotificationDataBase):
             event_copy = event
-            AUTOMATED_RESPONSE_TRIGGER = "Automated response"
+            AUTOMATED_RESPONSE_TRIGGER = "AUTOMATED_RESPONSE"
             if event.thread_id == '':
                 response_id = event_copy.timestamp
             else:

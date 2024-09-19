@@ -133,3 +133,13 @@ class UserInteractionsPluginBase(PluginBase, ABC):
         they will be used instead of the event data.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_bot_id(self) -> str:
+        """
+        Get the bot ID.
+
+        Returns:
+            str: The bot ID.
+        """
+        raise NotImplementedError

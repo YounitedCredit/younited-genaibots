@@ -26,7 +26,6 @@ async def test_observation_thought_execute(mock_global_manager):
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -38,7 +37,8 @@ async def test_observation_thought_execute(mock_global_manager):
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods
@@ -69,7 +69,6 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
     action_input = ActionInput(action_name='observation_thought', parameters={})
     event = IncomingNotificationDataBase(
         timestamp='123456',
-        converted_timestamp='2024-07-03T12:34:56Z',
         event_label='test_event',
         channel_id='channel_1',
         thread_id='thread_123',
@@ -81,7 +80,8 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
         text='',
         origin='test_origin',
         images=[],
-        files_content=[]
+        files_content=[],
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods

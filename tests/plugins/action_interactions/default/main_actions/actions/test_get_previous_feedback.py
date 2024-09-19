@@ -22,7 +22,6 @@ def mock_backend_internal_data_processing_dispatcher():
 def create_mock_incoming_notification():
     return IncomingNotificationDataBase(
         timestamp="2023-01-01 00:00:00",
-        converted_timestamp="2023-01-01 00:00:00",
         event_label="test_event",
         channel_id="test_channel",
         thread_id="test_thread",
@@ -32,7 +31,8 @@ def create_mock_incoming_notification():
         user_id="test_user_id",
         is_mention=False,
         text="Test message",
-        origin="test_origin"
+        origin="test_origin",
+        origin_plugin_name="origin_plugin_name"
     )
 
 @pytest.fixture

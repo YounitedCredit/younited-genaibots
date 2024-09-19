@@ -11,6 +11,8 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
+from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
+
 from core.user_interactions.message_type import MessageType
 from core.user_interactions.outgoing_notification_data_base import (
     OutgoingNotificationDataBase,
@@ -35,6 +37,7 @@ class RestConfig(BaseModel):
     GENERIC_REST_BEHAVIOR_PLUGIN_NAME: str
     GENERIC_REST_MESSAGE_URL: str
     GENERIC_REST_REACTION_URL: str
+    GENERIC_REST_BOT_ID: str
 
 class GenericRestPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
@@ -57,6 +60,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         # Dispatchers
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.user_interactions_dispatcher : UserInteractionsDispatcher  = self.global_manager.user_interactions_dispatcher
 
     @property
     def route_path(self):
@@ -109,15 +113,15 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             # Get required keys from IncomingNotificationDataBase but exclude fields not expected in the incoming data
             required_keys = set(IncomingNotificationDataBase(
                 timestamp="", 
-                converted_timestamp="",  # This is likely not in the incoming request data
                 event_label="", 
                 channel_id="", 
                 thread_id="", 
                 response_id="", 
                 is_mention=False,  # This might also be set later in the process
                 text="", 
-                origin=""
-            ).to_dict().keys()) - {'converted_timestamp', 'is_mention'}
+                origin="",
+                origin_plugin_name=""
+            ).to_dict().keys()) - {'is_mention'}
 
             # Check if all required keys are in data
             if not all(key in data for key in required_keys):
@@ -137,15 +141,16 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         return True
 
 
-    async def process_event_data(self, event_data, headers, raw_body_str):
+    async def process_event_data(self, event_data : IncomingNotificationDataBase, headers, raw_body_str):
+
         try:
             validate_request = await self.validate_request(event_data, headers, raw_body_str)
 
             if validate_request:
                 try:
                     user_id = event_data.user_id
-                    channel_id = event_data.channel_id
-                    event_data.converted_timestamp = await self.format_event_timestamp(event_data.response_id)
+                    channel_id = event_data.channel_id                    
+
                     self.logger.info(f"Valid <GENERIC_REST> request received from user {user_id} in channel {channel_id}, processing..")
                     await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
                         event_data=event_data.to_dict(),
@@ -179,8 +184,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         text =  f"[ref msg link]> | thread: `{event.channel_id}-{event.response_id}`"
         return text
 
-    async def upload_file(self, event, file_content, filename, title):
-        raise NotImplementedError("This method is not implemented yet.")
+    async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False):
+        pass
+        #raise NotImplementedError("This method is not implemented yet.")
 
     async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name):
         notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.REACTION_ADD)
@@ -207,15 +213,15 @@ class GenericRestPlugin(UserInteractionsPluginBase):
     
     async def request_to_notification_data(self, event_data: IncomingNotificationDataBase):
         if isinstance(event_data, IncomingNotificationDataBase):
-            event_data.converted_timestamp = await self.format_event_timestamp(event_data.timestamp)
             return event_data
         else:
             notification_data = IncomingNotificationDataBase.from_dict(event_data)
-            notification_data.converted_timestamp = await self.format_event_timestamp(notification_data.timestamp)
             return notification_data
 
     def format_trigger_genai_message(self, message):
-        raise NotImplementedError
+        bot_id = self.global_manager.bot_config.get_bot_id()
+        formatted_message = f"<@{bot_id}> {message}"
+        return formatted_message
 
     async def post_notification(self, notification: OutgoingNotificationDataBase, url):
         headers = {'Content-Type': 'application/json'}
@@ -236,4 +242,9 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
+        return None    
+        
+    def get_bot_id(self) -> str:
+        return self.rest_config.GENERIC_REST_BOT_ID
         pass
+

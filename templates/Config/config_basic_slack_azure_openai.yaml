@@ -1,131 +1,136 @@
 BOT_CONFIG:
-
   # DEBUG
-  LOG_DEBUG_LEVEL: "info"  # Logging level (e.g., "info", "debug", "warning", "error")
-  LOAD_ACTIONS_FROM_BACKEND: "False"  # Whether to load actions from backend storage
+  LOG_DEBUG_LEVEL: "info" # Logging level (e.g., "info", "debug", "warning", "error")
+  LOAD_ACTIONS_FROM_BACKEND: "False" # Whether to load actions from backend storage
 
   # PROMPT
-  PROMPTS_FOLDER: "prompts"  # Directory where prompt files are stored
-  CORE_PROMPT: "core_prompt"  # Filename of the core prompt
-  MAIN_PROMPT: "main_prompt"  # Filename of the main prompt
-  SUBPROMPTS_FOLDER: "subprompts"  # Directory for subprompt files
-  FEEDBACK_GENERAL_BEHAVIOR: "General_Global.txt"  # Filename for general feedback behavior
+  MAIN_PROMPT: "main_prompt" # Filename of the main prompt
+  SUBPROMPTS_FOLDER: "subprompts" # Directory for subprompt files
+  FEEDBACK_GENERAL_BEHAVIOR: "General_Global.txt" # Filename for general feedback behavior
 
   # COSTS
-  SHOW_COST_IN_THREAD: False  # Show cost information in message threads
+  SHOW_COST_IN_THREAD: False # Show cost information in message threads
 
   # BOT BEHAVIOR
-  REQUIRE_MENTION_NEW_MESSAGE: False  # Require bot mention in new messages to trigger response
-  REQUIRE_MENTION_THREAD_MESSAGE: True  # Require bot mention in thread messages to trigger response
-  BEGIN_MARKER: "[BEGINIMDETECT]"  # Marker indicating the beginning of message detection
-  END_MARKER: "[ENDIMDETECT]"  # Marker indicating the end of message detection
-  ACKNOWLEDGE_NONPROCESSED_MESSAGE: False  # Acknowledge messages that are not processed
-  GET_URL_CONTENT: True  # Retrieve content from URLs in messages
-  LLM_CONVERSION_FORMAT: "json"  # Format for LLM conversion (e.g., "json", "xml")
-  BREAK_KEYWORD: "!STOP"  # Keyword to interrupt an ongoing action
-  START_KEYWORD: "!START"  # Keyword to start an action
+  REQUIRE_MENTION_NEW_MESSAGE: False # Require bot mention in new messages to trigger response
+  REQUIRE_MENTION_THREAD_MESSAGE: True # Require bot mention in thread messages to trigger response
+  BEGIN_MARKER: "[BEGINIMDETECT]" # Marker indicating the beginning of message detection
+  END_MARKER: "[ENDIMDETECT]" # Marker indicating the end of message detection
+  ACKNOWLEDGE_NONPROCESSED_MESSAGE: False # Acknowledge messages that are not processed
+  GET_URL_CONTENT: True # Retrieve content from URLs in messages
+  LLM_CONVERSION_FORMAT: "json" # Format for LLM conversion (e.g., "json", "xml")
+  BREAK_KEYWORD: "!STOP" # Keyword to interrupt an ongoing action
+  START_KEYWORD: "!START" # Keyword to start an action
 
   # BOT DEFAULT PLUGINS
-  ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: "main_actions"  # Default plugin for action interactions
-  INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: "file_system"  # Default plugin for internal data processing
-  USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: "im_default_behavior"  # Default plugin for instant messaging behavior
-  GENAI_TEXT_DEFAULT_PLUGIN_NAME: "azure_chatgpt"  # Default plugin for text generation
-  GENAI_IMAGE_DEFAULT_PLUGIN_NAME: "azure_dalle"  # Default plugin for image generation
-  GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: "openai_file_search"  # Default plugin for vector search
+  ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: "main_actions" # Default plugin for action interactions
+  INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: "file_system" # Default plugin for internal data processing
+  USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: "im_default_behavior" # Default plugin for instant messaging behavior
+  GENAI_TEXT_DEFAULT_PLUGIN_NAME: "azure_chatgpt" # Default plugin for text generation
+  GENAI_IMAGE_DEFAULT_PLUGIN_NAME: "azure_dalle" # Default plugin for image generation
+  GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: "openai_file_search" # Default plugin for vector search
 
 UTILS:
   LOGGING:
     FILE_SYSTEM:
-      PLUGIN_NAME: 'file_system'  # Plugin name for file system logging
-      FILE_PATH: 'C:\\LOGS\\GENAI_BOT.log'  # File path for storing local logs
+      PLUGIN_NAME: "file_system" # Plugin name for file system logging
+      FILE_PATH: 'C:\\LOGS\\GENAI_BOT.log' # File path for storing local logs
 
 PLUGINS:
   ACTION_INTERACTIONS:
     DEFAULT:
       MAIN_ACTIONS:
-        PLUGIN_NAME: "main_actions"  # Name of the main actions plugin
-    CUSTOM: {}  # Custom action plugins
+        PLUGIN_NAME: "main_actions" # Name of the main actions plugin
+    CUSTOM: {} # Custom action plugins
 
   BACKEND:
     INTERNAL_DATA_PROCESSING:
       FILE_SYSTEM:
-        PLUGIN_NAME: "file_system"  # Plugin name for internal data processing via file system
-        DIRECTORY: "C:\\GenAI"  # Root directory for file system storage
-        SESSIONS_CONTAINER: "sessions"  # Directory for session data
-        MESSAGES_CONTAINER: "messages"  # Directory for message data
-        FEEDBACKS_CONTAINER: "feedbacks"  # Directory for feedback data
-        CONCATENATE_CONTAINER: "concatenate"  # Directory for concatenated data
-        PROMPTS_CONTAINER: "prompts"  # Directory for prompt files
-        COSTS_CONTAINER: "costs"  # Directory for cost data
-        PROCESSING_CONTAINER: "processing"  # Directory for processing data
-        ABORT_CONTAINER: "abort"  # Directory for aborted operations
-        VECTORS_CONTAINER: "vectors"  # Directory for vector data
+        PLUGIN_NAME: "file_system" # Plugin name for internal data processing via file system
+        DIRECTORY: "C:\\GenAI" # Root directory for file system storage
+        SESSIONS_CONTAINER: "sessions" # Directory for session data
+        MESSAGES_CONTAINER: "messages" # Directory for message data
+        FEEDBACKS_CONTAINER: "feedbacks" # Directory for feedback data
+        CONCATENATE_CONTAINER: "concatenate" # Directory for concatenated data
+        PROMPTS_CONTAINER: "prompts" # Directory for prompt files
+        COSTS_CONTAINER: "costs" # Directory for cost data
+        PROCESSING_CONTAINER: "processing" # Directory for processing data
+        ABORT_CONTAINER: "abort" # Directory for aborted operations
+        VECTORS_CONTAINER: "vectors" # Directory for vector data
 
   USER_INTERACTIONS:
-
-    CUSTOM_API: {}  # Custom API for user interactions
+    CUSTOM_API:
+      {}
+      #GENERIC_REST:
+      #  PLUGIN_NAME: "generic_rest"
+      #  GENERIC_REST_ROUTE_PATH: "/api/get_generic_rest_notification"
+      #  GENERIC_REST_ROUTE_METHODS: ["POST"]
+      #  GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
+      #  GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message"
+      #  GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message"
+      #  GENERIC_REST_BOT_ID: "$(GENERIC_REST_BOT_ID)"
 
     INSTANT_MESSAGING:
       SLACK:
-        PLUGIN_NAME: "slack"  # Name of the Slack plugin
-        BEHAVIOR_PLUGIN_NAME: "im_default_behavior"  # Plugin name for instant messaging behavior
-        ROUTE_PATH: "/api/get_slacknotification"  # Route path for Slack notifications
-        ROUTE_METHODS: ["POST"]  # HTTP methods allowed for the Slack route
-        PLUGIN_DIRECTORY: "plugins.user_interactions.plugins"  # Directory for user interaction plugins
-        SLACK_MESSAGE_TTL: 3600  # Time-to-live for Slack messages in seconds
-        SLACK_SIGNING_SECRET: "$(SLACK_SIGNING_SECRET)"  # Slack signing secret for request verification
-        SLACK_BOT_TOKEN: "$(SLACK_BOT_TOKEN)"  # Bot user OAuth access token
-        SLACK_BOT_USER_TOKEN: "$(SLACK_BOT_USER_TOKEN)"  # User OAuth access token
-        SLACK_BOT_USER_ID: "$(SLACK_BOT_USER_ID)"  # Slack bot user ID
-        SLACK_API_URL: "https://slack.com/api/"  # Slack API base URL
-        SLACK_AUTHORIZED_CHANNELS: "$(SLACK_AUTHORIZED_CHANNELS)"  # Comma-separated list of authorized channel IDs
-        SLACK_FEEDBACK_CHANNEL: "$(SLACK_FEEDBACK_CHANNEL)"  # Channel ID for feedback messages
-        SLACK_FEEDBACK_BOT_ID: "$(SLACK_FEEDBACK_BOT_ID)"  # Bot ID for feedback messages
-        MAX_MESSAGE_LENGTH: 2900  # Maximum length for Slack messages
-        INTERNAL_CHANNEL: "$(SLACK_INTERNAL_CHANNEL)"  # Internal channel ID for bot communications
-        WORKSPACE_NAME: "$(SLACK_WORKSPACE_NAME)"  # Name of the Slack workspace
-        SLACK_AUTHORIZE_DIRECT_MESSAGE: True  # Allow direct messages to the bot
+        PLUGIN_NAME: "slack" # Name of the Slack plugin
+        BEHAVIOR_PLUGIN_NAME: "im_default_behavior" # Plugin name for instant messaging behavior
+        ROUTE_PATH: "/api/get_slacknotification" # Route path for Slack notifications
+        ROUTE_METHODS: ["POST"] # HTTP methods allowed for the Slack route
+        PLUGIN_DIRECTORY: "plugins.user_interactions.plugins" # Directory for user interaction plugins
+        SLACK_MESSAGE_TTL: 3600 # Time-to-live for Slack messages in seconds
+        SLACK_SIGNING_SECRET: "$(SLACK_SIGNING_SECRET)" # Slack signing secret for request verification
+        SLACK_BOT_TOKEN: "$(SLACK_BOT_TOKEN)" # Bot user OAuth access token
+        SLACK_BOT_USER_TOKEN: "$(SLACK_BOT_USER_TOKEN)" # User OAuth access token
+        SLACK_BOT_USER_ID: "$(SLACK_BOT_USER_ID)" # Slack bot user ID
+        SLACK_API_URL: "https://slack.com/api/" # Slack API base URL
+        SLACK_AUTHORIZED_CHANNELS: "$(SLACK_AUTHORIZED_CHANNELS)" # Comma-separated list of authorized channel IDs
+        SLACK_FEEDBACK_CHANNEL: "$(SLACK_FEEDBACK_CHANNEL)" # Channel ID for feedback messages
+        SLACK_FEEDBACK_BOT_ID: "$(SLACK_FEEDBACK_BOT_ID)" # Bot ID for feedback messages
+        MAX_MESSAGE_LENGTH: 2900 # Maximum length for Slack messages
+        INTERNAL_CHANNEL: "$(SLACK_INTERNAL_CHANNEL)" # Internal channel ID for bot communications
+        WORKSPACE_NAME: "$(SLACK_WORKSPACE_NAME)" # Name of the Slack workspace
+        SLACK_AUTHORIZE_DIRECT_MESSAGE: True # Allow direct messages to the bot
 
   USER_INTERACTIONS_BEHAVIORS:
     INSTANT_MESSAGING:
       IM_DEFAULT_BEHAVIOR:
-        PLUGIN_NAME: "im_default_behavior"  # Plugin name for default instant messaging behavior
+        PLUGIN_NAME: "im_default_behavior" # Plugin name for default instant messaging behavior
 
     CUSTOM_API:
       CA_DEFAULT_BEHAVIOR:
-        PLUGIN_NAME: "ca_default_behavior"  # Plugin name for default custom API behavior
+        PLUGIN_NAME: "ca_default_behavior" # Plugin name for default custom API behavior
 
   GENAI_INTERACTIONS:
     TEXT:
       AZURE_CHATGPT:
-        PLUGIN_NAME: "azure_chatgpt"  # Name of the Azure ChatGPT plugin
-        AZURE_CHATGPT_INPUT_TOKEN_PRICE: "$(AZURE_CHATGPT_INPUT_TOKEN_PRICE)"  # Cost per input token
-        AZURE_CHATGPT_OUTPUT_TOKEN_PRICE: "$(AZURE_CHATGPT_OUTPUT_TOKEN_PRICE)"  # Cost per output token
-        AZURE_OPENAI_KEY: "$(AZURE_OPENAI_KEY)"  # Azure OpenAI API key
-        AZURE_OPENAI_ENDPOINT: "$(AZURE_OPENAI_ENDPOINT)"  # Azure OpenAI endpoint URL
-        OPENAI_API_VERSION: "2024-05-01-preview"  # Azure OpenAI API version
-        AZURE_CHATGPT_MODEL_NAME: "$(AZURE_CHATGPT_MODEL_NAME)"  # Model name for Azure ChatGPT
-        AZURE_CHATGPT_VISION_MODEL_NAME: "$(AZURE_CHATGPT_VISION_MODEL_NAME)"  # Model name for vision capabilities
-        AZURE_CHATGPT_IS_ASSISTANT: False  # Indicates if the model acts as an assistant
-        AZURE_CHATGPT_ASSISTANT_ID: ""  # Assistant ID if applicable
+        PLUGIN_NAME: "azure_chatgpt" # Name of the Azure ChatGPT plugin
+        AZURE_CHATGPT_INPUT_TOKEN_PRICE: "$(AZURE_CHATGPT_INPUT_TOKEN_PRICE)" # Cost per input token
+        AZURE_CHATGPT_OUTPUT_TOKEN_PRICE: "$(AZURE_CHATGPT_OUTPUT_TOKEN_PRICE)" # Cost per output token
+        AZURE_OPENAI_KEY: "$(AZURE_OPENAI_KEY)" # Azure OpenAI API key
+        AZURE_OPENAI_ENDPOINT: "$(AZURE_OPENAI_ENDPOINT)" # Azure OpenAI endpoint URL
+        OPENAI_API_VERSION: "2024-05-01-preview" # Azure OpenAI API version
+        AZURE_CHATGPT_MODEL_NAME: "$(AZURE_CHATGPT_MODEL_NAME)" # Model name for Azure ChatGPT
+        AZURE_CHATGPT_VISION_MODEL_NAME: "$(AZURE_CHATGPT_VISION_MODEL_NAME)" # Model name for vision capabilities
+        AZURE_CHATGPT_IS_ASSISTANT: False # Indicates if the model acts as an assistant
+        AZURE_CHATGPT_ASSISTANT_ID: "" # Assistant ID if applicable
 
     IMAGE:
       AZURE_DALLE:
-        PLUGIN_NAME: "azure_dalle"  # Name of the Azure DALL-E plugin
-        INPUT_TOKEN_PRICE: "0.01"  # Cost per input token
-        OUTPUT_TOKEN_PRICE: "0.03"  # Cost per output token
-        AZURE_OPENAI_KEY: "$(AZURE_OPENAI_KEY)"  # Azure OpenAI API key
-        AZURE_OPENAI_ENDPOINT: "$(AZURE_OPENAI_ENDPOINT)"  # Azure OpenAI endpoint URL
-        OPENAI_API_VERSION: "2023-12-01-preview"  # Azure OpenAI API version for DALL-E
-        IMAGE_GENERATOR_MODEL_NAME: "dall-e-3"  # Model name for image generation
+        PLUGIN_NAME: "azure_dalle" # Name of the Azure DALL-E plugin
+        INPUT_TOKEN_PRICE: "0.01" # Cost per input token
+        OUTPUT_TOKEN_PRICE: "0.03" # Cost per output token
+        AZURE_OPENAI_KEY: "$(AZURE_OPENAI_KEY)" # Azure OpenAI API key
+        AZURE_OPENAI_ENDPOINT: "$(AZURE_OPENAI_ENDPOINT)" # Azure OpenAI endpoint URL
+        OPENAI_API_VERSION: "2023-12-01-preview" # Azure OpenAI API version for DALL-E
+        IMAGE_GENERATOR_MODEL_NAME: "dall-e-3" # Model name for image generation
 
     VECTOR_SEARCH:
       OPENAI_FILE_SEARCH:
-        PLUGIN_NAME: "openai_file_search"  # Name of the OpenAI File Search plugin
-        OPENAI_FILE_SEARCH_OPENAI_KEY: "$(OPENAI_FILE_SEARCH_OPENAI_KEY)"  # OpenAI API key for file search
-        OPENAI_FILE_SEARCH_OPENAI_ENDPOINT: "$(OPENAI_FILE_SEARCH_OPENAI_ENDPOINT)"  # OpenAI endpoint URL for file search
-        OPENAI_FILE_SEARCH_OPENAI_API_VERSION: "$(OPENAI_FILE_SEARCH_OPENAI_API_VERSION)"  # OpenAI API version
-        OPENAI_FILE_SEARCH_MODEL_HOST: "$(OPENAI_FILE_SEARCH_MODEL_HOST)"  # Host for the model (e.g., "azure" or "openai")
-        OPENAI_FILE_SEARCH_MODEL_NAME: "$(OPENAI_FILE_SEARCH_MODEL_NAME)"  # Model name for embeddings
-        OPENAI_FILE_SEARCH_RESULT_COUNT: "$(OPENAI_FILE_SEARCH_RESULT_COUNT)"  # Number of search results to return
-        OPENAI_FILE_SEARCH_INDEX_NAME: "$(OPENAI_FILE_SEARCH_INDEX_NAME)"  # Name of the search index
+        PLUGIN_NAME: "openai_file_search" # Name of the OpenAI File Search plugin
+        OPENAI_FILE_SEARCH_OPENAI_KEY: "$(OPENAI_FILE_SEARCH_OPENAI_KEY)" # OpenAI API key for file search
+        OPENAI_FILE_SEARCH_OPENAI_ENDPOINT: "$(OPENAI_FILE_SEARCH_OPENAI_ENDPOINT)" # OpenAI endpoint URL for file search
+        OPENAI_FILE_SEARCH_OPENAI_API_VERSION: "$(OPENAI_FILE_SEARCH_OPENAI_API_VERSION)" # OpenAI API version
+        OPENAI_FILE_SEARCH_MODEL_HOST: "$(OPENAI_FILE_SEARCH_MODEL_HOST)" # Host for the model (e.g., "azure" or "openai")
+        OPENAI_FILE_SEARCH_MODEL_NAME: "$(OPENAI_FILE_SEARCH_MODEL_NAME)" # Model name for embeddings
+        OPENAI_FILE_SEARCH_RESULT_COUNT: "$(OPENAI_FILE_SEARCH_RESULT_COUNT)" # Number of search results to return
+        OPENAI_FILE_SEARCH_INDEX_NAME: "$(OPENAI_FILE_SEARCH_INDEX_NAME)" # Name of the search index
