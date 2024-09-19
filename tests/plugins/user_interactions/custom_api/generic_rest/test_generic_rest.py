@@ -124,19 +124,18 @@ async def validate_request(self, event_data=None, headers=None, raw_body_str=Non
 
 @pytest.mark.asyncio
 async def test_process_event_data(generic_rest_plugin):
-    # Créer un objet IncomingNotificationDataBase directement
+    # Créer un objet IncomingNotificationDataBase directement sans converted_timestamp
     event_data = IncomingNotificationDataBase(
         timestamp="1726517013.695621",
-        converted_timestamp="2024-09-16 22:04:51",
         event_label="thread_message",
-        channel_id=1,
-        thread_id=19,
+        channel_id="1",  # Assurez-vous que channel_id est une chaîne
+        thread_id="19",
         response_id="1726517091.230556",
         is_mention=False,
         text="test",
         origin="GenaiBotDebugger",
         user_email="antoine@gmail.com",
-        user_id=1,
+        user_id="1",  # Assurez-vous que user_id est une chaîne également
         user_name="antoine@gmail.com",
         images=[],
         files_content=[],
@@ -145,7 +144,7 @@ async def test_process_event_data(generic_rest_plugin):
     )
     
     headers = {}
-    raw_body_str = event_data.to_dict()  # Si nécessaire, tu peux simuler un raw_body_str en utilisant .to_dict()
+    raw_body_str = json.dumps(event_data.to_dict())  # Convert event_data to JSON string
 
     # Mock the behavior dispatcher
     generic_rest_plugin.global_manager.user_interactions_behavior_dispatcher.process_interaction = AsyncMock()
@@ -226,10 +225,10 @@ async def test_request_to_notification_data(generic_rest_plugin):
     event_data = {
         "timestamp": "1726517013.695621",
         "event_label": "test_event",
-        "channel_id": 456,
-        "thread_id": 789,
+        "channel_id": "456",  # Mettre en chaîne pour correspondre à l'objet IncomingNotificationDataBase
+        "thread_id": "789",
         "response_id": "101112",
-        "user_id": 123,
+        "user_id": "123",  # Mettre en chaîne pour correspondre à l'objet IncomingNotificationDataBase
         "user_name": "Test User",
         "user_email": "test@example.com",
         "is_mention": False,
@@ -246,8 +245,8 @@ async def test_request_to_notification_data(generic_rest_plugin):
 
     # Vérifier que le retour est bien un objet IncomingNotificationDataBase
     assert isinstance(notification_data, IncomingNotificationDataBase)
-    assert notification_data.user_id == 123
-    assert notification_data.channel_id == 456
+    assert notification_data.user_id == "123"  # Comparer avec la chaîne
+    assert notification_data.channel_id == "456"  # Comparer avec la chaîne
     assert notification_data.event_label == "test_event"
     assert notification_data.text == "Hello"
 
@@ -258,6 +257,7 @@ async def test_request_to_notification_data(generic_rest_plugin):
         notification_data.converted_timestamp = await generic_rest_plugin.format_event_timestamp(notification_data.timestamp)
 
     assert notification_data.converted_timestamp is not None
+
 
 @pytest.mark.asyncio
 async def test_post_notification(generic_rest_plugin):

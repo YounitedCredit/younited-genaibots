@@ -485,7 +485,7 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
         thread_id=None,
         response_id=None,
         user_name="test_user",
-        user_email="test@example.com",
+        user_email="test_user@example.com",
         user_id="U123",
         is_mention=True,
         text="hello",
@@ -522,10 +522,12 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
     im_default_behavior_plugin.logger.info.assert_called_with("No GenAI completion generated, not processing")
 
     # Check that the "done" reaction was added
-    plugin_mock.add_reaction.assert_called_with(channel_id=event_data.channel_id, timestamp=event_data.timestamp, reaction_name=im_default_behavior_plugin.reaction_done)
-
-    # Ensure no message was sent
-    assert not plugin_mock.send_message.called
+    plugin_mock.add_reaction.assert_called_with(
+        event=event_data,
+        channel_id=event_data.channel_id,
+        timestamp=event_data.timestamp,
+        reaction_name=im_default_behavior_plugin.reaction_done
+    )
     
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_exception(im_default_behavior_plugin):

@@ -118,7 +118,7 @@ class ChatInputHandler():
                 return await self.handle_no_message_found(event_data)
 
             # Step 3: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
-            if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES:
+            if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES and event_data.user_id != "AUTOMATED_RESPONSE":
                 await self.process_conversation_history(event_data, messages)
 
             # Step 4: Construct the new incoming message based on event_data and append to the message history
@@ -126,7 +126,7 @@ class ChatInputHandler():
             messages.append(constructed_message)
 
             # Step 5: Handle the processing of unmentioned or mentioned thread messages based on configuration
-            if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
+            if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and event_data.user_id != "AUTOMATED_RESPONSE" :
                 # Retrieve previously stored unmentioned messages if bot is mentioned
                 messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
             elif not event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
