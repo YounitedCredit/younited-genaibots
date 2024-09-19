@@ -1,5 +1,6 @@
 from abc import abstractmethod
-
+import time
+from typing import Tuple, Optional
 from core.backend.internal_data_plugin_base import InternalDataPluginBase
 
 
@@ -91,6 +92,22 @@ class InternalDataProcessingBase(InternalDataPluginBase):
     @property
     @abstractmethod
     def subprompts(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def custom_actions(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def messages_queue(self):
         """
         Property for concatenate data.
         """
@@ -205,5 +222,45 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Asynchronously list the files in a specified container.
 
         :param container_name: The name of the container
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def enqueue_message(self, channel_id: str, thread_id: str, message: str) -> None:
+        """
+        Adds a message to the queue for a given channel and thread.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread (often a timestamp).
+        :param message: The message content to enqueue.
+        :return: None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def dequeue_message(self, message_id: str) -> None:
+        """
+        Removes a message from the queue after processing.
+
+        :param message_id: The unique identifier of the message (e.g., channel_id_thread_id_message_id.txt).
+        :return: None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_next_message(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Retrieves the next (oldest) message from the queue for processing.
+
+        :return: A tuple containing the message_id and the message content. If no messages exist, returns (None, None).
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def has_older_messages(self) -> bool:
+        """
+        Checks if there are any older messages waiting in the queue.
+
+        :return: True if older messages exist in the queue, False otherwise.
         """
         raise NotImplementedError
