@@ -26,6 +26,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_VECTORS_CONTAINER: str
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
     FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
+    FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -50,6 +51,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.vectors_container = None
         self.custom_actions_container = None
         self.subprompts_container = None
+        self.message_queue_container = None
 
     @property
     def plugin_name(self):
@@ -113,6 +115,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def subprompts(self):
         # Implement the subprompts property
         return self.subprompts_container
+    
+    @property
+    def messages_queue(self):
+        # Implement the messages_queue property
+        return self.message_queue_container
 
     def initialize(self):
         try:
@@ -129,6 +136,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
+            self.message_queue_container = self.file_system_config.FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
