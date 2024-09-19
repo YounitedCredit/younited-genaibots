@@ -40,7 +40,7 @@ def rest_config_data():
         "GENERIC_REST_BEHAVIOR_PLUGIN_NAME": "behavior_plugin",
         "GENERIC_REST_MESSAGE_URL": "http://example.com/message",
         "GENERIC_REST_REACTION_URL": "http://example.com/reaction",
-        "GENERIC_REST_BOT_ID": "bot_id",
+        "GENERIC_REST_BOT_ID": "bot_id"
     }
 
 @pytest.fixture
@@ -127,6 +127,7 @@ async def test_process_event_data(generic_rest_plugin):
     # Créer un objet IncomingNotificationDataBase directement
     event_data = IncomingNotificationDataBase(
         timestamp="1726517013.695621",
+        converted_timestamp="2024-09-16 22:04:51",
         event_label="thread_message",
         channel_id=1,
         thread_id=19,
@@ -218,6 +219,45 @@ async def test_remove_reaction(generic_rest_plugin):
     generic_rest_plugin.post_notification.side_effect = Exception("Failed to remove reaction")
     with pytest.raises(Exception):
         await generic_rest_plugin.remove_reaction(event, channel_id, timestamp, reaction_name)
+
+@pytest.mark.asyncio
+async def test_request_to_notification_data(generic_rest_plugin):
+    # Créer des données d'événement plus complètes pour correspondre à IncomingNotificationDataBase
+    event_data = {
+        "timestamp": "1726517013.695621",
+        "event_label": "test_event",
+        "channel_id": 456,
+        "thread_id": 789,
+        "response_id": "101112",
+        "user_id": 123,
+        "user_name": "Test User",
+        "user_email": "test@example.com",
+        "is_mention": False,
+        "text": "Hello",
+        "origin": "API",
+        "files_content": [],
+        "images": [],
+        "origin_plugin_name": "plugin_name",
+        "raw_data": {"key": "value"}
+    }
+
+    # Appeler directement la méthode request_to_notification_data
+    notification_data = await generic_rest_plugin.request_to_notification_data(event_data)
+
+    # Vérifier que le retour est bien un objet IncomingNotificationDataBase
+    assert isinstance(notification_data, IncomingNotificationDataBase)
+    assert notification_data.user_id == 123
+    assert notification_data.channel_id == 456
+    assert notification_data.event_label == "test_event"
+    assert notification_data.text == "Hello"
+
+    # Tester la conversion du timestamp si nécessaire
+    if notification_data.timestamp is None:
+        notification_data.converted_timestamp = "default_timestamp"
+    else:
+        notification_data.converted_timestamp = await generic_rest_plugin.format_event_timestamp(notification_data.timestamp)
+
+    assert notification_data.converted_timestamp is not None
 
 @pytest.mark.asyncio
 async def test_post_notification(generic_rest_plugin):
@@ -386,13 +426,13 @@ async def test_send_message_with_title_and_flags(generic_rest_plugin):
 
     assert generic_rest_plugin.post_notification.called
 
+
 #@pytest.mark.asyncio
 #async def test_upload_file_not_implemented(generic_rest_plugin):
 #    event = MagicMock()
 #    # Ensure the method raises NotImplementedError
 #    with pytest.raises(NotImplementedError):
 #        await generic_rest_plugin.upload_file(event, b"file_content", "filename.txt", "title")
-
 
 @pytest.mark.asyncio
 async def test_request_to_notification_data_invalid_data(generic_rest_plugin):

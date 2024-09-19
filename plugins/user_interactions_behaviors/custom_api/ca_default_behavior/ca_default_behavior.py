@@ -102,7 +102,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             start_keyword = self.global_manager.bot_config.START_KEYWORD
             await self.instantmessaging_plugin.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name= self.reaction_acknowledge)
 
-           
+
             # If the event is a thread message
             if event.event_label == "thread_message":
                 # Check if the text message is the break keyword

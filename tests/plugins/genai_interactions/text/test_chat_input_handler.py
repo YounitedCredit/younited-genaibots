@@ -203,11 +203,29 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         assert user_content[0]['type'] == 'text'
 
         # Use the raw timestamp for comparison
+
         expected_text = (
             f"Timestamp: {incoming_notification.timestamp}, [username]: {incoming_notification.user_name}, "
             f"[user id]: {incoming_notification.user_id}, [user email]: {incoming_notification.user_email}, "
             f"[Directly mentioning you]: {incoming_notification.is_mention}, [message]: {incoming_notification.text}"
         )
+
+        assert user_content[0]['text'] == expected_text
+
+        # Validate that file contents are included
+        assert user_content[1]['type'] == 'text'
+        assert user_content[1]['text'] == "file content 1"
+        assert user_content[2]['type'] == 'text'
+        assert user_content[2]['text'] == "file content 2"
+
+        # Validate that image messages are included
+        assert user_content[3]['type'] == 'image_url'
+        assert user_content[3]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_1"
+        assert user_content[4]['type'] == 'image_url'
+        assert user_content[4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
+
+        # Now assert the total length of user_content
+        assert len(user_content) == 5  # 1 text message, 2 files, and 2 images
 
         # Compare with the raw timestamp
         assert user_content[0]['text'] == expected_text

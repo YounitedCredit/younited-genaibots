@@ -142,6 +142,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
 
 
     async def process_event_data(self, event_data : IncomingNotificationDataBase, headers, raw_body_str):
+
         try:
             validate_request = await self.validate_request(event_data, headers, raw_body_str)
 
@@ -149,6 +150,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                 try:
                     user_id = event_data.user_id
                     channel_id = event_data.channel_id                    
+
                     self.logger.info(f"Valid <GENERIC_REST> request received from user {user_id} in channel {channel_id}, processing..")
                     await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
                         event_data=event_data.to_dict(),
@@ -244,3 +246,5 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         
     def get_bot_id(self) -> str:
         return self.rest_config.GENERIC_REST_BOT_ID
+        pass
+
