@@ -10,6 +10,10 @@ from core.backend.internal_data_processing_base import InternalDataProcessingBas
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
+import time
+import os
+import json
+from typing import Optional, Tuple
 
 
 class FileSystemConfig(BaseModel):
@@ -374,3 +378,70 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.debug("Session update completed")
         except Exception as e:
             self.logger.error(f"Failed to write to file: {str(e)}")
+
+    async def enqueue_message(self, channel_id: str, thread_id: str, message: str) -> None:
+        """
+        Adds a message to the queue (messages_queue).
+        The file is named in the format `channel_id_thread_id_timestamp.txt`.
+        """
+        message_id = f"{channel_id}_{thread_id}_{int(time.time())}.txt"
+        file_path = os.path.join(self.root_directory, self.message_queue_container, message_id)
+
+        try:
+            # Write the message to a queue file
+            with open(file_path, 'w') as file:
+                file.write(message)
+            self.logger.info(f"Message {message_id} added to the queue.")
+        except Exception as e:
+            self.logger.error(f"Failed to enqueue the message: {str(e)}")
+
+    async def dequeue_message(self, message_id: str) -> None:
+        """
+        Removes a message from the queue after it has been processed.
+        """
+        file_path = os.path.join(self.root_directory, self.message_queue_container, message_id)
+
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                self.logger.info(f"Message {message_id} removed from the queue.")
+            except Exception as e:
+                self.logger.error(f"Failed to remove the message {message_id}: {str(e)}")
+        else:
+            self.logger.warning(f"Message {message_id} not found in the queue.")
+
+    async def get_next_message(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Retrieves the oldest message from the queue, sorted by timestamp.
+        Returns a tuple (message_id, message_content). If no message is found, returns (None, None).
+        """
+        try:
+            files = os.listdir(os.path.join(self.root_directory, self.message_queue_container))
+            if not files:
+                return None, None
+
+            # Sort files by timestamp (last part of the filename)
+            files.sort(key=lambda f: int(f.split('_')[-1].split('.')[0]))
+            next_message_file = files[0]
+            file_path = os.path.join(self.root_directory, self.message_queue_container, next_message_file)
+
+            # Read the content of the oldest message
+            with open(file_path, 'r') as file:
+                message_content = file.read()
+            
+            return next_message_file, message_content
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve the next message: {str(e)}")
+            return None, None
+
+    async def has_older_messages(self) -> bool:
+        """
+        Checks if there are older messages in the queue.
+        Returns True if older messages exist, False otherwise.
+        """
+        try:
+            files = os.listdir(os.path.join(self.root_directory, self.message_queue_container))
+            return len(files) > 0
+        except Exception as e:
+            self.logger.error(f"Failed to check for older messages: {str(e)}")
+            return False

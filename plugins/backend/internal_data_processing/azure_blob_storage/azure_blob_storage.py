@@ -4,13 +4,16 @@ import os
 import traceback
 
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, BlobClient
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from pydantic import BaseModel
 
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
+from typing import Optional, Tuple
+
 
 AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
 
@@ -397,4 +400,72 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(f"An error occurred while updating prompt system message: {str(e)}")
             self.logger.error(traceback.format_exc())
             return
+        
+    async def enqueue_message(self, channel_id: str, thread_id: str, message: str) -> None:
+        """
+        Adds a message to the Azure Blob Storage queue (messages_queue).
+        The blob is named in the format `channel_id_thread_id_timestamp.txt`.
+        """
+        message_id = f"{channel_id}_{thread_id}_{int(time.time())}.txt"
+        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=message_id)
 
+        try:
+            # Upload the message to the blob as a new message in the queue
+            blob_client.upload_blob(message, overwrite=True)
+            self.logger.info(f"Message {message_id} added to the Azure Blob queue.")
+        except ResourceExistsError:
+            self.logger.warning(f"Message {message_id} already exists.")
+        except Exception as e:
+            self.logger.error(f"Failed to enqueue the message: {str(e)}")
+
+    async def dequeue_message(self, message_id: str) -> None:
+        """
+        Removes a message from the Azure Blob Storage queue after processing.
+        """
+        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=message_id)
+
+        try:
+            blob_client.delete_blob()
+            self.logger.info(f"Message {message_id} removed from the Azure Blob queue.")
+        except ResourceNotFoundError:
+            self.logger.warning(f"Message {message_id} not found.")
+        except Exception as e:
+            self.logger.error(f"Failed to dequeue the message {message_id}: {str(e)}")
+
+    async def get_next_message(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Retrieves the oldest message from the Azure Blob Storage queue, sorted by timestamp.
+        Returns a tuple (message_id, message_content). If no message is found, returns (None, None).
+        """
+        try:
+            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            blobs = container_client.list_blobs()
+
+            # Sort blobs by the timestamp in their names
+            sorted_blobs = sorted(blobs, key=lambda b: int(b.name.split('_')[-1].split('.')[0]))
+
+            if not sorted_blobs:
+                return None, None
+
+            next_blob = sorted_blobs[0]
+            blob_client = self.blob_service_client.get_blob_client(self.messages_queue_container, next_blob.name)
+            message_content = blob_client.download_blob().readall().decode('utf-8')
+
+            self.logger.info(f"Next message retrieved: {next_blob.name}")
+            return next_blob.name, message_content
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve the next message: {str(e)}")
+            return None, None
+
+    async def has_older_messages(self) -> bool:
+        """
+        Checks if there are older messages in the Azure Blob Storage queue.
+        Returns True if older messages exist, False otherwise.
+        """
+        try:
+            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            blobs = container_client.list_blobs()
+            return any(blobs)
+        except Exception as e:
+            self.logger.error(f"Failed to check for older messages: {str(e)}")
+            return False
