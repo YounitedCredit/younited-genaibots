@@ -28,7 +28,8 @@ def mock_config():
         "AZURE_BLOB_STORAGE_ABORT_CONTAINER": "abort",
         "AZURE_BLOB_STORAGE_VECTORS_CONTAINER": "vectors",
         "AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER": "custom_actions",
-        "AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER": "subprompts"
+        "AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER": "subprompts",
+        "AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER": "messages_queue"
     }
 
 @pytest.fixture

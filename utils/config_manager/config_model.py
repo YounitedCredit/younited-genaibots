@@ -24,6 +24,7 @@ class BotConfig(BaseModel):
     LLM_CONVERSION_FORMAT: str
     BREAK_KEYWORD: str
     START_KEYWORD: str
+    CLEARQUEUE_KEYWORD: str
     RECORD_NONPROCESSED_MESSAGES: bool
 
 class LocalLogging(BaseModel):

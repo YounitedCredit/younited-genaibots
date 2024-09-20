@@ -270,3 +270,14 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :return: True if older messages exist in the queue, False otherwise.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
+        """
+        Clears all messages in the queue for a given channel and thread.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
+        :return: None
+        """
+        raise NotImplementedError

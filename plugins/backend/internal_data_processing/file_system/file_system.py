@@ -529,3 +529,35 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False
+
+    async def clear_messages_queue(self, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> None:
+        """
+        Clears all messages in the queue for a given channel and thread.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
+        await plugin.clear_messages_queue(channel_id=channel_id, thread_id=thread_id)
+
+    async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
+        """
+        Clears all messages in the queue for a given channel and thread.
+        """
+        self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}'.")
+
+        queue_path = os.path.join(self.root_directory, self.message_queue_container)
+        if not os.path.exists(queue_path):
+            self.logger.warning(f"Queue path '{queue_path}' does not exist.")
+            return
+
+        try:
+            files = os.listdir(queue_path)
+            for file_name in files:
+                if file_name.startswith(f"{channel_id}_{thread_id}_"):
+                    file_path = os.path.join(queue_path, file_name)
+                    try:
+                        os.remove(file_path)
+                        self.logger.info(f"Message file '{file_path}' successfully deleted.")
+                    except Exception as e:
+                        self.logger.error(f"Failed to delete message file '{file_path}': {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Failed to clear messages queue for channel '{channel_id}', thread '{thread_id}': {str(e)}")

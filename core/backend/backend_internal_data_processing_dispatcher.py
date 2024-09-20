@@ -181,5 +181,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Checking for older messages in {channel_id}_{thread_id} through {plugin.plugin_name}.")
         return await plugin.has_older_messages(channel_id=channel_id, thread_id=thread_id)
-
-
+    
+    async def clear_messages_queue(self, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> None:
+        """
+        Clears all messages in the queue for a given channel and thread.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
+        await plugin.clear_messages_queue(channel_id=channel_id, thread_id=thread_id)

@@ -24,7 +24,8 @@ def mock_config():
         "FILE_SYSTEM_ABORT_CONTAINER": "abort",
         "FILE_SYSTEM_VECTORS_CONTAINER": "vectors",
         "FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER": "custom_actions",
-        "FILE_SYSTEM_SUBPROMPTS_CONTAINER": "subprompts"
+        "FILE_SYSTEM_SUBPROMPTS_CONTAINER": "subprompts",
+        "FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER": "messages_queue"
     }
 
 @pytest.fixture
