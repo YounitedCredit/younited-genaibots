@@ -2,7 +2,7 @@ from abc import abstractmethod
 import time
 from typing import Tuple, Optional
 from core.backend.internal_data_plugin_base import InternalDataPluginBase
-
+from typing import List
 
 class InternalDataProcessingBase(InternalDataPluginBase):
     """
@@ -252,3 +252,11 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :return: None
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
+        """
+        Retrieves the contents of all messages for a `channel_id` and `thread_id`.
+        Returns a list of message contents.
+        """
+        pass

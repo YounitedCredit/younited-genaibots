@@ -107,9 +107,15 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     return
                 elif clear_keyword in event.text:
                     self.logger.info(f"Clear keyword detected in thread message, invoking clearing queue for {channel_id} {thread_id}.")
+                    messages_in_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(channel_id=event.channel_id, thread_id=event.thread_id)
+                    
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=True, show_ref=False)
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=False, show_ref=False)
+
                     await self.backend_internal_data_processing_dispatcher.clear_messages_queue(channel_id=event.channel_id, thread_id=event.thread_id)
+                    for message in messages_in_queue:
+                        event_to_process = IncomingNotificationDataBase.from_json(message)
+                        await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=event.channel_id,timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
                     return            
 
             # Check if the event should be processed based on the configuration
@@ -134,16 +140,27 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
-            if await self.backend_internal_data_processing_dispatcher.has_older_messages(channel_id=event.channel_id, thread_id=event.thread_id):
-                await self.backend_internal_data_processing_dispatcher.enqueue_message(channel_id=event.channel_id, thread_id=event.thread_id, message_id=event.timestamp, message=str(json.dumps(event.to_dict())))
+            if await self.backend_internal_data_processing_dispatcher.has_older_messages(channel_id=event.channel_id, thread_id=event.thread_id):                
+                
+                event_json = event.to_json()
+                await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                    channel_id=event.channel_id,
+                    thread_id=event.thread_id,
+                    message_id=event.timestamp,
+                    message=event_json
+                )
                 self.logger.info(f"Message from channel {event.channel_id} enqueued due to pending messages.")
                 await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
                 return
 
             # Enqueue this message for processing
             self.logger.info(f"No pending messages found. Enqueuing current message for processing in channel '{event.channel_id}', thread '{event.thread_id}'.")
-            await self.backend_internal_data_processing_dispatcher.enqueue_message(channel_id=event.channel_id, thread_id=event.thread_id, message_id=event.timestamp, message=str(event_data))
-
+            await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                channel_id=event.channel_id,
+                thread_id=event.thread_id,
+                message_id=event.timestamp,
+                message=event.to_json()  
+            )
             await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_acknowledge)            
             
             abort_container = self.backend_internal_data_processing_dispatcher.abort            
@@ -232,8 +249,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             while next_message_id:
                 self.logger.info(f"Found next message in the queue: {next_message_id}. Processing next message.")
                 try:
-                    next_event = json.loads(next_message_content)
-                    event_to_process = IncomingNotificationDataBase.from_dict(next_event)
+                    event_to_process = IncomingNotificationDataBase.from_json(next_message_content)
                     await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
                     await self.process_incoming_notification_data(event_to_process)
                 except Exception as e:

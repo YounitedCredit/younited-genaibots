@@ -2,7 +2,7 @@ import inspect
 import json
 import os
 import traceback
-from typing import NoReturn
+from typing import List, NoReturn
 import re
 from pydantic import BaseModel
 
@@ -339,9 +339,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
         try:
             # Log that we are attempting to add a message
             self.logger.info(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
-            
-            # Write the message to a queue file
-            with open(file_path, 'w') as file:
+
+            # Write the message to a queue file using UTF-8 encoding
+            with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(message)
 
             # Log success
@@ -433,6 +433,41 @@ class FileSystemPlugin(InternalDataProcessingBase):
             return None, None
 
 
+    async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
+        """
+        Retrieves the contents of all messages for a `channel_id` and `thread_id`.
+        Returns a list of message contents.
+        """
+        self.logger.info(f"Retrieving all messages in the queue for channel '{channel_id}', thread '{thread_id}'.")
+
+        try:
+            # List all files in the queue directory
+            queue_path = os.path.join(self.root_directory, self.message_queue_container)
+            files = os.listdir(queue_path)
+
+            # Filter files for the specific `channel_id` and `thread_id`
+            filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}_")]
+            self.logger.info(f"Found {len(filtered_files)} messages for channel '{channel_id}', thread '{thread_id}'.")
+
+            if not filtered_files:
+                self.logger.info(f"No messages found for channel '{channel_id}', thread '{thread_id}'.")
+                return []
+
+            # Read the content of each filtered message file using UTF-8 encoding
+            messages_content = []
+            for file_name in filtered_files:
+                file_path = os.path.join(queue_path, file_name)
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    message_content = file.read()
+                    messages_content.append(message_content)
+
+            self.logger.info(f"Retrieved {len(messages_content)} messages for channel '{channel_id}', thread '{thread_id}'.")
+            return messages_content
+
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve all messages for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+            return []
+        
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the queue for a given channel_id and thread_id.

@@ -176,3 +176,12 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
         await plugin.clear_messages_queue(channel_id=channel_id, thread_id=thread_id)
+
+    async def get_all_messages(self, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> List[str]:
+        """
+        Retrieves the contents of all messages for a `channel_id` and `thread_id`.
+        Returns a list of message contents.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Retrieving all messages for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
+        return await plugin.get_all_messages(channel_id=channel_id, thread_id=thread_id)
