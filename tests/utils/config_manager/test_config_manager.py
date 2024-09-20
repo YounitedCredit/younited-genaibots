@@ -18,7 +18,6 @@ def test_config_manager_initialization(mock_global_manager):
       REQUIRE_MENTION_THREAD_MESSAGE: true
       LOG_DEBUG_LEVEL: 'DEBUG'
       SHOW_COST_IN_THREAD: true
-      ACKNOWLEDGE_NONPROCESSED_MESSAGE: true
       GET_ALL_THREAD_FROM_MESSAGE_LINKS: true
       GET_URL_CONTENT: true
       ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'

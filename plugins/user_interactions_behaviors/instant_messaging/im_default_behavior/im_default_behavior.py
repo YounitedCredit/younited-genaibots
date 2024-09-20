@@ -142,17 +142,21 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.logger.info(f"Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
             if await self.backend_internal_data_processing_dispatcher.has_older_messages(channel_id=event.channel_id, thread_id=event.thread_id):                
                 
-                event_json = event.to_json()
-                await self.backend_internal_data_processing_dispatcher.enqueue_message(
-                    channel_id=event.channel_id,
-                    thread_id=event.thread_id,
-                    message_id=event.timestamp,
-                    message=event_json
-                )
-                self.logger.info(f"Message from channel {event.channel_id} enqueued due to pending messages.")
-                await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
-                return
-
+                if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
+                    event_json = event.to_json()
+                    await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                        channel_id=event.channel_id,
+                        thread_id=event.thread_id,
+                        message_id=event.timestamp,
+                        message=event_json
+                    )
+                    self.logger.info(f"Message from channel {event.channel_id} enqueued due to pending messages.")
+                    await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+                    return
+                else:
+                    self.logger.info(f"Message from channel {event.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False.")
+                    await self.user_interaction_dispatcher.send_message(event=event, message="I'm working on a previous query, wait for it or 1 mn and try again :-)", message_type=MessageType.COMMENT, is_internal=False, show_ref=False)
+                    return
             # Enqueue this message for processing
             self.logger.info(f"No pending messages found. Enqueuing current message for processing in channel '{event.channel_id}', thread '{event.thread_id}'.")
             await self.backend_internal_data_processing_dispatcher.enqueue_message(
@@ -227,10 +231,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 self.logger.info("No GenAI completion generated, not processing")
 
             # don't ack if the bot config says not to
-            if genai_output is None:
-                if self.global_manager.bot_config.ACKNOWLEDGE_NONPROCESSED_MESSAGE:
-                    await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name= self.reaction_done)
-            else:
+            if genai_output is None:                    
                 await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name= self.reaction_done)
 
             # Remove the 'writing' and 'acknowledge' reactions and add the 'done' reaction

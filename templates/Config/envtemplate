@@ -18,9 +18,9 @@ FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"  # Filename for general feedback 
 # ====================================================
 REQUIRE_MENTION_NEW_MESSAGE=False  # Require bot mention in new messages to trigger response
 REQUIRE_MENTION_THREAD_MESSAGE=True  # Require bot mention in thread messages to trigger response
-ACKNOWLEDGE_NONPROCESSED_MESSAGE=False  # Acknowledge messages that are not processed
 GET_ALL_THREAD_FROM_MESSAGE_LINKS=True  # Fetch all thread messages from message links
 RECORD_NONPROCESSED_MESSAGE = False # Record messages that are not processed
+ACTIVATE_MESSAGE_QUEUING = True # Activate message queuing, if False, the bot won't treat message until previous message is processed or TTL time is reached
 QUEUED_MESSAGE_TTL = 120 # Time-to-live for queued messages (in seconds)
 
 # ====================================================

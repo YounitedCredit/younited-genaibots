@@ -175,10 +175,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 self.logger.info("GenAI output is None, not processing the message.")
 
             # don't ack if the bot config says not to
-            if genai_output is None:
-                if self.global_manager.bot_config.ACKNOWLEDGE_NONPROCESSED_MESSAGE:
-                    await self.instantmessaging_plugin.add_reaction(channel_id=channel_id, timestamp=timestamp, reaction_name= self.reaction_done)
-            else:
+            if genai_output is None:                
                 await self.instantmessaging_plugin.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name= self.reaction_done)
 
             # Remove the 'writing' and 'acknowledge' reactions and add the 'done' reaction

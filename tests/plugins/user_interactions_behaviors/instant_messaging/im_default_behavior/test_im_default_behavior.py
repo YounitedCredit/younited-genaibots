@@ -492,9 +492,6 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
     # Mock the genai_interactions_text_dispatcher with no output
     monkeypatch.setattr(im_default_behavior_plugin.genai_interactions_text_dispatcher, 'handle_request', AsyncMock(return_value=None))
 
-    # Mock the global_manager.bot_config settings
-    monkeypatch.setattr(global_manager.bot_config, 'ACKNOWLEDGE_NONPROCESSED_MESSAGE', True)
-
     # Set up the reaction attributes
     im_default_behavior_plugin.reaction_done = "done_reaction"
     im_default_behavior_plugin.reaction_generating = "generating_reaction"
