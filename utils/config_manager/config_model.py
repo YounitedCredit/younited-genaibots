@@ -26,6 +26,7 @@ class BotConfig(BaseModel):
     START_KEYWORD: str
     CLEARQUEUE_KEYWORD: str
     RECORD_NONPROCESSED_MESSAGES: bool
+    QUEUED_MESSAGE_TTL: int
 
 class LocalLogging(BaseModel):
     PLUGIN_NAME: str

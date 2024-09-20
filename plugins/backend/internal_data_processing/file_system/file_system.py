@@ -489,8 +489,10 @@ class FileSystemPlugin(InternalDataProcessingBase):
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the queue for a given channel_id and thread_id.
-        Removes any messages older than 2 minutes.
+        Removes any messages older than QUEUED_MESSAGE_TTL seconds.
         """
+        message_ttl = self.global_manager.bot_config.QUEUED_MESSAGE_TTL
+
         self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'")
         try:
             current_time = int(time.time())
@@ -505,7 +507,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
                 return False
 
-            # Check for messages older than 2 minutes (120 seconds)
+            # Check for messages older than message_ttl
             updated_files = []
             for file_name in filtered_files:
                 try:
@@ -514,8 +516,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
                     timestamp = float(message_id)  # Ensure message_id is a valid timestamp
                     time_difference = current_time - timestamp
                     
-                    if time_difference > 120:
-                        self.logger.warning(f"Removed message '{file_name}' from queue as it is older than 2 minutes.")
+                    if time_difference > message_ttl:
+                        self.logger.warning(f"Removed message '{file_name}' from queue as it is older than {message_ttl} seconds.")
                         # Dequeue the message properly by passing channel_id, thread_id, and message_id
                         await self.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
                     else:

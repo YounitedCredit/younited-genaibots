@@ -112,15 +112,27 @@ class ChatInputHandler():
             blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
+            # Preserve the information that messages was empty initially
+            was_messages_empty = not messages            
 
-            # Step 2: If no messages are found and RECORD_NONPROCESSED_MESSAGES is False
-            if not messages and not self.bot_config.RECORD_NONPROCESSED_MESSAGES:
-                return await self.handle_no_message_found(event_data)
-
-            # Step 3: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
+            # Step 2: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
             if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES and event_data.user_id != "AUTOMATED_RESPONSE":
                 await self.process_conversation_history(event_data, messages)
+            
+            # Step 3: If messages was initially empty, add the initial system message
+            if was_messages_empty:
+                feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
+                general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
+                await self.global_manager.prompt_manager.initialize()
+                init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+                constructed_message = f"Timestamp: {str(event_data.timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
 
+                if general_behavior_content:
+                    init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
+                
+                # Add the initial system message to messages
+                messages.insert(0, {"role": "system", "content": init_prompt})
+            
             # Step 4: Construct the new incoming message based on event_data and append to the message history
             constructed_message = self.construct_message(event_data)
             messages.append(constructed_message)
@@ -163,28 +175,32 @@ class ChatInputHandler():
                 return
 
             try:
-                last_message_timestamp_str = self.get_last_user_message_timestamp(messages)
-                last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
-                if last_message_timestamp.tzinfo is None:
-                    last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
+                if not messages:
+                    self.logger.info("No messages found, taking all conversation history as relevant events.")
+                    relevant_events.extend(conversation_history)
+                else:
+                    last_message_timestamp_str = self.get_last_user_message_timestamp(messages)
+                    last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
+                    if last_message_timestamp.tzinfo is None:
+                        last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
+
+                    bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
+                    
+                    for past_event in conversation_history:
+                        try:
+                            past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
+                            if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+                                if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id and "AUTOMATED_RESPONSE" not in past_event.text:
+                                    self.logger.info(
+                                        f"Processing past event: channel_id={past_event.channel_id}, "
+                                        f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
+                                    )
+                                    relevant_events.append(past_event)
+                        except Exception as e:
+                            self.logger.error(f"Error processing past event: {e}")
             except Exception as e:
                 self.logger.error(f"Error getting last user message timestamp: {e}")                
                 return
-
-            bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
-            
-            for past_event in conversation_history:
-                try:
-                    past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
-                    if last_message_timestamp < past_event_timestamp < current_event_timestamp:
-                        if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id and "AUTOMATED_RESPONSE" not in past_event.text:
-                            self.logger.info(
-                                f"Processing past event: channel_id={past_event.channel_id}, "
-                                f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
-                            )
-                            relevant_events.append(past_event)
-                except Exception as e:
-                    self.logger.error(f"Error processing past event: {e}")
 
             # Add the relevant events to the messages
             try:
