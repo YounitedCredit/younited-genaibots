@@ -59,8 +59,10 @@ class SlackOutputHandler:
         except SlackApiError as e:
             if e.response["error"] == "no_reaction":
                 self.logger.debug("No reaction to remove. Skipping.")
+            elif e.response["error"] == "message_not_found":
+                self.logger.warning("Message not found. Cannot remove reaction.")
             else:
-                raise e  # Re-raise the exception if it's not 'no_reaction'
+                raise e  # Re-raise the exception if it's not 'no_reaction' or 'message_not_found'
 
     async def send_slack_message(self, channel_id, response_id, message, message_type=MessageType.TEXT, title=None):
         headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
