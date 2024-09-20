@@ -60,11 +60,11 @@ class CallSubprompt(ActionBase):
                 if feedbacks:
                     await self.user_interactions_dispatcher.send_message(event=event, message=f"Trigger subprompt [{message_type}] with feedback [{category}-{sub_category}]", message_type=MessageType.COMMENT, is_internal=False)
                     self.logger.info(f"launching completion on updated system prompt {message_type}")
-                    event_copy.text = f"Here's updated instruction that you must consider as system instruction: {subprompt}. take also into account the previous feedback on this: {feedbacks}. Use these informations ton respond to the previous user input."
+                    event_copy.text = f"Here's updated instruction that you must consider as system instruction: {subprompt}. take also into account the previous feedback on this: {feedbacks}."
                 else:
                     await self.user_interactions_dispatcher.send_message(event=event, message=f"Trigger subprompt [{message_type}]", message_type=MessageType.COMMENT, is_internal=False)
                     self.logger.info(f"launching completion on updated system prompt {message_type}")
-                    event_copy.text = f"Here's updated instruction that you must consider as system instruction: {subprompt}. Use these informations ton respond to the previous user input."
+                    event_copy.text = f"Here's updated instruction that you must consider as system instruction: {subprompt}."
 
 
                 await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
