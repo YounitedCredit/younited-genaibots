@@ -10,7 +10,6 @@ from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
 
-
 def test_initialize_with_no_plugins(mock_user_interactions_dispatcher):
     mock_user_interactions_dispatcher.logger = MagicMock()
     mock_user_interactions_dispatcher.initialize([])

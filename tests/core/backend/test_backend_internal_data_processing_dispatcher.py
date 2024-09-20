@@ -65,11 +65,6 @@ def test_property_sessions(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
     assert dispatcher.sessions == 'mock_sessions'
 
-def test_property_messages(dispatcher, mock_plugin):
-    mock_plugin.messages = 'mock_messages'
-    dispatcher.initialize([mock_plugin])
-    assert dispatcher.messages == 'mock_messages'
-
 @pytest.mark.asyncio
 async def test_append_data(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])

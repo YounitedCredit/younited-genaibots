@@ -2,7 +2,7 @@ import inspect
 import json
 import os
 import traceback
-
+from typing import List
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, BlobClient
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
@@ -328,71 +328,198 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(traceback.format_exc())
             return
         
-    async def enqueue_message(self, channel_id: str, thread_id: str, message: str) -> None:
+    async def enqueue_message(self, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
         """
-        Adds a message to the Azure Blob Storage queue (messages_queue).
-        The blob is named in the format `channel_id_thread_id_timestamp.txt`.
+        Adds a message to the Azure Blob Storage queue.
+        The blob is named using `channel_id`, `thread_id`, and a unique message_id.
         """
-        message_id = f"{channel_id}_{thread_id}_{int(time.time())}.txt"
-        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=message_id)
+        blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
+        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob_name)
 
         try:
-            # Upload the message to the blob as a new message in the queue
-            blob_client.upload_blob(message, overwrite=True)
-            self.logger.info(f"Message {message_id} added to the Azure Blob queue.")
-        except ResourceExistsError:
-            self.logger.warning(f"Message {message_id} already exists.")
-        except Exception as e:
-            self.logger.error(f"Failed to enqueue the message: {str(e)}")
+            # Log that we are attempting to add a message
+            self.logger.info(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
 
-    async def dequeue_message(self, message_id: str) -> None:
+            # Upload the message to the blob
+            blob_client.upload_blob(message, overwrite=True)
+            self.logger.info(f"Message successfully enqueued with ID '{message_id}' in blob '{blob_name}'.")
+        except ResourceExistsError:
+            self.logger.warning(f"Message with ID '{message_id}' already exists in the queue.")
+        except Exception as e:
+            self.logger.error(f"Failed to enqueue the message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+
+    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str) -> None:
         """
-        Removes a message from the Azure Blob Storage queue after processing.
+        Removes a message from the Azure Blob Storage queue after it has been processed.
         """
-        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=message_id)
+        blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
+        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob_name)
+
+        self.logger.info(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
 
         try:
             blob_client.delete_blob()
-            self.logger.info(f"Message {message_id} removed from the Azure Blob queue.")
+            self.logger.info(f"Message '{message_id}' successfully removed from the queue.")
         except ResourceNotFoundError:
-            self.logger.warning(f"Message {message_id} not found.")
+            self.logger.warning(f"Message '{message_id}' not found in the queue.")
         except Exception as e:
-            self.logger.error(f"Failed to dequeue the message {message_id}: {str(e)}")
+            self.logger.error(f"Failed to dequeue message '{message_id}': {str(e)}")
 
-    async def get_next_message(self) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Retrieves the oldest message from the Azure Blob Storage queue, sorted by timestamp.
-        Returns a tuple (message_id, message_content). If no message is found, returns (None, None).
+        Retrieves the next (oldest) message for a `channel_id`, `thread_id` after `current_message_id`.
+        Returns a tuple (next_message_id, message_content). If no message is found, returns (None, None).
         """
+        self.logger.info(f"Checking for the next message in the queue for channel '{channel_id}', thread '{thread_id}' after message ID '{current_message_id}'.")
+
         try:
+            # Get all blobs in the message queue container
             container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
-            blobs = container_client.list_blobs()
+            blobs = list(container_client.list_blobs())
 
-            # Sort blobs by the timestamp in their names
-            sorted_blobs = sorted(blobs, key=lambda b: int(b.name.split('_')[-1].split('.')[0]))
+            # Filter blobs for the specific `channel_id` and `thread_id`
+            filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+            self.logger.info(f"Found {len(filtered_blobs)} messages for channel '{channel_id}', thread '{thread_id}'.")
 
-            if not sorted_blobs:
+            if not filtered_blobs:
+                self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
                 return None, None
 
-            next_blob = sorted_blobs[0]
-            blob_client = self.blob_service_client.get_blob_client(self.messages_queue_container, next_blob.name)
+            # Regular expression to match the blob name structure: {channel_id}_{thread_id}_{message_id}.txt
+            timestamp_regex = re.compile(rf"{channel_id}_(\d+\.\d+)_(\d+\.\d+)\.txt")
+
+            # Extract the message_id (timestamp) from the blob name using regex
+            def extract_message_id(blob_name: str) -> float:
+                match = timestamp_regex.search(blob_name)
+                if match:
+                    return float(match.group(2))  # Group 2 contains the message_id
+                else:
+                    raise ValueError(f"Blob name '{blob_name}' does not match the expected format '{channel_id}_{thread_id}_<message_id>.txt'")
+
+            # Get the timestamp of the current message
+            current_timestamp = extract_message_id(f"{channel_id}_{thread_id}_{current_message_id}.txt")
+
+            # Sort blobs by the message_id
+            filtered_blobs.sort(key=lambda blob: extract_message_id(blob.name))
+
+            # Find the next message based on the timestamp comparison
+            next_blob = next((blob for blob in filtered_blobs if extract_message_id(blob.name) > current_timestamp), None)
+
+            if not next_blob:
+                self.logger.info(f"No newer message found after message ID '{current_message_id}' for channel '{channel_id}', thread '{thread_id}'.")
+                return None, None
+
+            # Read the content of the next message
+            blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=next_blob.name)
             message_content = blob_client.download_blob().readall().decode('utf-8')
 
-            self.logger.info(f"Next message retrieved: {next_blob.name}")
-            return next_blob.name, message_content
+            next_message_id = next_blob.name.split('_')[-1].replace('.txt', '')
+
+            self.logger.info(f"Next message retrieved: '{next_blob.name}' with ID '{next_message_id}'.")
+            return next_message_id, message_content
+
+        except ValueError as ve:
+            # Log the error with specific details about the bad filename format
+            self.logger.error(f"ValueError during message retrieval: {ve}")
+            raise
+
         except Exception as e:
-            self.logger.error(f"Failed to retrieve the next message: {str(e)}")
+            self.logger.error(f"Failed to retrieve the next message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return None, None
 
-    async def has_older_messages(self) -> bool:
+    async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
         """
-        Checks if there are older messages in the Azure Blob Storage queue.
-        Returns True if older messages exist, False otherwise.
+        Retrieves the contents of all messages for a `channel_id` and `thread_id` from the Azure Blob Storage queue.
+        Returns a list of message contents.
         """
+        self.logger.info(f"Retrieving all messages in the queue for channel '{channel_id}', thread '{thread_id}'.")
+
         try:
+            # Get all blobs in the message queue container
             container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
-            blobs = container_client.list_blobs()
-            return any(blobs)
+            blobs = list(container_client.list_blobs())
+
+            # Filter blobs for the specific `channel_id` and `thread_id`
+            filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+            self.logger.info(f"Found {len(filtered_blobs)} messages for channel '{channel_id}', thread '{thread_id}'.")
+
+            if not filtered_blobs:
+                self.logger.info(f"No messages found for channel '{channel_id}', thread '{thread_id}'.")
+                return []
+
+            # Read the content of each filtered message blob
+            messages_content = []
+            for blob in filtered_blobs:
+                blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob.name)
+                message_content = blob_client.download_blob().readall().decode('utf-8')
+                messages_content.append(message_content)
+
+            self.logger.info(f"Retrieved {len(messages_content)} messages for channel '{channel_id}', thread '{thread_id}'.")
+            return messages_content
+
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve all messages for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+            return []
+
+    async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
+        """
+        Checks if there are any older messages in the Azure Blob Storage queue for a given channel and thread.
+        """
+        message_ttl = self.global_manager.bot_config.QUEUED_MESSAGE_TTL
+        current_time = int(time.time())
+
+        self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'.")
+
+        try:
+            # Get all blobs in the message queue container
+            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            blobs = list(container_client.list_blobs())
+
+            # Filter blobs for the specific `channel_id` and `thread_id`
+            filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+            self.logger.info(f"Found {len(filtered_blobs)} messages for channel '{channel_id}', thread '{thread_id}'.")
+
+            if not filtered_blobs:
+                self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
+                return False
+
+            updated_files = []
+            for blob in filtered_blobs:
+                # Extract the message_id (timestamp) from the blob name
+                message_id = blob.name.split('_')[-1].split('.')[0]
+                timestamp = float(message_id)
+
+                if current_time - timestamp > message_ttl:
+                    self.logger.warning(f"Removing message '{blob.name}' as it is older than {message_ttl} seconds.")
+                    await self.dequeue_message(channel_id, thread_id, message_id)
+                else:
+                    updated_files.append(blob.name)
+
+            # Return True if there are valid messages left after removing old ones
+            return len(updated_files) > 0
+
         except Exception as e:
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False
+
+    async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
+        """
+        Clears all messages in the Azure Blob Storage queue for a given channel and thread.
+        """
+        self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}'.")
+
+        try:
+            # Get all blobs in the message queue container
+            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            blobs = list(container_client.list_blobs())
+
+            # Filter blobs for the specific `channel_id` and `thread_id`
+            filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+
+            for blob in filtered_blobs:
+                blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob.name)
+                blob_client.delete_blob()
+                self.logger.info(f"Message '{blob.name}' successfully deleted from the queue.")
+
+        except Exception as e:
+            self.logger.error(f"Failed to clear messages queue for channel '{channel_id}', thread '{thread_id}': {str(e)}")

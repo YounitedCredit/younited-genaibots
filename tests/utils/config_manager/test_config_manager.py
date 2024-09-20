@@ -30,7 +30,9 @@ def test_config_manager_initialization(mock_global_manager):
       LLM_CONVERSION_FORMAT: 'LLM_conversion_format'
       BREAK_KEYWORD: 'start'
       START_KEYWORD: 'stop'
-      LOAD_ACTIONS_FROM_BACKEND: False
+      CLEARQUEUE_KEYWORD: '!CLEARQUEUE'
+      LOAD_ACTIONS_FROM_BACKEND: False,
+      QUEUED_MESSAGE_TTL : 120
     PLUGINS:
       ACTION_INTERACTIONS:
         CUSTOM: {}

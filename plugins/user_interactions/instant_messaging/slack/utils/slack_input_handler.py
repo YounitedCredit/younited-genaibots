@@ -676,19 +676,20 @@ class SlackInputHandler:
         params = {k: str(v) for k, v in params.items()}
 
         try:
-            with requests.Session() as session:
-                response = session.get(url, headers=headers, params=params)
-                if response.status_code != 200:
-                    error_message = response.json().get('error', 'Unknown error')
-                    self.logger.error(f"Failed to retrieve message from Slack API: {error_message}")
-                    return None
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status != 200:
+                        error_message = await response.json()
+                        error_message = error_message.get('error', 'Unknown error')
+                        self.logger.error(f"Failed to retrieve message from Slack API: {error_message}")
+                        return None
 
-                data = response.json()
-                if not data['ok']:
-                    self.logger.error(f"Failed to retrieve message from Slack API: {data['error']}")
-                    return None
+                    data = await response.json()
+                    if not data['ok']:
+                        self.logger.error(f"Failed to retrieve message from Slack API: {data['error']}")
+                        return None
 
-                return data
+                    return data
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}")
             return None
