@@ -76,12 +76,10 @@ async def test_handle_thread_message_event(chat_input_handler, incoming_notifica
     # Ensure that the bot is configured to require a mention to store unmentioned messages
     chat_input_handler.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE = True
 
-    # Specify that the user is not mentioned, which should trigger 'store_unmentioned_messages'
     incoming_notification.is_mention = False
 
     # Mock the necessary methods
     with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-         patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'store_unmentioned_messages', new_callable=AsyncMock) as mock_store_unmentioned_messages, \
          patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
 
         # Simulate the content being read
@@ -98,13 +96,6 @@ async def test_handle_thread_message_event(chat_input_handler, incoming_notifica
 
         # Verify that 'read_data_content' was called once
         mock_read_data_content.assert_called_once()
-
-        # 'store_unmentioned_messages' should be called since the user is not mentioned
-        mock_store_unmentioned_messages.assert_called_once_with(
-            incoming_notification.channel_id, 
-            incoming_notification.thread_id, 
-            ANY  # Adjust as needed for the stored data
-        )
 
         # Verify that 'generate_response' is not called since no response should be generated
         mock_generate_response.assert_not_called()

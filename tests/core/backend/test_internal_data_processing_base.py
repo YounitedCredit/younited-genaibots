@@ -77,14 +77,6 @@ class MockInternalDataProcessing(InternalDataProcessingBase):
             self._messages[data_container] = {}
         self._messages[data_container][data_file] = data
 
-    async def store_unmentioned_messages(self, channel_id, thread_id, message):
-        if channel_id not in self._messages:
-            self._messages[channel_id] = {}
-        self._messages[channel_id][thread_id] = message
-
-    async def retrieve_unmentioned_messages(self, channel_id, thread_id):
-        return self._messages.get(channel_id, {}).get(thread_id, "")
-
     async def update_pricing(self, container_name, datafile_name, pricing_data):
         if container_name not in self._costs:
             self._costs[container_name] = {}

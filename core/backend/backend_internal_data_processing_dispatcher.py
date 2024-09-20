@@ -55,11 +55,6 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         return plugin.sessions
 
     @property
-    def messages(self, plugin_name = None):
-        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return plugin.messages
-
-    @property
     def feedbacks(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.feedbacks
@@ -119,15 +114,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
 
     async def write_data_content(self, data_container, data_file, data, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
-        await plugin.write_data_content(data_container= data_container, data_file= data_file, data= data)
-
-    async def store_unmentioned_messages(self, channel_id, thread_id, message, plugin_name = None):
-        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
-        await plugin.store_unmentioned_messages(channel_id= channel_id, thread_id= thread_id, message= message)
-
-    async def retrieve_unmentioned_messages(self, channel_id, thread_id, plugin_name = None):
-        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return await plugin.retrieve_unmentioned_messages(channel_id= channel_id, thread_id= thread_id)
+        await plugin.write_data_content(data_container= data_container, data_file= data_file, data= data)   
 
     async def update_pricing(self, container_name, datafile_name, pricing_data, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)

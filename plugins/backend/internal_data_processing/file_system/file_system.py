@@ -20,7 +20,6 @@ class FileSystemConfig(BaseModel):
     PLUGIN_NAME: str
     FILE_SYSTEM_DIRECTORY: str
     FILE_SYSTEM_SESSIONS_CONTAINER: str
-    FILE_SYSTEM_MESSAGES_CONTAINER: str
     FILE_SYSTEM_FEEDBACKS_CONTAINER: str
     FILE_SYSTEM_CONCATENATE_CONTAINER: str
     FILE_SYSTEM_PROMPTS_CONTAINER: str
@@ -45,7 +44,6 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.plugin_name = None
         self.root_directory = None
         self.sessions_container = None
-        self.messages_container = None
         self.feedbacks_container = None
         self.concatenate_container = None
         self.prompts_container = None
@@ -69,11 +67,6 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def sessions(self):
         # Implement the sessions property
         return self.sessions_container
-
-    @property
-    def messages(self):
-        # Implement the messages property
-        return self.messages_container
 
     @property
     def feedbacks(self):
@@ -130,7 +123,6 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.debug("Initializing file system")
             self.root_directory = self.file_system_config.FILE_SYSTEM_DIRECTORY
             self.sessions_container = self.file_system_config.FILE_SYSTEM_SESSIONS_CONTAINER
-            self.messages_container = self.file_system_config.FILE_SYSTEM_MESSAGES_CONTAINER
             self.feedbacks_container = self.file_system_config.FILE_SYSTEM_FEEDBACKS_CONTAINER
             self.concatenate_container = self.file_system_config.FILE_SYSTEM_CONCATENATE_CONTAINER
             self.prompts_container = self.file_system_config.FILE_SYSTEM_PROMPTS_CONTAINER
@@ -155,7 +147,6 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def init_shares(self):
         containers = [
             self.sessions_container,
-            self.messages_container,
             self.feedbacks_container,
             self.concatenate_container,
             self.prompts_container,
@@ -165,7 +156,6 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.vectors_container,
             self.custom_actions_container,
             self.subprompts_container,
-            self.messages_container,
             self.message_queue_container
         ]
         for container in containers:
@@ -219,50 +209,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception:
             error_traceback = traceback.format_exc()
             self.logger.exception(f"Failed to write to file: {str(error_traceback)}")
-
-    async def store_unmentioned_messages(self, channel_id, thread_id, message):
-        self.logger.debug(f"Storing unmentioned messages for channel {channel_id}, thread {thread_id}")
-        file_path = os.path.join(self.root_directory,self.messages_container, f"unmentioned_messages_{channel_id}_{thread_id}.json")
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, 'r') as file:
-                    messages = json.load(file)
-                self.logger.debug("Existing messages successfully retrieved")
-            except Exception as e:
-                self.logger.error(f"Failed to read file: {str(e)}")
-                messages = []
-        else:
-            self.logger.debug("No existing messages found, initializing empty list")
-            messages = []
-
-        messages.append(message)
-
-        try:
-            with open(file_path, 'w') as file:
-                json.dump(messages, file)
-            self.logger.debug("Message successfully stored")
-        except Exception as e:
-            self.logger.error(f"Failed to write to file: {str(e)}")
-
-    async def retrieve_unmentioned_messages(self, channel_id, thread_id):
-        self.logger.debug(f"Retrieving unmentioned messages for channel {channel_id}, thread {thread_id}")
-        file_path = os.path.join(self.root_directory,self.messages_container, f"unmentioned_messages_{channel_id}_{thread_id}.json")
-
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, 'r') as file:
-                    file_content = file.read()
-                os.remove(file_path)  # Delete the file after retrieving the content
-                messages = json.loads(file_content)
-                self.logger.debug("Messages successfully retrieved and file deleted")
-                return messages
-            except Exception as e:
-                self.logger.error(f"Failed to retrieve or delete messages: {str(e)}")
-                return []
-        else:
-            self.logger.warning(f"File not found: {file_path}")
-            return []
-
+    
     async def remove_data_content(self, data_container, data_file):
         self.logger.debug(f"Removing data content from {data_file} in {data_container}")
         file_path = os.path.join(self.root_directory, data_container, data_file)

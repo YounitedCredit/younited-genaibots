@@ -48,7 +48,6 @@ LOCAL_LOGGING_FILE_PATH="C:\\LOGS\\GENAI_BOT.log"  # File path for storing local
 # ====================================================
 FILE_SYSTEM_DIRECTORY="C:\\GenAI"  # Root directory for file system storage
 FILE_SYSTEM_SESSIONS_CONTAINER="sessions"  # Directory for session data
-FILE_SYSTEM_MESSAGES_CONTAINER="messages"  # Directory for message data
 FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"  # Directory for feedback data
 FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"  # Directory for concatenated data
 FILE_SYSTEM_PROMPTS_CONTAINER="prompts"  # Directory for prompt files
@@ -67,7 +66,6 @@ FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER="messages_queue"
 # AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER="concatenate"  # Blob container for concatenated data
 # AZURE_BLOB_STORAGE_COSTS_CONTAINER="costs"  # Blob container for cost data
 # AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER="feedbacks"  # Blob container for feedback data
-# AZURE_BLOB_STORAGE_MESSAGES_CONTAINER="messages"  # Blob container for messages
 # AZURE_BLOB_STORAGE_PROCESSING_CONTAINER="processing"  # Blob container for processing data
 # AZURE_BLOB_STORAGE_PROMPTS_CONTAINER="prompts"  # Blob container for prompts
 # AZURE_BLOB_STORAGE_SESSIONS_CONTAINER="sessions"  # Blob container for sessions

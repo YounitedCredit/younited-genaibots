@@ -89,18 +89,6 @@ async def test_write_data_content(dispatcher, mock_plugin):
     mock_plugin.write_data_content.assert_called_with(data_container='container', data_file='file', data='data')
 
 @pytest.mark.asyncio
-async def test_store_unmentioned_messages(dispatcher, mock_plugin):
-    dispatcher.initialize([mock_plugin])
-    await dispatcher.store_unmentioned_messages('channel', 'thread', 'message')
-    mock_plugin.store_unmentioned_messages.assert_called_with(channel_id='channel', thread_id='thread', message='message')
-
-@pytest.mark.asyncio
-async def test_retrieve_unmentioned_messages(dispatcher, mock_plugin):
-    dispatcher.initialize([mock_plugin])
-    await dispatcher.retrieve_unmentioned_messages('channel', 'thread')
-    mock_plugin.retrieve_unmentioned_messages.assert_called_with(channel_id='channel', thread_id='thread')
-
-@pytest.mark.asyncio
 async def test_update_pricing(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
     await dispatcher.update_pricing('container', 'file', 'pricing_data')

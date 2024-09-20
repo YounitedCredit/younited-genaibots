@@ -111,37 +111,7 @@ async def test_write_data_content(azure_blob_storage_plugin):
         await azure_blob_storage_plugin.write_data_content('container', 'file', 'data')
         mock_blob_client.upload_blob.assert_called_once_with(b'data', overwrite=True)
 
-@pytest.mark.asyncio
-async def test_store_unmentioned_messages_new_blob(azure_blob_storage_plugin):
-    with patch.object(BlobServiceClient, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists.return_value = False
-        mock_blob_client.upload_blob = AsyncMock()
 
-        message = {"content": "test message"}
-        await azure_blob_storage_plugin.store_unmentioned_messages("channel1", "thread1", message)
-
-        mock_blob_client.upload_blob.assert_called_once()
-        uploaded_content = mock_blob_client.upload_blob.call_args[0][0]
-        assert json.loads(uploaded_content) == [message]
-
-@pytest.mark.asyncio
-async def test_retrieve_unmentioned_messages(azure_blob_storage_plugin):
-    with patch.object(BlobServiceClient, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists = MagicMock(return_value=True)
-
-        mock_download_blob = MagicMock()
-        mock_content = json.dumps([{"content": "test message"}]).encode()
-        mock_download_blob.readall.return_value = mock_content
-        mock_blob_client.download_blob.return_value = mock_download_blob
-
-        mock_blob_client.delete_blob = MagicMock()
-
-        messages = await azure_blob_storage_plugin.retrieve_unmentioned_messages("channel1", "thread1")
-
-        assert messages == [{"content": "test message"}]
-        mock_blob_client.delete_blob.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_update_pricing(azure_blob_storage_plugin):
@@ -224,30 +194,6 @@ async def test_update_session_invalid_json(azure_blob_storage_plugin):
 
         # Vérifier que write_data_content n'est pas appelé en cas de JSON invalide
         mock_write.assert_not_called()
-
-@pytest.mark.asyncio
-async def test_store_unmentioned_messages_existing_blob(azure_blob_storage_plugin):
-    with patch.object(BlobServiceClient, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists = MagicMock(return_value=True)
-
-        # Simuler le contenu existant du blob
-        existing_content = json.dumps([{"content": "existing message"}]).encode('utf-8')
-        mock_download_blob = MagicMock()
-        mock_download_blob.readall = MagicMock(return_value=existing_content)
-        mock_blob_client.download_blob = MagicMock(return_value=mock_download_blob)
-
-        mock_blob_client.upload_blob = MagicMock()
-
-        message = {"content": "new message"}
-        await azure_blob_storage_plugin.store_unmentioned_messages("channel1", "thread1", message)
-
-        # Vérifier que upload_blob a été appelé
-        mock_blob_client.upload_blob.assert_called_once()
-
-        # Vérifier le contenu uploadé
-        uploaded_content = mock_blob_client.upload_blob.call_args[0][0]
-        assert json.loads(uploaded_content) == [{"content": "existing message"}, {"content": "new message"}]
 
 
 @pytest.mark.asyncio
@@ -337,16 +283,3 @@ async def test_list_container_files_error(azure_blob_storage_plugin):
         with pytest.raises(Exception, match="List error"):
             await azure_blob_storage_plugin.list_container_files("test_container")
 
-@pytest.mark.asyncio
-async def test_store_unmentioned_messages_error_reading_blob(azure_blob_storage_plugin):
-    with patch.object(BlobServiceClient, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists = MagicMock(return_value=True)
-        mock_blob_client.download_blob = MagicMock(side_effect=Exception("Read error"))
-        mock_blob_client.upload_blob = MagicMock()
-
-        message = {"content": "new message"}
-        await azure_blob_storage_plugin.store_unmentioned_messages("channel1", "thread1", message)
-
-        # Vérifier que upload_blob n'est pas appelé en cas d'erreur de lecture
-        mock_blob_client.upload_blob.assert_not_called()

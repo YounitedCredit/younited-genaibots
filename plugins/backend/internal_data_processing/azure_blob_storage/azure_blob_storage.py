@@ -21,7 +21,6 @@ class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
     AZURE_BLOB_STORAGE_CONNECTION_STRING: str
     AZURE_BLOB_STORAGE_SESSIONS_CONTAINER: str
-    AZURE_BLOB_STORAGE_MESSAGES_CONTAINER: str
     AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER: str
     AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER: str
     AZURE_BLOB_STORAGE_PROMPTS_CONTAINER: str
@@ -49,7 +48,6 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.logger.debug("Initializing Azure Blob Storage connection")
         self.connection_string = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
         self.sessions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
-        self.messages_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_CONTAINER
         self.feedbacks_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER
         self.concatenate_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER
         self.prompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_PROMPTS_CONTAINER
@@ -82,11 +80,6 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def sessions(self):
         # Implement the sessions property
         return self.sessions_container
-
-    @property
-    def messages(self):
-        # Implement the messages property
-        return self.messages_container
 
     @property
     def feedbacks(self):
@@ -237,72 +230,6 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(f"An error occurred while writing the data content: {str(e)}")
             self.logger.error(traceback.format_exc())
             return None
-
-    async def store_unmentioned_messages(self, channel_id, thread_id, message):
-        try:
-            self.logger.debug(f"Storing unmentioned messages for channel {channel_id}, thread {thread_id}")
-            blob_name = f"unmentioned_messages_{channel_id}_{thread_id}.json"
-            blob_name = blob_name.lower()
-            blob_client = self.blob_service_client.get_blob_client(container=self.messages_container, blob=blob_name)
-            if blob_client.exists():
-                try:
-                    existing_blob = blob_client.download_blob().readall()
-                    messages = json.loads(existing_blob) if existing_blob else []
-                    self.logger.debug("Existing messages successfully retrieved")
-                except Exception as e:
-                    self.logger.error(f"Failed to retrieve existing messages: {str(e)}")
-                    self.logger.error(traceback.format_exc())
-                    return
-            else:
-                self.logger.debug("No existing messages found, initializing empty list")
-                messages = []
-
-            messages.append(message)
-            self.logger.debug(f"Appending new message: {message}")
-            if blob_client.exists():
-                try:
-                    blob_client.upload_blob(json.dumps(messages), overwrite=True)
-                    self.logger.info("Unmentioned messages stored successfully")
-                except Exception as e:
-                    self.logger.error(f"Failed to store unmentioned messages: {str(e)}")
-                    self.logger.error(traceback.format_exc())
-            else:
-                try:
-                    await self.write_data_content(data_container=self.messages_container, data_file=blob_name, data=json.dumps(messages))
-                    self.logger.info("Unmentioned messages stored successfully")
-                except Exception as e:
-                    self.logger.error(f"Failed to store unmentioned messages: {str(e)}")
-                    self.logger.error(traceback.format_exc())
-        except Exception as e:
-            self.logger.error(f"An error occurred while storing unmentioned messages: {str(e)}")
-            self.logger.error(traceback.format_exc())
-
-    async def retrieve_unmentioned_messages(self, channel_id, thread_id):
-        try:
-            self.logger.debug(f"Retrieving unmentioned messages for channel {channel_id}, thread {thread_id}")
-            blob_name = f"unmentioned_messages_{channel_id}_{thread_id}.json"
-            blob_name = blob_name.lower()
-            container_name = self.messages_container
-            blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
-
-            if blob_client.exists():
-                try:
-                    blob_content = blob_client.download_blob().readall()
-                    blob_client.delete_blob()  # Clear the blob after retrieving the content
-                    messages = json.loads(blob_content)
-                    self.logger.debug("Messages successfully retrieved and blob cleared")
-                    return messages
-                except Exception as e:
-                    self.logger.error(f"Failed to retrieve or clear messages: {str(e)}")
-                    self.logger.error(traceback.format_exc())
-                    return []
-            else:
-                self.logger.debug("Failed to retrieve or clear messages, might be empty or first call")
-                return []
-        except Exception as e:
-            self.logger.error(f"An error occurred while retrieving unmentioned messages: {str(e)}")
-            self.logger.error(traceback.format_exc())
-            return []
 
     async def update_pricing(self, container_name, datafile_name: str, pricing_data):
         try:

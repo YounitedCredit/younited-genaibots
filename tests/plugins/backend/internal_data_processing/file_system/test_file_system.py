@@ -93,22 +93,6 @@ async def test_append_data(file_system_plugin):
         m().write.assert_called_once_with('data')
 
 @pytest.mark.asyncio
-async def test_store_unmentioned_messages(file_system_plugin):
-    m = mock_open(read_data='[]')
-    with patch("builtins.open", m), patch("os.path.exists", return_value=True), patch("json.dump") as mock_dump:
-        message = {"content": "test"}
-        await file_system_plugin.store_unmentioned_messages("channel", "thread", message)
-        mock_dump.assert_called_once_with([message], m())
-
-@pytest.mark.asyncio
-async def test_retrieve_unmentioned_messages(file_system_plugin):
-    m = mock_open(read_data='[{"content": "test"}]')
-    with patch("builtins.open", m), patch("os.path.exists", return_value=True), patch("os.remove") as mock_remove:
-        messages = await file_system_plugin.retrieve_unmentioned_messages("channel", "thread")
-        assert messages == [{"content": "test"}]
-        mock_remove.assert_called_once()
-
-@pytest.mark.asyncio
 async def test_update_pricing(file_system_plugin):
     m = mock_open(read_data='{"total_tokens": 100, "prompt_tokens": 50, "completion_tokens": 50, "total_cost": 1.0, "input_cost": 0.5, "output_cost": 0.5}')
     with patch("builtins.open", m), patch("os.path.exists", return_value=True), patch("json.dump") as mock_dump:

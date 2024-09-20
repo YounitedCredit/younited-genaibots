@@ -19,14 +19,6 @@ class InternalDataProcessingBase(InternalDataPluginBase):
 
     @property
     @abstractmethod
-    def messages(self):
-        """
-        Property for messages data.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def feedbacks(self):
         """
         Property for feedbacks data.
@@ -145,28 +137,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :param data: The data to write
         """
         raise NotImplementedError
-
-    @abstractmethod
-    async def store_unmentioned_messages(self, channel_id, thread_id, message):
-        """
-        Store unmentioned messages from a specified channel and thread.
-
-        :param channel_id: The ID of the channel
-        :param thread_id: The timestamp of the thread
-        :param message: The message to store
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    async def retrieve_unmentioned_messages(self, channel_id, thread_id):
-        """
-        Asynchronously retrieve unmentioned messages from a specified channel and thread.
-
-        :param channel_id: The ID of the channel
-        :param thread_id: The timestamp of the thread
-        """
-        raise NotImplementedError
-
+    
     @abstractmethod
     async def update_pricing(self, container_name, datafile_name, pricing_data):
         """

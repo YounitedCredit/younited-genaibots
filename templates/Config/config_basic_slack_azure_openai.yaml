@@ -49,7 +49,6 @@ PLUGINS:
         PLUGIN_NAME: "file_system" # Plugin name for internal data processing via file system
         DIRECTORY: "C:\\GenAI" # Root directory for file system storage
         SESSIONS_CONTAINER: "sessions" # Directory for session data
-        MESSAGES_CONTAINER: "messages" # Directory for message data
         FEEDBACKS_CONTAINER: "feedbacks" # Directory for feedback data
         CONCATENATE_CONTAINER: "concatenate" # Directory for concatenated data
         PROMPTS_CONTAINER: "prompts" # Directory for prompt files

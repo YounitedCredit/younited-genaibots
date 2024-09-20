@@ -136,17 +136,8 @@ class ChatInputHandler():
             # Step 4: Construct the new incoming message based on event_data and append to the message history
             constructed_message = self.construct_message(event_data)
             messages.append(constructed_message)
-
-            # Step 5: Handle the processing of unmentioned or mentioned thread messages based on configuration
-            if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and event_data.user_id != "AUTOMATED_RESPONSE" :
-                # Retrieve previously stored unmentioned messages if bot is mentioned
-                messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
-            elif not event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # Store the message for later processing if the bot is not mentioned
-                await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
-                return None
-
-            # Step 6: Generate response based on the updated messages (history + new message)
+            
+            # Step 5: Generate response based on the updated messages (history + new message)
             return await self.generate_response(event_data, messages)
 
         except Exception as e:
