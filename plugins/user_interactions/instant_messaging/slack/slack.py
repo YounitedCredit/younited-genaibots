@@ -185,8 +185,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.debug("Request discarded")
         except Exception as e:
-            self.logger.exception(f"An error occurred while processing user input: {e}")
-            raise
+            self.logger.exception(f"An error occurred while processing user input: {e}")            
 
     async def handle_valid_request(self, event_data):
         try:

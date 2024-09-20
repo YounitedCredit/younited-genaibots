@@ -46,7 +46,9 @@ class SlackOutputHandler:
             elif e.response["error"] == "invalid_name":
                 self.logger.error(f"Invalid reaction name: {reaction}")
             else:
-                self.logger.exception(f"{e.response['error']} channel id {channel_id} timestamp {timestamp}")
+                self.logger.error(f"{e.response['error']} channel id {channel_id} timestamp {timestamp}")
+        except Exception as e:
+            self.logger.error(f"Error adding reaction: {e}")
 
     # Function to remove reaction from a message
     async def remove_reaction(self, channel_id, timestamp, reaction):
@@ -63,6 +65,8 @@ class SlackOutputHandler:
                 self.logger.warning("Message not found. Cannot remove reaction.")
             else:
                 self.logger.warning(f"Impossible to remove reaction: {e.response['error']} channel id {channel_id} timestamp {timestamp}")
+        except Exception as e:
+            self.logger.error(f"Error removing reaction: {e}")
 
     async def send_slack_message(self, channel_id, response_id, message, message_type=MessageType.TEXT, title=None):
         headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
