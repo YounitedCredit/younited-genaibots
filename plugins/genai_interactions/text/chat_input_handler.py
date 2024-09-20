@@ -115,8 +115,8 @@ class ChatInputHandler():
             # Preserve the information that messages was empty initially
             was_messages_empty = not messages            
 
-            # Step 2: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
-            if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES and event_data.user_id != "AUTOMATED_RESPONSE":
+            # Step 2: If the user is not the bot, process the conversation history
+            if event_data.user_id != "AUTOMATED_RESPONSE":
                 await self.process_conversation_history(event_data, messages)
             
             # Step 3: If messages was initially empty, add the initial system message
@@ -160,7 +160,7 @@ class ChatInputHandler():
 
     async def process_conversation_history(self, event_data: IncomingNotificationDataBase, messages):
         try:
-            # Fetch and process conversation history if RECORD_NONPROCESSED_MESSAGES is False
+            # Fetch and process conversation history 
             relevant_events = []
             current_event_timestamp = datetime.fromtimestamp(float(event_data.timestamp), tz=timezone.utc)
 

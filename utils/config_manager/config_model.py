@@ -25,7 +25,6 @@ class BotConfig(BaseModel):
     BREAK_KEYWORD: str
     START_KEYWORD: str
     CLEARQUEUE_KEYWORD: str
-    RECORD_NONPROCESSED_MESSAGES: bool
     QUEUED_MESSAGE_TTL: int
 
 class LocalLogging(BaseModel):

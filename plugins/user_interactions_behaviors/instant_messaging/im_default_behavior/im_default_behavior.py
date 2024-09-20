@@ -72,7 +72,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.logger.info(f"Processing session data for {session_name} created successfully.")
 
             # Retrieve bot configuration settings
-            record_nonprocessed_messages = self.bot_config.RECORD_NONPROCESSED_MESSAGES
             require_mention_new_message = self.bot_config.REQUIRE_MENTION_NEW_MESSAGE
             require_mention_thread_message = self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE
 
@@ -114,20 +113,13 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     return            
 
             # Check if the event should be processed based on the configuration
-            if event.event_label == "thread_message" and not event.is_mention and require_mention_thread_message:
-                if not record_nonprocessed_messages:
-                    self.logger.info(
-                        "Event is a threaded message without mention and the bot configuration "
-                        f"requires mentions for thread messages REQUIRE_MENTION_THREAD_MESSAGE: "
-                        f"{self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE}), not processing."
-                    )
-                    return
-                else:
-                    self.logger.info(
-                        "Event is a threaded message without mention, storing the message for later "
-                        f"processing as per bot configuration REQUIRE_MENTION_THREAD_MESSAGE: "
-                        f"{self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE})."
-                    )
+            if event.event_label == "thread_message" and not event.is_mention and require_mention_thread_message:                
+                self.logger.info(
+                    "Event is a threaded message without mention and the bot configuration "
+                    f"requires mentions for thread messages REQUIRE_MENTION_THREAD_MESSAGE: "
+                    f"{self.bot_config.REQUIRE_MENTION_THREAD_MESSAGE}), not processing."
+                )
+                return
             elif event.event_label == "message":
                 if require_mention_new_message and not event.is_mention:
                     self.logger.info("Event is a new message without mention and mentions are required, not processing.")
@@ -136,7 +128,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.info("Event is a new message and mentions are not required, processing.")
                 elif event.is_mention:
                     self.logger.info("Event is a new message with mention, processing.")
-                elif not record_nonprocessed_messages:
+                else:
                     self.logger.info("Event is a new message without mention and non-processed messages are not recorded, not processing.")
                     return
 

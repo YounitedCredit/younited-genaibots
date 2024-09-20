@@ -28,7 +28,6 @@ def test_config_manager_initialization(mock_global_manager):
       GENAI_IMAGE_DEFAULT_PLUGIN_NAME: 'default_genai_image_plugin'
       GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: 'default_genai_vector_search_plugin'
       LLM_CONVERSION_FORMAT: 'LLM_conversion_format'
-      RECORD_NONPROCESSED_MESSAGES: false
       BREAK_KEYWORD: 'start'
       START_KEYWORD: 'stop'
       LOAD_ACTIONS_FROM_BACKEND: False

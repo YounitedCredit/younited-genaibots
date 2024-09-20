@@ -122,8 +122,7 @@ def mock_config_manager(mock_utils, mock_plugins):
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
-            LOAD_ACTIONS_FROM_BACKEND = False,
-            RECORD_NONPROCESSED_MESSAGES=False
+            LOAD_ACTIONS_FROM_BACKEND = False
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,

@@ -328,7 +328,6 @@ async def test_generate_response_with_error(chat_input_handler, incoming_notific
 async def test_handle_thread_message_event_with_no_messages(chat_input_handler, incoming_notification):
     incoming_notification.is_mention = False
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
-    chat_input_handler.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES = False
 
     with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'store_unmentioned_messages', new_callable=AsyncMock) as mock_store_unmentioned_messages:
         result = await chat_input_handler.handle_thread_message_event(incoming_notification)
@@ -391,7 +390,6 @@ async def test_filter_messages_with_images(chat_input_handler):
 async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
     # Mock read_data_content to return an empty list of messages
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
-    chat_input_handler.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES = False
     
     result = await chat_input_handler.handle_thread_message_event(incoming_notification)
     

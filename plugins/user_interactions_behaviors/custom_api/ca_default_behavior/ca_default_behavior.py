@@ -65,17 +65,13 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             await self.backend_internal_data_processing_dispatcher.write_data_content(processing_container, session_name, data="processing")
             self.logger.info(f"Processing session data for {session_name} created successfully.")
 
-            # Retrieve bot configuration settings            
-            record_nonprocessed_messages = self.bot_config.RECORD_NONPROCESSED_MESSAGES
+            # Retrieve bot configuration settings   
             require_mention_new_message = self.bot_config.REQUIRE_MENTION_NEW_MESSAGE
 
             # Check if the event should be processed based on the configuration
             if event.event_label == "thread_message" and not event.is_mention:
-                if not record_nonprocessed_messages:
-                    self.logger.info("Event is a threaded message without mention and RECORD_NONPROCESSED_MESSAGES is False, not processing.")
+                    self.logger.info("Event is a threaded message without mention, not processing.")
                     return
-                else:
-                    self.logger.info("Event is a threaded message without mention, but RECORD_NONPROCESSED_MESSAGES is True, processing.")
 
             if event.event_label == "message":
                 if require_mention_new_message and not event.is_mention:
@@ -85,7 +81,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.info("Event is a new message and mentions are not required, processing.")
                 elif event.is_mention:
                     self.logger.info("Event is a new message with mention, processing.")
-                elif not record_nonprocessed_messages:
+                else:
                     self.logger.info("Event is a new message without mention and non-processed messages are not recorded, not processing.")
                     return
 
