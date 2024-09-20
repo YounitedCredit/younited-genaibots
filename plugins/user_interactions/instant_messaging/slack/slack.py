@@ -136,7 +136,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             return response
 
         except Exception as e:
-            self.logger.exception(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
+            self.logger.error(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
             return response
 
     async def execute_slash_command(self, request: Request, raw_body_str):
@@ -185,7 +185,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.debug("Request discarded")
         except Exception as e:
-            self.logger.exception(f"An error occurred while processing user input: {e}")            
+            self.logger.error(f"An error occurred while processing user input: {e}")            
 
     async def handle_valid_request(self, event_data):
         try:

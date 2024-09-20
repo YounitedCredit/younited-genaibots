@@ -145,7 +145,7 @@ async def test_vector_search_execute_with_exception(mock_global_manager):
     await vector_search_action.execute(action_input, event)
 
     # Assert that the exception was logged
-    mock_global_manager.logger.exception.assert_called_with("An error occurred: Test exception")
+    mock_global_manager.logger.error.assert_called_with("An error occurred: Test exception")
 
     # Print the call arguments to inspect them
     print(mock_global_manager.user_interactions_dispatcher.send_message.call_args_list)

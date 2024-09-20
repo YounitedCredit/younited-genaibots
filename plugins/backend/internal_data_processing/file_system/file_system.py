@@ -136,7 +136,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
-            self.logger.exception(f"Missing configuration key: {str(e)}")
+            self.logger.error(f"Missing configuration key: {str(e)}")
 
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
@@ -208,7 +208,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.debug("Data successfully written to file")
         except Exception:
             error_traceback = traceback.format_exc()
-            self.logger.exception(f"Failed to write to file: {str(error_traceback)}")
+            self.logger.error(f"Failed to write to file: {str(error_traceback)}")
     
     async def remove_data_content(self, data_container, data_file):
         self.logger.debug(f"Removing data content from {data_file} in {data_container}")

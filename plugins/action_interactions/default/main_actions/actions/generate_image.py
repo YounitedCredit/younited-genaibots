@@ -47,7 +47,7 @@ class GenerateImage(ActionBase):
                 await self.user_interaction_dispatcher.send_message(event=event, message="Image generation failed", is_internal=True)
 
         except Exception as e:
-            self.logger.exception(f"An error occurred: {e}")
+            self.logger.error(f"An error occurred: {e}")
 
     def is_valid_url(self, url):
         regex = re.compile(

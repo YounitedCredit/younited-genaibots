@@ -74,6 +74,6 @@ class CallSubprompt(ActionBase):
                 await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
 
         except Exception as e:
-            self.logger.exception(f"An error occurred: {e}")
+            self.logger.error(f"An error occurred: {e}")
 
 

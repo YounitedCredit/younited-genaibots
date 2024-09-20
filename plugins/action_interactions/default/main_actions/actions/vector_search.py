@@ -68,7 +68,7 @@ class VectorSearch(ActionBase):
 
         except Exception as e:
             # Log the error and notify the user of the failure
-            self.logger.exception(f"An error occurred: {e}")
+            self.logger.error(f"An error occurred: {e}")
             await self.user_interactions_dispatcher.send_message(
                 event=event_copy, message="Vector search failed, sorry about that :/ see logs for more details", message_type=MessageType.COMMENT
             )

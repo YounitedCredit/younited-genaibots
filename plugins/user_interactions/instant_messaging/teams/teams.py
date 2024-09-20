@@ -134,7 +134,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             )
 
         except Exception as e:
-            self.logger.exception(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
+            self.logger.error(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
             return Response(
                 content=json.dumps({"status": "error", "message": "Internal server error"}),
                 media_type=self.APPJSON,
@@ -172,7 +172,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.debug("Request discarded")
         except Exception as e:
-            self.logger.exception(f"An error occurred while processing user input: {e}")
+            self.logger.error(f"An error occurred while processing user input: {e}")
             raise  # re-raise the exception
 
     async def validate_request(self, event_data = None, headers = None, raw_body_str = None):

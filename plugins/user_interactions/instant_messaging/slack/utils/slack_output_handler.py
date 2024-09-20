@@ -192,7 +192,7 @@ class SlackOutputHandler:
             # Handle exceptions
             error_traceback = traceback.format_exc()
             error_message = f":interrobang: Error uploading file: {str(error_traceback)}"
-            self.logger.exception(f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
+            self.logger.error(f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
             await self.send_slack_message(channel_id, thread_id, error_message)
 
     async def fetch_conversation_history(self, channel_id, thread_id) -> List[IncomingNotificationDataBase]:

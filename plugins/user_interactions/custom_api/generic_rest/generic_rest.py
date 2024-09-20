@@ -102,7 +102,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             self.logger.error("Invalid JSON received")
             return Response("Invalid JSON", status_code=400)
         except Exception as e:
-            self.logger.exception(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
+            self.logger.error(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
             return Response("Internal server error", status_code=500)
 
     async def validate_request(self, event_data=None, headers=None, raw_body_str=None):
@@ -163,7 +163,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.info("Request discarded")
         except Exception as e:
-            self.logger.exception(f"An error occurred while processing user input: {e}")
+            self.logger.error(f"An error occurred while processing user input: {e}")
             raise  # re-raise the exception
 
     async def send_message(self, message, event, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):

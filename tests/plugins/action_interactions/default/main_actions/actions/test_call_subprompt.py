@@ -152,4 +152,4 @@ async def test_execute_general_error(mock_global_manager, call_subprompt_instanc
     await call_subprompt_instance.execute(action_input, incoming_notification)
 
     # Verify that the exception was logged
-    call_subprompt_instance.logger.exception.assert_called_with("An error occurred: General error")
+    call_subprompt_instance.logger.error.assert_called_with("An error occurred: General error")

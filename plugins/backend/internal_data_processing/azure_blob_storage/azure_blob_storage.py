@@ -66,7 +66,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.debug("BlobServiceClient successfully created")
         except Exception as e:
             self.initialization_failed = True
-            self.logger.exception(f"Failed to create BlobServiceClient: {str(e)}")
+            self.logger.error(f"Failed to create BlobServiceClient: {str(e)}")
 
     @property
     def plugin_name(self):
