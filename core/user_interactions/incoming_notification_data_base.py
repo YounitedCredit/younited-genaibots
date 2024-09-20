@@ -26,8 +26,6 @@ class IncomingNotificationDataBase:
         A flag indicating whether the user was mentioned in the event.
     text : str
         The text of the message that was sent as part of the event.
-    origin : str
-        The original source of the user interaction that triggered the event.
     images : List[str], optional
         A list of images that were sent as part of the event (default is []).
     files_content : List[str], optional
@@ -52,7 +50,6 @@ class IncomingNotificationDataBase:
         response_id: str,
         is_mention: bool,
         text: str,
-        origin: str,
         origin_plugin_name: str,
         app_id: Optional[str] = None,
         api_app_id: Optional[str] = None,
@@ -77,7 +74,6 @@ class IncomingNotificationDataBase:
         self.username: str = username if username is not None else ""
         self.is_mention: bool = is_mention
         self.text: str = text
-        self.origin: str = origin
         self.origin_plugin_name: str = origin_plugin_name  # Mandatory string field
         self.images: List[str] = images if images is not None else []
         self.files_content: List[str] = files_content if files_content is not None else []
@@ -98,7 +94,6 @@ class IncomingNotificationDataBase:
             'api_app_id': self.api_app_id,
             'is_mention': self.is_mention,
             'text': self.text,
-            'origin': self.origin,
             'origin_plugin_name': self.origin_plugin_name,
             'images': self.images,
             'files_content': self.files_content,
@@ -121,7 +116,6 @@ class IncomingNotificationDataBase:
             user_id=data.get('user_id'),
             is_mention=data.get('is_mention', False),
             text=data.get('text', ''),
-            origin=data.get('origin', ''),
             origin_plugin_name=data.get('origin_plugin_name', ''),
             images=data.get('images', []),
             files_content=data.get('files_content', []),

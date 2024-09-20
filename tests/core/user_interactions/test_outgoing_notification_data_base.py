@@ -24,7 +24,6 @@ def sample_data():
         'user_id': 'user123',
         'is_mention': True,
         'text': 'This is a test message.',
-        'origin': 'test_origin',
         'images': ['image1.png', 'image2.png'],
         'files_content': ['file1.txt', 'file2.txt'],
         'raw_data': {'key': 'value'},
@@ -54,7 +53,6 @@ def test_outgoing_notification_data_base_initialization(sample_data):
     assert notification.user_id == sample_data['user_id']
     assert notification.is_mention == sample_data['is_mention']
     assert notification.text == sample_data['text']
-    assert notification.origin == sample_data['origin']
     assert notification.images == sample_data['images']
     assert notification.files_content == sample_data['files_content']
     assert notification.raw_data == sample_data['raw_data']
@@ -81,7 +79,6 @@ def test_outgoing_notification_data_base_to_dict(sample_data):
         'user_id': sample_data['user_id'],
         'is_mention': sample_data['is_mention'],
         'text': sample_data['text'],
-        'origin': sample_data['origin'],
         'images': sample_data['images'],
         'files_content': sample_data['files_content'],
         'raw_data': sample_data['raw_data'],
@@ -107,7 +104,6 @@ def test_outgoing_notification_data_base_from_dict(sample_data):
         'user_id': sample_data['user_id'],
         'is_mention': sample_data['is_mention'],
         'text': sample_data['text'],
-        'origin': sample_data['origin'],
         'images': sample_data['images'],
         'files_content': sample_data['files_content'],
         'raw_data': sample_data['raw_data'],
@@ -129,7 +125,6 @@ def test_outgoing_notification_data_base_from_dict(sample_data):
     assert notification.user_id == sample_data['user_id']
     assert notification.is_mention == sample_data['is_mention']
     assert notification.text == sample_data['text']
-    assert notification.origin == sample_data['origin']
     assert notification.images == sample_data['images']
     assert notification.files_content == sample_data['files_content']
     assert notification.raw_data == sample_data['raw_data']

@@ -84,7 +84,6 @@ async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin",
                 origin_plugin_name="origin_plugin_name"
             )
 
@@ -132,7 +131,6 @@ async def test_handle_action_with_existing_blob(azure_chatgpt_plugin):
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin",
                 origin_plugin_name='test_plugin'
             )
 
@@ -174,7 +172,6 @@ def test_validate_request(azure_chatgpt_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name='test_plugin'
     )
     assert azure_chatgpt_plugin.validate_request(event) == True
@@ -192,7 +189,6 @@ async def test_handle_request(azure_chatgpt_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name='test_plugin'
     )
     with patch.object(azure_chatgpt_plugin.input_handler, 'handle_event_data', new_callable=AsyncMock) as mock_handle_event_data:
@@ -216,7 +212,6 @@ async def test_generate_completion(azure_chatgpt_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name='test_plugin'
     )
     with patch.object(azure_chatgpt_plugin.gpt_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create:
@@ -245,7 +240,6 @@ async def test_trigger_genai(azure_chatgpt_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name="test_plugin"
     )
 

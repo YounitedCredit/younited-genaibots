@@ -69,7 +69,6 @@ async def test_handle_action_with_empty_blob(azure_commandr_plugin):
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin",
                 origin_plugin_name="origin_plugin_name"
             )
 
@@ -124,7 +123,6 @@ async def test_handle_action_with_existing_blob(azure_commandr_plugin):
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin",
                 origin_plugin_name="origin_plugin_name"
             )
 
@@ -165,7 +163,6 @@ def test_validate_request(azure_commandr_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name="origin_plugin_name"
     )
     assert azure_commandr_plugin.validate_request(event) == True
@@ -208,7 +205,6 @@ async def test_generate_completion(azure_commandr_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name="origin_plugin_name"
     )
     with patch.object(azure_commandr_plugin.commandr_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create:
@@ -238,7 +234,6 @@ async def test_trigger_genai(azure_chatgpt_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name="test_plugin"
     )
 
@@ -286,7 +281,6 @@ async def test_trigger_genai(azure_commandr_plugin):
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name="test_plugin"
     )
 

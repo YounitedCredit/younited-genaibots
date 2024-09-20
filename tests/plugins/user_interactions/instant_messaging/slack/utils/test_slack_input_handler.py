@@ -232,7 +232,7 @@ async def test_request_to_notification_data(slack_input_handler, mocker):
     assert result.user_id == "USER_ID"
     assert result.is_mention == False
     assert result.text == "Hello, world!"
-    assert result.origin == "slack"
+    assert result.origin_plugin_name == "slack"
 
 @pytest.mark.asyncio
 async def test_get_user_info_success(mocker, slack_input_handler):
@@ -1279,7 +1279,6 @@ async def test_request_to_notification_data_full_flow(slack_input_handler, mocke
         text="Processed text with Slack link and URL content",
         images=["base64_image"],
         files_content=["PDF content"],
-        origin="test",
         origin_plugin_name="slack_plugin"
     ))
 

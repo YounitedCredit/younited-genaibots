@@ -366,7 +366,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             text=text,
             images=base64_images,
             files_content=files_content,
-            origin=inspect.currentframe().f_back.f_globals['__name__'],
+            #origin=inspect.currentframe().f_back.f_globals['__name__'],
             raw_data=event_data,
             origin_plugin_name=self.teams_config.PLUGIN_NAME
         )

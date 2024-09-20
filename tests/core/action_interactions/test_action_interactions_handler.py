@@ -12,7 +12,7 @@ from core.genai_interactions.genai_response import GenAIResponse
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions.user_interactions_dispatcher import (
+from core.user_interactions_behaviors.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
 

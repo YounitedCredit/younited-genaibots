@@ -5,7 +5,7 @@ from core.user_interactions.incoming_notification_data_base import (
 
 class SlackEventData(IncomingNotificationDataBase):
     def __init__(self, timestamp, event_label, channel_id, thread_id, response_id,
-                 is_mention, text, origin, app_id=None, api_app_id=None, username=None, user_name=None,
+                 is_mention, text, app_id=None, api_app_id=None, username=None, user_name=None,
                  user_email=None, user_id=None, images=None, files_content=None, raw_data=None,
                  origin_plugin_name=None, **kwargs):
         super().__init__(
@@ -16,7 +16,6 @@ class SlackEventData(IncomingNotificationDataBase):
             response_id=response_id,
             is_mention=is_mention,
             text=text,
-            origin=origin,
             app_id=app_id,
             api_app_id=api_app_id,
             username=username,

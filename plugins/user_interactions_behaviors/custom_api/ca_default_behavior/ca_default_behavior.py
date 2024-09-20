@@ -7,7 +7,7 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.message_type import MessageType
-from core.user_interactions.user_interactions_behavior_base import (
+from core.user_interactions_behaviors.user_interactions_behavior_base import (
     UserInteractionsBehaviorBase,
 )
 from core.user_interactions.user_interactions_plugin_base import (
@@ -241,3 +241,5 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         await self.instantmessaging_plugin.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=remove_reaction)
         if add_reaction:
             await self.instantmessaging_plugin.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=add_reaction)
+
+            

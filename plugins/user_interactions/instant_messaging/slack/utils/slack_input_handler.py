@@ -552,7 +552,6 @@ class SlackInputHandler:
             username=username,
             is_mention=is_mention,
             text=text,
-            origin="slack",
             images=base64_images,
             files_content=files_content,
             origin_plugin_name=self.slack_config.PLUGIN_NAME

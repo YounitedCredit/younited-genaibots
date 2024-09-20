@@ -41,6 +41,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         self.logger.error(f"UserInteractionsDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
         return self.default_plugin
 
+    def set_default_plugin(self, plugin_name):
+        self.default_plugin_name = plugin_name
+        self.default_plugin = self.get_plugin(plugin_name)
+        
     @property
     def plugins(self) -> List[UserInteractionsPluginBase]:
         return self._plugins
@@ -112,7 +116,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             plugin_name = event.origin_plugin_name
 
         plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
-        return await plugin.remove_reaction(channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
+        return await plugin.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
 
     async def request_to_notification_data(self, event_data, plugin_name = None):
         plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)

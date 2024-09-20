@@ -27,7 +27,6 @@ async def test_long_text_execution(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name='test_plugin'
@@ -78,7 +77,6 @@ async def test_process_continuation(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name='test_plugin'
@@ -114,7 +112,6 @@ async def test_process_end_of_conversation(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name='test_plugin'
@@ -143,7 +140,6 @@ async def test_long_text_execution_error_handling(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin',
         origin_plugin_name='test_plugin'
     )
 
@@ -167,7 +163,6 @@ async def test_long_text_execution_empty_value(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin',
         origin_plugin_name='test_plugin'
     )
 
@@ -195,7 +190,6 @@ async def test_process_continuation_error(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin',
         origin_plugin_name='test_plugin'
     )
     result = await long_text_action._process_continuation("New content", "channel_1-123456.txt", event)
@@ -221,7 +215,6 @@ async def test_process_end_of_conversation_error(mock_global_manager):
         user_id='user_1',
         is_mention=False,
         text='Test text',
-        origin='test_origin',
         origin_plugin_name='test_plugin'
     )
     result = await long_text_action._process_end_of_conversation("Final content", "channel_1-123456.txt", event)

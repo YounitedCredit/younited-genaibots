@@ -1,7 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
-
 
 class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def __init__(self, global_manager):
@@ -99,6 +98,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def subprompts(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.subprompts
+    
+    @property
+    def custom_actions(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.custom_actions
 
     @property 
     def messages_queue(self, plugin_name = None):
@@ -145,47 +149,37 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.list_container_files(container_name= container_name)
     
-    async def enqueue_message(self, channel_id: str, thread_id: str, message: str, plugin_name: Optional[str] = None) -> None:
+    async def enqueue_message(self, channel_id: str, thread_id: str, message_id :str, message: str, plugin_name: Optional[str] = None) -> None:
         """
-        Enqueue a message in the appropriate plugin's queue.
+        Adds a message to the queue for a given channel and thread.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Enqueuing message in {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        await plugin.enqueue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id, message=message)
 
-        :param channel_id: The ID of the channel.
-        :param thread_id: The ID of the thread (often a timestamp).
-        :param message: The message content to enqueue.
-        :param plugin_name: The name of the plugin to use, if not the default.
-        :return: None
+    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str, plugin_name: Optional[str] = None) -> None:
         """
-        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
-        await plugin.enqueue_message(channel_id=channel_id, thread_id=thread_id, message=message)
+        Removes a message from the queue after processing.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Dequeuing message {message_id} from {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        await plugin.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
 
-    async def dequeue_message(self, message_id: str, plugin_name: Optional[str] = None) -> None:
+    async def get_next_message(self, channel_id: str, thread_id: str, current_message_id: str, plugin_name: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
         """
-        Dequeue a message from the appropriate plugin's queue after processing.
+        Retrieves the next (oldest) message for a `channel_id` and `thread_id` after `current_message_id`.
+        Returns a tuple (message_id, message_content). If no message is found, returns (None, None).
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Getting next message for channel '{channel_id}', thread '{thread_id}' with current message_id '{current_message_id}' through {plugin.plugin_name}.")
+        return await plugin.get_next_message(channel_id=channel_id, thread_id=thread_id, current_message_id=current_message_id)
 
-        :param message_id: The unique identifier of the message.
-        :param plugin_name: The name of the plugin to use, if not the default.
-        :return: None
+    async def has_older_messages(self, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> bool:
         """
-        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
-        await plugin.dequeue_message(message_id=message_id)
+        Checks if there are any older messages waiting in the queue for the given channel and thread.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Checking for older messages in {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        return await plugin.has_older_messages(channel_id=channel_id, thread_id=thread_id)
 
-    async def get_next_message(self, plugin_name: Optional[str] = None) -> Optional[Tuple[str, str]]:
-        """
-        Get the next (oldest) message from the appropriate plugin's queue.
-
-        :param plugin_name: The name of the plugin to use, if not the default.
-        :return: A tuple containing the message_id and message content, or (None, None) if no message is present.
-        """
-        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return await plugin.get_next_message()
-
-    async def has_older_messages(self, plugin_name: Optional[str] = None) -> bool:
-        """
-        Check if there are older messages in the appropriate plugin's queue.
-
-        :param plugin_name: The name of the plugin to use, if not the default.
-        :return: True if there are older messages, False otherwise.
-        """
-        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return await plugin.has_older_messages()
 

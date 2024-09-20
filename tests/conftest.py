@@ -11,10 +11,10 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.reaction_base import ReactionBase
-from core.user_interactions.user_interactions_behavior_dispatcher import (
+from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
     UserInteractionsBehaviorsDispatcher,
 )
-from core.user_interactions.user_interactions_dispatcher import (
+from core.user_interactions_behaviors.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
 from core.user_interactions.user_interactions_plugin_base import (
@@ -221,7 +221,6 @@ def mock_incoming_notification_data_base():
         user_id="user_id",
         is_mention=True,
         text="text",
-        origin="origin",
         origin_plugin_name="plugin_name"  # Adding the mandatory field
     )
     return event_data

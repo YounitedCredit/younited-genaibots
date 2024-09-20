@@ -238,29 +238,35 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         raise NotImplementedError
 
     @abstractmethod
-    async def dequeue_message(self, message_id: str) -> None:
+    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str) -> None:
         """
         Removes a message from the queue after processing.
 
-        :param message_id: The unique identifier of the message (e.g., channel_id_thread_id_message_id.txt).
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
+        :param message_id: The unique identifier of the message (e.g., channel_id_thread_id_message_id).
         :return: None
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def get_next_message(self) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, channel_id: str, thread_id: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Retrieves the next (oldest) message from the queue for processing.
+        Retrieves the next (oldest) message from the queue for the given channel and thread.
 
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
         :return: A tuple containing the message_id and the message content. If no messages exist, returns (None, None).
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def has_older_messages(self) -> bool:
+    async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
-        Checks if there are any older messages waiting in the queue.
+        Checks if there are any older messages waiting in the queue for a given channel and thread.
 
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
         :return: True if older messages exist in the queue, False otherwise.
         """
         raise NotImplementedError

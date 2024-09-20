@@ -35,7 +35,6 @@ async def test_observation_thought_execute(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name='test_plugin'
@@ -78,7 +77,6 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name='test_plugin'

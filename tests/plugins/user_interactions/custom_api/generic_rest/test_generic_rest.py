@@ -133,7 +133,6 @@ async def test_process_event_data(generic_rest_plugin):
         response_id="1726517091.230556",
         is_mention=False,
         text="test",
-        origin="GenaiBotDebugger",
         user_email="antoine@gmail.com",
         user_id="1",  # Assurez-vous que user_id est une chaîne également
         user_name="antoine@gmail.com",
@@ -233,7 +232,6 @@ async def test_request_to_notification_data(generic_rest_plugin):
         "user_email": "test@example.com",
         "is_mention": False,
         "text": "Hello",
-        "origin": "API",
         "files_content": [],
         "images": [],
         "origin_plugin_name": "plugin_name",

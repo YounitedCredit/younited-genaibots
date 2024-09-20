@@ -4,7 +4,7 @@ from typing import Any, List, Optional
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions.user_interactions_behavior_base import (
+from core.user_interactions_behaviors.user_interactions_behavior_base import (
     UserInteractionsBehaviorBase,
 )
 from core.user_interactions.user_interactions_plugin_base import (
@@ -51,6 +51,10 @@ class UserInteractionsBehaviorsDispatcher(UserInteractionsBehaviorBase):
 
         self.logger.error(f"UserInteractionsInstantMessagingDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
 
+    def set_default_plugin(self, plugin_name):
+        self.default_plugin_name = plugin_name
+        self.default_plugin = self.get_plugin(plugin_name)
+        
     @property
     def plugins(self) -> List[UserInteractionsPluginBase]:
         return self._plugins

@@ -3,7 +3,7 @@ import json
 import os
 import traceback
 from typing import NoReturn
-
+import re
 from pydantic import BaseModel
 
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
@@ -164,7 +164,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.abort_container,
             self.vectors_container,
             self.custom_actions_container,
-            self.subprompts_container
+            self.subprompts_container,
+            self.messages_container,
+            self.message_queue_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -379,69 +381,151 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to write to file: {str(e)}")
 
-    async def enqueue_message(self, channel_id: str, thread_id: str, message: str) -> None:
+    async def enqueue_message(self, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
         """
-        Adds a message to the queue (messages_queue).
-        The file is named in the format `channel_id_thread_id_timestamp.txt`.
+        Adds a message to the queue.
+        The file is named using `channel_id`, `thread_id`, and a unique timestamp.
         """
-        message_id = f"{channel_id}_{thread_id}_{int(time.time())}.txt"
+        message_id = f"{channel_id}_{thread_id}_{message_id}.txt"
         file_path = os.path.join(self.root_directory, self.message_queue_container, message_id)
 
         try:
+            # Log that we are attempting to add a message
+            self.logger.info(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
+            
             # Write the message to a queue file
             with open(file_path, 'w') as file:
                 file.write(message)
-            self.logger.info(f"Message {message_id} added to the queue.")
-        except Exception as e:
-            self.logger.error(f"Failed to enqueue the message: {str(e)}")
 
-    async def dequeue_message(self, message_id: str) -> None:
+            # Log success
+            self.logger.info(f"Message successfully enqueued with ID '{message_id}'. Stored in file '{file_path}'.")
+        except Exception as e:
+            self.logger.error(f"Failed to enqueue the message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+
+
+    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str) -> None:
         """
         Removes a message from the queue after it has been processed.
         """
-        file_path = os.path.join(self.root_directory, self.message_queue_container, message_id)
+        file_name = f"{channel_id}_{thread_id}_{message_id}.txt"
+        file_path = os.path.join(self.root_directory, self.message_queue_container, file_name)
+
+        self.logger.info(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
 
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                self.logger.info(f"Message {message_id} removed from the queue.")
+                self.logger.info(f"Message '{message_id}' successfully removed from the queue. File '{file_path}' deleted.")
             except Exception as e:
-                self.logger.error(f"Failed to remove the message {message_id}: {str(e)}")
+                self.logger.error(f"Failed to remove message '{message_id}' from the queue: {str(e)}")
         else:
-            self.logger.warning(f"Message {message_id} not found in the queue.")
+            self.logger.warning(f"Message '{message_id}' not found in the queue. No action taken.")
 
-    async def get_next_message(self) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Retrieves the oldest message from the queue, sorted by timestamp.
-        Returns a tuple (message_id, message_content). If no message is found, returns (None, None).
+        Retrieves the next (oldest) message for a `channel_id`, `thread_id` after `current_message_id`.
+        Returns a tuple (next_message_id, message_content). If no message is found, returns (None, None).
         """
+        self.logger.info(f"Checking for the next message in the queue for channel '{channel_id}', thread '{thread_id}' after message ID '{current_message_id}'.")
+
         try:
-            files = os.listdir(os.path.join(self.root_directory, self.message_queue_container))
-            if not files:
+            # List all files in the queue directory
+            queue_path = os.path.join(self.root_directory, self.message_queue_container)
+            files = os.listdir(queue_path)
+
+            # Filter files for the specific `channel_id` and `thread_id`
+            filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}_")]
+            self.logger.info(f"Found {len(filtered_files)} messages for channel '{channel_id}', thread '{thread_id}'.")
+
+            if not filtered_files:
+                self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
                 return None, None
 
-            # Sort files by timestamp (last part of the filename)
-            files.sort(key=lambda f: int(f.split('_')[-1].split('.')[0]))
-            next_message_file = files[0]
-            file_path = os.path.join(self.root_directory, self.message_queue_container, next_message_file)
+            # Regular expression to match the filename structure: {channel_id}_{thread_id}_{message_id}.txt
+            timestamp_regex = re.compile(rf"{channel_id}_(\d+\.\d+)_(\d+\.\d+)\.txt")
 
-            # Read the content of the oldest message
+            # Extract the message_id (which is a timestamp) from the filename using regex
+            def extract_message_id(file_name: str) -> float:
+                match = timestamp_regex.search(file_name)
+                if match:
+                    return float(match.group(2))  # Group 2 contains the message_id (the third part)
+                else:
+                    raise ValueError(f"Filename '{file_name}' does not match the expected format '{channel_id}_{thread_id}_<message_id>.txt'")
+
+            # Get the timestamp of the current message
+            current_timestamp = extract_message_id(f"{channel_id}_{thread_id}_{current_message_id}.txt")
+
+            # Sort files by the message_id (third timestamp in the filename)
+            filtered_files.sort(key=extract_message_id)
+
+            # Find the next message based on the timestamp comparison
+            next_message_file = next((f for f in filtered_files if extract_message_id(f) > current_timestamp), None)
+
+            if not next_message_file:
+                self.logger.info(f"No newer message found after message ID '{current_message_id}' for channel '{channel_id}', thread '{thread_id}'.")
+                return None, None
+
+            file_path = os.path.join(queue_path, next_message_file)
+
+            # Read the content of the next message
             with open(file_path, 'r') as file:
                 message_content = file.read()
-            
-            return next_message_file, message_content
+
+            next_message_id = next_message_file.split('_')[-1].replace('.txt', '')
+
+            self.logger.info(f"Next message retrieved: '{next_message_file}' with ID '{next_message_id}'.")
+            return next_message_id, message_content
+
+        except ValueError as ve:
+            # Log the error with specific details about the bad filename format
+            self.logger.error(f"ValueError during message retrieval: {ve}")
+            raise
+
         except Exception as e:
-            self.logger.error(f"Failed to retrieve the next message: {str(e)}")
+            self.logger.error(f"Failed to retrieve the next message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return None, None
 
-    async def has_older_messages(self) -> bool:
+
+    async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
-        Checks if there are older messages in the queue.
-        Returns True if older messages exist, False otherwise.
+        Checks if there are any older messages in the queue for a given channel_id and thread_id.
+        Removes any messages older than 2 minutes.
         """
+        self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'")
         try:
-            files = os.listdir(os.path.join(self.root_directory, self.message_queue_container))
-            return len(files) > 0
+            current_time = int(time.time())
+            queue_path = os.path.join(self.root_directory, self.message_queue_container)
+            files = os.listdir(queue_path)
+            
+            # Filter messages for the specific channel_id and thread_id
+            filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}")]
+            self.logger.info(f"Found {len(filtered_files)} messages for channel '{channel_id}', thread '{thread_id}'.")
+
+            if not filtered_files:
+                self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
+                return False
+
+            # Check for messages older than 2 minutes (120 seconds)
+            updated_files = []
+            for file_name in filtered_files:
+                try:
+                    # Extract the message_id (last part of the filename)
+                    message_id = file_name.split('_')[-1].split('.')[0]
+                    timestamp = float(message_id)  # Ensure message_id is a valid timestamp
+                    time_difference = current_time - timestamp
+                    
+                    if time_difference > 120:
+                        self.logger.warning(f"Removed message '{file_name}' from queue as it is older than 2 minutes.")
+                        # Dequeue the message properly by passing channel_id, thread_id, and message_id
+                        await self.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
+                    else:
+                        updated_files.append(file_name)
+                except ValueError:
+                    self.logger.error(f"Invalid message file format: {file_name}, skipping.")
+            
+            # Return True if there are valid messages left in the queue after removing stale ones
+            return len(updated_files) > 0
+        
         except Exception as e:
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False

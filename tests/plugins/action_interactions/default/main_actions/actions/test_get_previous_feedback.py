@@ -31,7 +31,6 @@ def create_mock_incoming_notification():
         user_id="test_user_id",
         is_mention=False,
         text="Test message",
-        origin="test_origin",
         origin_plugin_name="origin_plugin_name"
     )
 

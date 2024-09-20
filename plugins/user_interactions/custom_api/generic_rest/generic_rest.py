@@ -11,7 +11,7 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
+from core.user_interactions_behaviors.user_interactions_dispatcher import UserInteractionsDispatcher
 
 from core.user_interactions.message_type import MessageType
 from core.user_interactions.outgoing_notification_data_base import (
@@ -119,7 +119,6 @@ class GenericRestPlugin(UserInteractionsPluginBase):
                 response_id="", 
                 is_mention=False,  # This might also be set later in the process
                 text="", 
-                origin="",
                 origin_plugin_name=""
             ).to_dict().keys()) - {'is_mention'}
 

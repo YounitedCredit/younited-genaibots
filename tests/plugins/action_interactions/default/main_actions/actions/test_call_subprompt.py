@@ -59,7 +59,6 @@ def incoming_notification():
         user_id="user123",
         is_mention=False,
         text="Test message",
-        origin="test_origin",
         origin_plugin_name="plugin_name"
     )
 
