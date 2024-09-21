@@ -12,7 +12,7 @@ import requests
 from fastapi import Request
 from pydantic import BaseModel
 from starlette.responses import Response
-
+import aiohttp
 from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
@@ -359,7 +359,10 @@ class SlackPlugin(UserInteractionsPluginBase):
         channel_id = event_copy.channel_id
         response_id = event_copy.response_id
 
-        already_found_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{response_id}")
+        # Example of asynchronous search
+        already_found_internal_ts = await self.slack_input_handler.search_message_in_thread(
+            query=f"thread: {event.channel_id}-{response_id}"
+        )
 
         message_blocks = self.split_message(message, self.MAX_MESSAGE_LENGTH) if message else []
 
@@ -369,23 +372,44 @@ class SlackPlugin(UserInteractionsPluginBase):
             is_new_message_added = False
 
         if is_internal:
-            response_id, channel_id = await self.handle_internal_message(event, event_copy, response_id, already_found_internal_ts, show_ref)
+            response_id, channel_id = await self.handle_internal_message(
+                event, event_copy, response_id, already_found_internal_ts, show_ref
+            )
 
-        await self.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend(event, event.channel_id, event.timestamp)
+        await self.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend(
+            event, event.channel_id, event.timestamp
+        )
 
-        for i, message_block in enumerate(message_blocks):
-            await self.global_manager.user_interactions_behavior_dispatcher.end_wait_backend(event=event, channel_id=event.channel_id, timestamp=event.timestamp)
-            payload = self.construct_payload(channel_id, response_id, message_block, message_type, i, len(message_blocks), title, is_new_message_added)
-            response = requests.post('https://slack.com/api/chat.postMessage', headers=headers, json=payload)
-            self.handle_response(response, message_block)
-            if i == 0 and is_new_message_added:
-                is_new_message_added = False
-        
+        async with aiohttp.ClientSession() as session:  # Asynchronous HTTP session
+            for i, message_block in enumerate(message_blocks):
+                await self.global_manager.user_interactions_behavior_dispatcher.end_wait_backend(
+                    event=event, channel_id=event.channel_id, timestamp=event.timestamp
+                )
+                payload = self.construct_payload(
+                    channel_id, response_id, message_block, message_type, i, len(message_blocks), title, is_new_message_added
+                )
+
+                async with session.post(
+                    'https://slack.com/api/chat.postMessage',
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    if response.status != 200:
+                        self.logger.error(f"Error sending message to Slack: {response.status}")
+                    else:
+                        result = await response.json()  # Wait for the async response body
+
+                    self.handle_response(result, message_block)
+
+                if i == 0 and is_new_message_added:
+                    is_new_message_added = False
+
         if response:
-            return response
+            return result
         else:
-            self.logger.error(f"empty response received from slack")
+            self.logger.error(f"Empty response received from Slack")
             return None
+
 
     async def add_reference_message(self, event, message_blocks, response_id):
         msg_url, msg_text = await self.slack_input_handler.get_message_permalink_and_text(event.channel_id, event.timestamp)
@@ -449,7 +473,14 @@ class SlackPlugin(UserInteractionsPluginBase):
         return payload
 
     def handle_response(self, response, message_block):
-        response_data = json.loads(response.text)
+        # Check if the response is already a dictionary
+        if isinstance(response, dict):
+            response_data = response  # Use it directly
+        else:
+            # If it's a string or an HTTP response, parse it as JSON
+            response_data = json.loads(response.text)
+
+        # Further process the response_data as needed...
         if not response_data.get('ok'):
             error_message = response_data.get('error')
             detailed_errors = response_data.get('errors')

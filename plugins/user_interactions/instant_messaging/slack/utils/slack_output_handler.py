@@ -2,7 +2,7 @@ import json
 import re
 import traceback
 from typing import List
-
+import aiohttp
 import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -72,15 +72,17 @@ class SlackOutputHandler:
         headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
         payload = {
             'channel': channel_id,
-            'thread_ts': response_id  # Pour répondre dans un thread
+            'thread_ts': response_id  # To reply in a thread
         }
 
+        # Ensure message_type is of correct enum type
         if isinstance(message_type, str):
             try:
                 message_type = MessageType(message_type)
             except ValueError:
                 raise ValueError(f"{message_type} is not a valid MessageType")
 
+        # Build message payload based on type
         if message_type == MessageType.TEXT:
             blocks = [{
                 "type": "section",
@@ -91,14 +93,23 @@ class SlackOutputHandler:
             }]
             payload['blocks'] = json.dumps(blocks)
         elif message_type.value in ["card", "codeblock", "comment", "file"]:
-            # Pour 'card', 'codeblock', 'comment', et 'file', utilisez format_slack_message
             blocks = self.format_slack_message(title, message, message_format=message_type)
             payload['blocks'] = json.dumps(blocks)
         else:
             raise ValueError(f"Invalid message type: {message_type}. Use 'TEXT', 'CARD', 'CODEBLOCK', 'COMMENT', or 'FILE'.")
 
-        response = requests.post('https://slack.com/api/chat.postMessage', headers=headers, json=payload)
-        return response
+        # Use aiohttp for async HTTP request to Slack API
+        async with aiohttp.ClientSession() as session:
+            async with session.post('https://slack.com/api/chat.postMessage', headers=headers, json=payload) as response:
+                if response.status != 200:
+                    self.logger.error(f"Slack API error: {response.status}")
+                    return None
+
+                result = await response.json()  # Asynchronously read the response body
+
+                if not result.get("ok"):
+                    self.logger.error(f"Slack API error: {result.get('error')}")
+                return result
 
     def format_slack_message(self, title, message_text, message_format: MessageType):
         if message_format.value == "text":
