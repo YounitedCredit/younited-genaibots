@@ -399,3 +399,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
 
     def get_bot_id(self) -> str:
         return self.teams_config.TEAMS_APP_ID
+    
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str):
+        # NOT IMPLEMENTED YET
+        raise NotImplementedError("remove_reaction_from_thread is not implemented in Teams plugin.")

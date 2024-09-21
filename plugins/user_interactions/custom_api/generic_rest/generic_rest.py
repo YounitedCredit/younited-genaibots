@@ -11,7 +11,7 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions_behaviors.user_interactions_dispatcher import UserInteractionsDispatcher
+from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
 
 from core.user_interactions.message_type import MessageType
 from core.user_interactions.outgoing_notification_data_base import (

@@ -268,6 +268,7 @@ class ChatInputHandler():
             self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
             await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
                 event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+            
             completion = await self.call_completion(
                 event_data.channel_id, original_msg_ts, messages, event_data)
             await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(

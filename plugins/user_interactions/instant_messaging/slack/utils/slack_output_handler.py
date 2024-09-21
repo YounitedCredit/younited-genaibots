@@ -217,3 +217,31 @@ class SlackOutputHandler:
         except Exception as e:
             self.logger.error(f"Error fetching conversation history: {e}")
             return []
+
+    async def remove_reaction_from_thread(self, channel_id, thread_id, emoji_name):
+        """
+        Fetches messages from a Slack thread, checks if they have a specific reaction, and removes that reaction.
+        
+        :param channel_id: ID of the Slack channel
+        :param thread_id: Thread timestamp of the Slack thread
+        :param emoji_name: The name of the emoji reaction to remove
+        """
+        try:
+            # Step 1: Fetch the conversation history
+            messages = await self.fetch_conversation_history(channel_id, thread_id)
+            
+            if not messages:
+                self.logger.info(f"No messages found in thread: {thread_id}")
+                return
+            
+            # Step 2: Loop through messages to find the ones with the desired reaction
+            for message in messages:
+                if 'reactions' in message:
+                    for reaction in message['reactions']:
+                        if reaction['name'] == emoji_name:
+                            # Step 3: Remove the reaction
+                            self.logger.info(f"Removing reaction '{emoji_name}' from message: {message['ts']}")
+                            await self.remove_reaction(channel_id, message['ts'], emoji_name)
+
+        except Exception as e:
+            self.logger.error(f"Error in remove_reaction_from_thread: {e}")

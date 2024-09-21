@@ -566,5 +566,12 @@ class SlackPlugin(UserInteractionsPluginBase):
             self.logger.error(f"Error fetching conversation history: {e}")
             return []   
         
+    
+    async def remove_reaction_from_thread(self, channel_id, thread_id, reaction_name):
+        try:
+            await self.slack_output_handler.remove_reaction_from_thread(channel_id, thread_id, reaction_name)
+        except Exception as e:
+            self.logger.error(f"Error removing reaction: {e} in Slack Output Handler remove_reaction")
+    
     def get_bot_id(self) -> str:
         return self.slack_config.SLACK_BOT_USER_ID

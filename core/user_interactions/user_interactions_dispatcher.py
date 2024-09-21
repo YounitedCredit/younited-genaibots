@@ -150,3 +150,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         """
         plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.get_bot_id()
+    
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str, plugin_name= None):
+        """
+            remove reaction from thread
+        """
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
+        return await plugin.remove_reaction_from_thread(channel_id, thread_id, reaction_name)

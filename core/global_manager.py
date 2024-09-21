@@ -24,7 +24,7 @@ from core.user_interactions_behaviors.user_interactions_behavior_base import (
 from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
     UserInteractionsBehaviorsDispatcher,
 )
-from core.user_interactions_behaviors.user_interactions_dispatcher import (
+from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
 from core.user_interactions.user_interactions_plugin_base import (
