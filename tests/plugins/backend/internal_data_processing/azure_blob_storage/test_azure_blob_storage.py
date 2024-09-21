@@ -1,6 +1,6 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-
+from typing import Tuple
 import pytest
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
@@ -54,7 +54,7 @@ def test_initialize(azure_blob_storage_plugin):
             azure_blob_storage_plugin.initialize()
             assert azure_blob_storage_plugin.connection_string == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
             assert azure_blob_storage_plugin.sessions_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
-            assert azure_blob_storage_plugin.messages_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_CONTAINER
+            assert azure_blob_storage_plugin.messages_queue_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
 
 def test_initialize_blob_service_client_error(mock_config, extended_mock_global_manager):
     with patch.object(BlobServiceClient, '__init__', side_effect=AzureError("Azure error")):
@@ -67,8 +67,8 @@ async def test_update_session(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
          patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
         mock_read.return_value = '[]'
-        await azure_blob_storage_plugin.update_session('container', 'file', 'role', 'content')
-        mock_read.assert_called_once_with('container', 'file')
+        await azure_blob_storage_plugin.update_session('sessions', 'file', 'role', 'content')
+        mock_read.assert_called_once_with('sessions', 'file')
         mock_write.assert_called_once()
         updated_content = mock_write.call_args[0][2]
         assert '{"role": "role", "content": "content"}' in updated_content
@@ -229,7 +229,6 @@ async def test_not_implemented_methods(azure_blob_storage_plugin):
 
 def test_properties(azure_blob_storage_plugin):
     assert azure_blob_storage_plugin.sessions == azure_blob_storage_plugin.sessions_container
-    assert azure_blob_storage_plugin.messages == azure_blob_storage_plugin.messages_container
     assert azure_blob_storage_plugin.feedbacks == azure_blob_storage_plugin.feedbacks_container
     assert azure_blob_storage_plugin.concatenate == azure_blob_storage_plugin.concatenate_container
     assert azure_blob_storage_plugin.prompts == azure_blob_storage_plugin.prompts_container
@@ -237,6 +236,8 @@ def test_properties(azure_blob_storage_plugin):
     assert azure_blob_storage_plugin.processing == azure_blob_storage_plugin.processing_container
     assert azure_blob_storage_plugin.abort == azure_blob_storage_plugin.abort_container
     assert azure_blob_storage_plugin.vectors == azure_blob_storage_plugin.vectors_container
+    assert azure_blob_storage_plugin.messages_queue == azure_blob_storage_plugin.messages_queue_container
+
 
 @pytest.mark.asyncio
 async def test_read_data_content_error(azure_blob_storage_plugin):
@@ -283,3 +284,92 @@ async def test_list_container_files_error(azure_blob_storage_plugin):
         with pytest.raises(Exception, match="List error"):
             await azure_blob_storage_plugin.list_container_files("test_container")
 
+def test_validate_request_not_implemented(azure_blob_storage_plugin):
+    with pytest.raises(NotImplementedError):
+        azure_blob_storage_plugin.validate_request('some_request')
+
+def test_handle_request_not_implemented(azure_blob_storage_plugin):
+    with pytest.raises(NotImplementedError):
+        azure_blob_storage_plugin.handle_request('some_request')
+
+@pytest.mark.asyncio
+async def test_append_data_not_implemented(azure_blob_storage_plugin):
+    with pytest.raises(NotImplementedError):
+        await azure_blob_storage_plugin.append_data('container', 'identifier', 'some_data')
+
+@pytest.mark.asyncio
+async def test_enqueue_message(azure_blob_storage_plugin):
+    with patch.object(BlobServiceClient, 'get_blob_client', new_callable=MagicMock) as mock_blob_client:
+        mock_blob = mock_blob_client.return_value
+        mock_blob.upload_blob = AsyncMock()
+
+        await azure_blob_storage_plugin.enqueue_message('channel1', 'thread1', 'message1', 'test_message')
+
+        mock_blob.upload_blob.assert_called_once_with('test_message', overwrite=True)
+
+@pytest.mark.asyncio
+async def test_dequeue_message(azure_blob_storage_plugin):
+    with patch.object(BlobServiceClient, 'get_blob_client', new_callable=MagicMock) as mock_blob_client:
+        mock_blob = mock_blob_client.return_value
+        mock_blob.delete_blob = AsyncMock()
+
+        await azure_blob_storage_plugin.dequeue_message('channel1', 'thread1', 'message1')
+
+        mock_blob.delete_blob.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_get_next_message(azure_blob_storage_plugin):
+    with patch.object(BlobServiceClient, 'get_container_client', new_callable=MagicMock) as mock_container_client:
+        mock_container = mock_container_client.return_value
+        mock_blob1 = MagicMock()
+        mock_blob1.name = "channel1_thread1_1001.txt"
+        mock_blob2 = MagicMock()
+        mock_blob2.name = "channel1_thread1_1002.txt"
+        mock_container.list_blobs = MagicMock(return_value=[mock_blob1, mock_blob2])
+
+        mock_blob_client = MagicMock()
+        mock_blob_client.download_blob = AsyncMock(return_value=MagicMock(readall=AsyncMock(return_value=b'test_message')))
+        
+        with patch.object(BlobServiceClient, 'get_blob_client', return_value=mock_blob_client):
+            next_message_id, next_message_content = await azure_blob_storage_plugin.get_next_message('channel1', 'thread1', '1001')
+
+            assert next_message_id == '1002'
+            assert next_message_content == 'test_message'
+
+@pytest.mark.asyncio
+async def test_get_all_messages(azure_blob_storage_plugin):
+    with patch.object(BlobServiceClient, 'get_container_client', new_callable=MagicMock) as mock_container_client:
+        mock_container = mock_container_client.return_value
+        mock_blob1 = MagicMock()
+        mock_blob1.name = "channel1_thread1_1001.txt"
+        mock_blob2 = MagicMock()
+        mock_blob2.name = "channel1_thread1_1002.txt"
+        mock_container.list_blobs = MagicMock(return_value=[mock_blob1, mock_blob2])
+
+        mock_blob_client = MagicMock()
+        mock_blob_client.download_blob = AsyncMock(return_value=MagicMock(readall=AsyncMock(return_value=b'test_message')))
+        
+        with patch.object(BlobServiceClient, 'get_blob_client', return_value=mock_blob_client):
+            messages = await azure_blob_storage_plugin.get_all_messages('channel1', 'thread1')
+
+            assert len(messages) == 2
+            assert messages[0] == 'test_message'
+            assert messages[1] == 'test_message'
+
+@pytest.mark.asyncio
+async def test_clear_messages_queue(azure_blob_storage_plugin):
+    with patch.object(BlobServiceClient, 'get_container_client', new_callable=MagicMock) as mock_container_client:
+        mock_container = mock_container_client.return_value
+        mock_blob1 = MagicMock()
+        mock_blob1.name = "channel1_thread1_1001.txt"
+        mock_blob2 = MagicMock()
+        mock_blob2.name = "channel1_thread1_1002.txt"
+        mock_container.list_blobs = MagicMock(return_value=[mock_blob1, mock_blob2])
+
+        mock_blob_client = MagicMock()
+        mock_blob_client.delete_blob = AsyncMock()
+
+        with patch.object(BlobServiceClient, 'get_blob_client', return_value=mock_blob_client):
+            await azure_blob_storage_plugin.clear_messages_queue('channel1', 'thread1')
+
+            assert mock_blob_client.delete_blob.call_count == 2

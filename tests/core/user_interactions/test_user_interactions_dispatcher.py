@@ -74,8 +74,8 @@ async def test_remove_reaction(mock_user_interactions_dispatcher, mock_user_inte
     mock_event = MagicMock(spec=IncomingNotificationDataBase)
     mock_event.origin_plugin_name = "test_plugin"
 
-    await mock_user_interactions_dispatcher.remove_reaction(mock_event, "channel_id", "timestamp", "reaction_name")
-    mock_user_interactions_plugin.remove_reaction.assert_awaited_with(channel_id="channel_id", timestamp="timestamp", reaction_name="reaction_name")
+    await mock_user_interactions_dispatcher.remove_reaction(event=mock_event, channel_id="channel_id", timestamp="timestamp", reaction_name="reaction_name")
+    mock_user_interactions_plugin.remove_reaction.assert_awaited_with(event=mock_event, channel_id="channel_id", timestamp="timestamp", reaction_name="reaction_name")
 
 @pytest.mark.asyncio
 async def test_request_to_notification_data(mock_user_interactions_dispatcher, mock_user_interactions_plugin):

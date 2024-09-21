@@ -126,7 +126,8 @@ def test_config_model():
         "CLEARQUEUE_KEYWORD": '!CLEARQUEUE',
         "LOAD_ACTIONS_FROM_BACKEND": False,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": True,
-        "MESSAGE_QUEUING_TTL" : 120
+        "MESSAGE_QUEUING_TTL" : 120,
+        "ACTIVATE_MESSAGE_QUEUING": True
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
 

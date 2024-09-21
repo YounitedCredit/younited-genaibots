@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from slack_sdk.errors import SlackApiError
@@ -10,7 +10,17 @@ from core.user_interactions.message_type import MessageType
 from plugins.user_interactions.instant_messaging.slack.utils.slack_output_handler import (
     SlackOutputHandler,
 )
+import aiohttp
 
+class AsyncContextManagerMock:
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    async def __aenter__(self):
+        return self.return_value
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        pass
 
 @pytest.fixture
 def slack_config():
@@ -42,15 +52,32 @@ async def test_remove_reaction(slack_output_handler, mocker):
     mock_client.assert_called_once_with(channel="CHANNEL_ID", timestamp="1620834875.000400", name="thumbsup")
 
 @pytest.mark.asyncio
-async def test_send_slack_message(slack_output_handler, mocker):
-    mock_post = mocker.patch("requests.post", return_value=MagicMock(status_code=200))
-    response = await slack_output_handler.send_slack_message("CHANNEL_ID", "1620834875.000400", "Hello World")
-    assert response.status_code == 200
-    mock_post.assert_called_once()
+async def test_send_slack_message(slack_output_handler):
+    with patch("aiohttp.ClientSession", autospec=True) as MockClientSession:
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
-def test_format_slack_message(slack_output_handler):
-    blocks = slack_output_handler.format_slack_message("Title", "Message", MessageType.TEXT)
-    assert blocks == [{"type": "section", "text": {"type": "mrkdwn", "text": "Message"}}]
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={"ok": True})
+
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
+
+        response = await slack_output_handler.send_slack_message(
+            "CHANNEL_ID", "1620834875.000400", "Hello World"
+        )
+        assert response["ok"] is True
+
+        mock_session.post.assert_called_once_with(
+            'https://slack.com/api/chat.postMessage',
+            headers={'Authorization': 'Bearer xoxb-1234'},
+            json={
+                'channel': 'CHANNEL_ID',
+                'thread_ts': '1620834875.000400',
+                'blocks': '[{"type": "section", "text": {"type": "mrkdwn", "text": "Hello World"}}]'
+            }
+        )
 
 @pytest.mark.asyncio
 async def test_upload_file_to_slack(slack_output_handler, mocker):
@@ -95,16 +122,45 @@ async def test_remove_reaction_error(slack_output_handler, mocker):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("message_type", [MessageType.TEXT, MessageType.CODEBLOCK, MessageType.COMMENT])
-async def test_send_slack_message_types(slack_output_handler, mocker, message_type):
-    mock_post = mocker.patch("requests.post", return_value=MagicMock(status_code=200))
-    await slack_output_handler.send_slack_message("CHANNEL_ID", "1620834875.000400", "Message", message_type, "Title")
-    mock_post.assert_called_once()
+async def test_send_slack_message_types(slack_output_handler, message_type):
+    with patch("aiohttp.ClientSession", autospec=True) as MockClientSession:
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={"ok": True})
+
+        # Set up session.post to return an async context manager
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
+
+        # Execute the function under test
+        await slack_output_handler.send_slack_message(
+            "CHANNEL_ID", "1620834875.000400", "Message", message_type, "Title"
+        )
+
+        # Ensure 'post' was called
+        mock_session.post.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_send_slack_message_file_type(slack_output_handler, mocker):
-    mock_post = mocker.patch("requests.post", return_value=MagicMock(status_code=200))
-    await slack_output_handler.send_slack_message("CHANNEL_ID", "1620834875.000400", "Message", MessageType.FILE, "Title")
-    mock_post.assert_called_once()
+async def test_send_slack_message_file_type(slack_output_handler):
+    with patch("aiohttp.ClientSession", autospec=True) as MockClientSession:
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={"ok": True})
+
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
+
+        await slack_output_handler.send_slack_message(
+            "CHANNEL_ID", "1620834875.000400", "Message", MessageType.FILE, "Title"
+        )
+
+        mock_session.post.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_send_slack_message_custom_type(slack_output_handler, mocker):

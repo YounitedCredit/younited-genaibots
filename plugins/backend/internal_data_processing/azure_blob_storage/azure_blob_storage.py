@@ -523,3 +523,4 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         except Exception as e:
             self.logger.error(f"Failed to clear messages queue for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+

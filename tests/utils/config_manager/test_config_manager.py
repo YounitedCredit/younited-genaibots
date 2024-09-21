@@ -31,7 +31,9 @@ def test_config_manager_initialization(mock_global_manager):
       START_KEYWORD: 'stop'
       CLEARQUEUE_KEYWORD: '!CLEARQUEUE'
       LOAD_ACTIONS_FROM_BACKEND: False,
-      MESSAGE_QUEUING_TTL : 120
+      MESSAGE_QUEUING_TTL : 120,
+      ACTIVATE_MESSAGE_QUEUING: false                                          
+
     PLUGINS:
       ACTION_INTERACTIONS:
         CUSTOM: {}
