@@ -1,19 +1,20 @@
 import inspect
 import json
 import os
+import re
 import traceback
 from typing import List
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, BlobClient
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from pydantic import BaseModel
-
+import time
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
 from typing import Optional, Tuple
-
+import logging
 
 AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
 
@@ -44,6 +45,13 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
         self.plugin_name = None
 
+        # Reduce log level for specific libraries
+        logging.getLogger("http.client").setLevel(logging.WARNING)
+        logging.getLogger("azure").setLevel(logging.WARNING)
+        logging.getLogger("opentelemetry").setLevel(logging.WARNING)
+        logging.getLogger("requests").setLevel(logging.WARNING)
+        logging.getLogger("urllib3").setLevel(logging.WARNING)
+
     def initialize(self):
         self.logger.debug("Initializing Azure Blob Storage connection")
         self.connection_string = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
@@ -58,15 +66,17 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
         self.subprompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER
         self.messages_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
-        self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
+        self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME        
 
         try:
             credential = DefaultAzureCredential()
             self.blob_service_client = BlobServiceClient(account_url=self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING, credential=credential)
-            self.logger.debug("BlobServiceClient successfully created")
+            self.logger.info("Azure Blob Storage Backend: BlobServiceClient successfully created")
         except Exception as e:
             self.initialization_failed = True
             self.logger.error(f"Failed to create BlobServiceClient: {str(e)}")
+
+        self.init_containers()
 
     @property
     def plugin_name(self):
@@ -140,6 +150,33 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     async def append_data(self, container_name: str, data_identifier: str, data: str) -> None:
         # Implementation for appending data to Azure Blob Storage
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+
+    def init_containers(self):
+        container_names = [
+            self.sessions_container,
+            self.feedbacks_container,
+            self.concatenate_container,
+            self.prompts_container,
+            self.costs_container,
+            self.processing_container,
+            self.abort_container,
+            self.vectors_container,
+            self.custom_actions_container,
+            self.subprompts_container,
+            self.messages_queue_container
+        ]
+        
+        for container in container_names:
+            try:
+                container_client = self.blob_service_client.get_container_client(container)
+                if not container_client.exists():
+                    container_client.create_container()
+                    self.logger.info(f"Created container: {container}")
+                else:
+                    self.logger.info(f"Container already exists: {container}")
+            except Exception as e:
+                self.logger.error(f"Failed to create container {container}: {str(e)}")
+
 
     async def update_session(self, data_container, data_file, role, content):
         self.logger.debug(f"Updating session for file {data_file} in container {data_container}")
@@ -464,7 +501,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the Azure Blob Storage queue for a given channel and thread.
-        """
+        """        
+        
         message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
         current_time = int(time.time())
 

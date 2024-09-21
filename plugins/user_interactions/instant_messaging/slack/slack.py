@@ -351,65 +351,86 @@ class SlackPlugin(UserInteractionsPluginBase):
         return message_blocks
 
     async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
-        if not isinstance(message_type, MessageType):
-            raise ValueError(f"Invalid message type: {message_type}. Expected MessageType enum.")
+        try:
+            if not isinstance(message_type, MessageType):
+                raise ValueError(f"Invalid message type: {message_type}. Expected MessageType enum.")
 
-        headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
-        event_copy = copy.deepcopy(event)
-        channel_id = event_copy.channel_id
-        response_id = event_copy.response_id
+            headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
+            event_copy = copy.deepcopy(event)
+            channel_id = event_copy.channel_id
+            response_id = event_copy.response_id
 
-        # Example of asynchronous search
-        already_found_internal_ts = await self.slack_input_handler.search_message_in_thread(
-            query=f"thread: {event.channel_id}-{response_id}"
-        )
+            try:
+                # Example of asynchronous search
+                already_found_internal_ts = await self.slack_input_handler.search_message_in_thread(
+                    query=f"thread: {event.channel_id}-{response_id}"
+                )
+            except Exception as e:
+                self.logger.error(f"Error searching message in thread: {str(e)}")
+                return
 
-        message_blocks = self.split_message(message, self.MAX_MESSAGE_LENGTH) if message else []
+            message_blocks = self.split_message(message, self.MAX_MESSAGE_LENGTH) if message else []
 
-        if show_ref:
-            is_new_message_added = await self.add_reference_message(event, message_blocks, response_id)
-        else:
-            is_new_message_added = False
+            try:
+                if show_ref:
+                    is_new_message_added = await self.add_reference_message(event, message_blocks, response_id)
+                else:
+                    is_new_message_added = False
+            except Exception as e:
+                self.logger.error(f"Error adding reference message: {str(e)}")
+                return
 
-        if is_internal:
-            response_id, channel_id = await self.handle_internal_message(
-                event, event_copy, response_id, already_found_internal_ts, show_ref
+            try:
+                if is_internal:
+                    response_id, channel_id = await self.handle_internal_message(
+                        event, event_copy, response_id, already_found_internal_ts, show_ref
+                    )
+            except Exception as e:
+                self.logger.error(f"Error handling internal message: {str(e)}")
+                return
+
+            await self.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend(
+                event, event.channel_id, event.timestamp
             )
 
-        await self.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend(
-            event, event.channel_id, event.timestamp
-        )
+            async with aiohttp.ClientSession() as session:  # Asynchronous HTTP session
+                for i, message_block in enumerate(message_blocks):
+                    try:
+                        await self.global_manager.user_interactions_behavior_dispatcher.end_wait_backend(
+                            event=event, channel_id=event.channel_id, timestamp=event.timestamp
+                        )
+                        payload = self.construct_payload(
+                            channel_id, response_id, message_block, message_type, i, len(message_blocks), title, is_new_message_added
+                        )
 
-        async with aiohttp.ClientSession() as session:  # Asynchronous HTTP session
-            for i, message_block in enumerate(message_blocks):
-                await self.global_manager.user_interactions_behavior_dispatcher.end_wait_backend(
-                    event=event, channel_id=event.channel_id, timestamp=event.timestamp
-                )
-                payload = self.construct_payload(
-                    channel_id, response_id, message_block, message_type, i, len(message_blocks), title, is_new_message_added
-                )
+                        async with session.post(
+                            'https://slack.com/api/chat.postMessage',
+                            headers=headers,
+                            json=payload
+                        ) as response:
+                            if response.status != 200:
+                                self.logger.error(f"Error sending message to Slack: {response.status}")
+                            else:
+                                result = await response.json()  # Wait for the async response body
 
-                async with session.post(
-                    'https://slack.com/api/chat.postMessage',
-                    headers=headers,
-                    json=payload
-                ) as response:
-                    if response.status != 200:
-                        self.logger.error(f"Error sending message to Slack: {response.status}")
-                    else:
-                        result = await response.json()  # Wait for the async response body
+                            self.handle_response(result, message_block)
 
-                    self.handle_response(result, message_block)
+                        if i == 0 and is_new_message_added:
+                            is_new_message_added = False
 
-                if i == 0 and is_new_message_added:
-                    is_new_message_added = False
+                    except Exception as e:
+                        self.logger.error(f"Exception occurred while sending message block to Slack: {str(e)}")
 
-        if response:
-            return result
-        else:
-            self.logger.error(f"Empty response received from Slack")
+            if response:
+                return result
+            else:
+                self.logger.error("Empty response received from Slack")
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Exception occurred in send_message: {str(e)}")
+            self.global_manager.user_interactions_dispatcher.send_message(event=event, message=f"An error occured while sending a message from slack plugin: {str(e)}", message_type=MessageType.COMMENT, is_internal=True)
             return None
-
 
     async def add_reference_message(self, event, message_blocks, response_id):
         msg_url, msg_text = await self.slack_input_handler.get_message_permalink_and_text(event.channel_id, event.timestamp)
@@ -420,46 +441,67 @@ class SlackPlugin(UserInteractionsPluginBase):
         return False
 
     async def handle_internal_message(self, event, event_copy: IncomingNotificationDataBase, response_id, already_found_internal_ts, show_ref):
-        if self.INTERNAL_CHANNEL is None:
-            self.logger.warning("An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
-            return response_id, event.channel_id
+        try:
+            if self.INTERNAL_CHANNEL is None:
+                self.logger.warning("An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
+                return response_id, event.channel_id
 
-        event_copy.channel_id = self.INTERNAL_CHANNEL
-        if already_found_internal_ts:
-            return already_found_internal_ts, self.INTERNAL_CHANNEL
+            event_copy.channel_id = self.INTERNAL_CHANNEL
+            if already_found_internal_ts:
+                return already_found_internal_ts, self.INTERNAL_CHANNEL
 
-        if not show_ref:
-            search_internal_ts = None
-            start_time = time.time()
-            attempt = 1
-            delay = 1  # Start with a 1-second delay for the exponential backoff
+            if not show_ref:
+                search_internal_ts = None
+                start_time = time.time()
+                attempt = 1
+                delay = 1  # Start with a 1-second delay for the exponential backoff
 
-            self.logger.info("Waiting for internal message to be posted...")
+                self.logger.info("Waiting for internal message to be posted...")
 
-            # Keep trying until message is found or timeout of 40 seconds
-            while search_internal_ts is None and time.time() - start_time <= 40:
-                self.logger.info(f"Attempt {attempt}: waiting for internal message to be posted...")
+                # Keep trying until message is found or timeout of 40 seconds
+                while search_internal_ts is None and time.time() - start_time <= 40:
+                    self.logger.info(f"Attempt {attempt}: waiting for internal message to be posted...")
 
-                # Search for the message
-                search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{response_id}")
-                
-                # If found, break out of the loop
-                if search_internal_ts:
-                    response_id = search_internal_ts
-                    self.logger.info(f"Internal message found with timestamp {search_internal_ts}")
+                    try:
+                        # Search for the message
+                        search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{response_id}")
+                        
+                        # If found, break out of the loop
+                        if search_internal_ts:
+                            response_id = search_internal_ts
+                            self.logger.info(f"Internal message found with timestamp {search_internal_ts}")
+                        else:
+                            self.logger.info(f"Message not found, retrying in {delay} seconds...")
+                            await asyncio.sleep(delay)  # Sleep for 'delay' seconds
+                            delay = min(delay * 1.5, 9)  # Exponential backoff: increase delay (max 8 seconds)
+                        attempt += 1
+                    except Exception as e:
+                        self.logger.error(f"Error searching for internal message: {str(e)}")
+                        await self.global_manager.user_interactions_dispatcher.send_message(
+                            event=event,
+                            message=f"An error occurred while searching for an internal message: {str(e)}",
+                            message_type=MessageType.COMMENT,
+                            is_internal=True
+                        )
+                        return response_id, event.channel_id
+
+                # If we didn't find the message within 40 seconds, fall back to the original thread
+                if search_internal_ts is None:
+                    self.logger.warning("Internal message not found after 40 seconds, sending the message in the original thread.")
                 else:
-                    self.logger.info(f"Message not found, retrying in {delay} seconds...")
-                    await asyncio.sleep(delay)  # Sleep for 'delay' seconds
-                    delay = min(delay * 1.5, 9)  # Exponential backoff: increase delay (max 8 seconds)
-                attempt += 1
+                    event_copy.thread_id = search_internal_ts
 
-            # If we didn't find the message within 40 seconds, fall back to the original thread
-            if search_internal_ts is None:
-                self.logger.warning("Internal message not found after 40 seconds, sending the message in the original thread.")
-            else:
-                event_copy.thread_id = search_internal_ts
+            return response_id, self.INTERNAL_CHANNEL
 
-        return response_id, self.INTERNAL_CHANNEL
+        except Exception as e:
+            self.logger.error(f"Exception occurred in handle_internal_message: {str(e)}")
+            await self.global_manager.user_interactions_dispatcher.send_message(
+                event=event,
+                message=f"An error occurred in handle_internal_message: {str(e)}",
+                message_type=MessageType.COMMENT,
+                is_internal=True
+            )
+            return response_id, event.channel_id
 
     def construct_payload(self, channel_id, response_id, message_block, message_type, block_index, total_blocks, title, is_new_message_added):
         payload = {
@@ -528,24 +570,44 @@ class SlackPlugin(UserInteractionsPluginBase):
             await self.wait_for_internal_message(event, event_copy)
 
     async def wait_for_internal_message(self, event, event_copy):
-        start_time = time.time()
-        attempt = 1  # Initialize attempt counter
-        search_internal_ts = None
+        try:
+            start_time = time.time()
+            attempt = 1  # Initialize attempt counter
+            search_internal_ts = None
 
-        while search_internal_ts is None and time.time() - start_time <= 15:
-            self.logger.info(f"Attempt {attempt}: waiting for internal file object to be posted...")
-            search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{event.response_id}")
-            if search_internal_ts:  # If a message was found in the internal thread
-                event_copy.thread_id = search_internal_ts
+            while search_internal_ts is None and time.time() - start_time <= 15:
+                self.logger.info(f"Attempt {attempt}: waiting for internal file object to be posted...")
+                try:
+                    search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{event.response_id}")
+                    if search_internal_ts:  # If a message was found in the internal thread
+                        event_copy.thread_id = search_internal_ts
+                    else:
+                        await asyncio.sleep(3)  # Wait for 3 seconds before trying again
+                    attempt += 1  # Increment attempt counter
+                except Exception as e:
+                    self.logger.error(f"Error searching for internal message in wait_for_internal_message: {str(e)}")
+                    await self.global_manager.user_interactions_dispatcher.send_message(
+                        event=event,
+                        message=f"An error occurred while searching for an internal message in wait_for_internal_message: {str(e)}",
+                        message_type=MessageType.COMMENT,
+                        is_internal=True
+                    )
+                    return
+
+            if search_internal_ts is None:
+                self.logger.warning("Internal message not found after 15 seconds, sending the message in the original thread.")
             else:
-                await asyncio.sleep(3)  # Wait for 3 seconds before trying again
-            attempt += 1  # Increment attempt counter
+                self.logger.info(f"Internal thread found: {search_internal_ts}")
+                event_copy.thread_id = search_internal_ts
 
-        if search_internal_ts is None:
-            self.logger.warning("Internal message not found after 15 seconds, sending the message in the original thread.")
-        else:
-            self.logger.info(f"internal thread found: {search_internal_ts}")
-            event_copy.thread_id = search_internal_ts
+        except Exception as e:
+            self.logger.error(f"Exception occurred in wait_for_internal_message: {str(e)}")
+            await self.global_manager.user_interactions_dispatcher.send_message(
+                event=event,
+                message=f"An error occurred in wait_for_internal_message: {str(e)}",
+                message_type=MessageType.COMMENT,
+                is_internal=True
+            )
 
 
     async def add_reaction(self, event, channel_id, timestamp, reaction_name):
