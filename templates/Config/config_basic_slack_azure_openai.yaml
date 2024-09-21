@@ -20,8 +20,8 @@ BOT_CONFIG:
   LLM_CONVERSION_FORMAT: "json" # Format for LLM conversion (e.g., "json", "xml")
   BREAK_KEYWORD: "!STOP" # Keyword to interrupt an ongoing action
   START_KEYWORD: "!START" # Keyword to start an action
-  ACTIVATE_MESSAGE_QUEUING: True
-  QUEUED_MESSAGE_TTL: 90
+  ACTIVATE_MESSAGE_QUEUING: True # If activated, message mentioning the bot while he is processing a previous message will queue this new message to be processed after the current one. If deactivated, the new message will be ignored.
+  MESSAGE_QUEUING_TTL: 90
 
   # BOT DEFAULT PLUGINS
   ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: "main_actions" # Default plugin for action interactions

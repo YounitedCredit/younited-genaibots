@@ -465,7 +465,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         """
         Checks if there are any older messages in the Azure Blob Storage queue for a given channel and thread.
         """
-        message_ttl = self.global_manager.bot_config.QUEUED_MESSAGE_TTL
+        message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
         current_time = int(time.time())
 
         self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'.")

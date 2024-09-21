@@ -123,7 +123,7 @@ def mock_config_manager(mock_utils, mock_plugins):
             START_KEYWORD="stop",
             LOAD_ACTIONS_FROM_BACKEND = False,
             CLEARQUEUE_KEYWORD= '!CLEARQUEUE',
-            QUEUED_MESSAGE_TTL = 120
+            MESSAGE_QUEUING_TTL = 120
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,

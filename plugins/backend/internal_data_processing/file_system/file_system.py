@@ -471,9 +471,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the queue for a given channel_id and thread_id.
-        Removes any messages older than QUEUED_MESSAGE_TTL seconds.
+        Removes any messages older than MESSAGE_QUEUING_TTL seconds.
         """
-        message_ttl = self.global_manager.bot_config.QUEUED_MESSAGE_TTL
+        message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
 
         self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'")
         try:

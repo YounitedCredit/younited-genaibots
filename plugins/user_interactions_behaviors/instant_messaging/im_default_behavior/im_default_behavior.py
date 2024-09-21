@@ -158,7 +158,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
                     await self.user_interaction_dispatcher.send_message(
                         event=event,
-                        message=f"I'm working on a previous query, wait for max {self.bot_config.QUEUED_MESSAGE_TTL} seconds and try again :-)",
+                        message=f"I'm working on a previous query, wait for max {self.bot_config.MESSAGE_QUEUING_TTL} seconds and try again :-)",
                         message_type=MessageType.COMMENT,
                         is_internal=False
                     )
