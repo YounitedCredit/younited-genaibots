@@ -432,17 +432,28 @@ class SlackPlugin(UserInteractionsPluginBase):
             search_internal_ts = None
             start_time = time.time()
             attempt = 1
+            delay = 1  # Start with a 1-second delay for the exponential backoff
 
             self.logger.info("Waiting for internal message to be posted...")
+
+            # Keep trying until message is found or timeout of 40 seconds
             while search_internal_ts is None and time.time() - start_time <= 40:
                 self.logger.info(f"Attempt {attempt}: waiting for internal message to be posted...")
+
+                # Search for the message
                 search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{response_id}")
+                
+                # If found, break out of the loop
                 if search_internal_ts:
                     response_id = search_internal_ts
+                    self.logger.info(f"Internal message found with timestamp {search_internal_ts}")
                 else:
-                    await asyncio.sleep(3)
+                    self.logger.info(f"Message not found, retrying in {delay} seconds...")
+                    await asyncio.sleep(delay)  # Sleep for 'delay' seconds
+                    delay = min(delay * 1.5, 9)  # Exponential backoff: increase delay (max 8 seconds)
                 attempt += 1
 
+            # If we didn't find the message within 40 seconds, fall back to the original thread
             if search_internal_ts is None:
                 self.logger.warning("Internal message not found after 40 seconds, sending the message in the original thread.")
             else:

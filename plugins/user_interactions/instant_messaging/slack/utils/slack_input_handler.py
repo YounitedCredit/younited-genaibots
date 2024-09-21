@@ -164,7 +164,7 @@ class SlackInputHandler:
         except Exception as ex:
             self.logger.error(f"Error reading request data: {ex}")
 
-    def resize_image(self, image_bytes, max_size):
+    async def resize_image(self, image_bytes, max_size):
         image = Image.open(io.BytesIO(image_bytes))
         if image.mode in ("RGBA", "P"):  # Check if image has transparency
             image = image.convert("RGB")  # Convert image to RGB

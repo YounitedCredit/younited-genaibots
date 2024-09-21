@@ -166,7 +166,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
                 raise
 
-    def append_data(self, container_name: str, data_identifier: str, data: str) -> NoReturn:
+    async def append_data(self, container_name: str, data_identifier: str, data: str) -> NoReturn:
         # Construct the full path to the file
         file_path = os.path.join(self.root_directory, container_name, data_identifier)
 
