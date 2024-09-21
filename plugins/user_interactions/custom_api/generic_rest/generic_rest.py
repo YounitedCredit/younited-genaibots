@@ -242,6 +242,10 @@ class GenericRestPlugin(UserInteractionsPluginBase):
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
         return None    
+    
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str):
+        # NOT IMPLEMENTED YET
+        return None
         
     def get_bot_id(self) -> str:
         return self.rest_config.GENERIC_REST_BOT_ID

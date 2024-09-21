@@ -42,6 +42,7 @@ def test_bot_config():
         "CLEARQUEUE_KEYWORD": "clearqueue",
         "LOAD_ACTIONS_FROM_BACKEND": True,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": False,
+        "ACTIVATE_MESSAGE_QUEUING": False,
         "MESSAGE_QUEUING_TTL" : 120
     }
     bot_config = BotConfig(**valid_data)
