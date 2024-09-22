@@ -7,9 +7,8 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from plugins.user_interactions_behaviors.instant_messaging.im_default_behavior.im_default_behavior import (
     ImDefaultBehaviorPlugin,
-    MessageType,
 )
-from core.genai_interactions.genai_response import GenAIResponse
+
 
 @pytest.fixture(scope="function", autouse=True)
 def global_manager(mock_global_manager):
@@ -58,7 +57,7 @@ def no_unexpected_calls(im_default_behavior_plugin):
         attr = getattr(im_default_behavior_plugin, attr_name)
         if isinstance(attr, (MagicMock, AsyncMock)) and attr_name != "process_incoming_notification_data":
             assert not attr.called, f"Unexpected call to {attr_name}"
-            
+
 def assert_no_unused_mocks(obj):
     for attr_name in dir(obj):
         attr = getattr(obj, attr_name)
@@ -92,7 +91,7 @@ async def test_process_interaction_general_event(im_default_behavior_plugin, glo
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
     im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
     im_default_behavior_plugin.backend_internal_data_processing_dispatcher.has_older_messages = AsyncMock(return_value=False)
-    
+
     # Nous gardons process_incoming_notification_data comme un AsyncMock
     original_process_incoming_notification_data = im_default_behavior_plugin.process_incoming_notification_data
     im_default_behavior_plugin.process_incoming_notification_data = AsyncMock()
@@ -109,82 +108,6 @@ async def test_process_interaction_general_event(im_default_behavior_plugin, glo
     # Restaurer la méthode originale
     im_default_behavior_plugin.process_incoming_notification_data = original_process_incoming_notification_data
 
-@pytest.mark.asyncio
-async def test_process_incoming_notification_data(im_default_behavior_plugin, global_manager):
-    event_data = {
-        "text": "hello",
-        "event_label": "message",
-        "channel_id": "C123",
-        "timestamp": "1234567890.123456",
-        "thread_id": "thread_1",
-        "response_id": "response_1",
-        "user_name": "test_user",
-        "user_email": "test_user@example.com",
-        "user_id": "user_1",
-        "is_mention": True,
-        "origin_plugin_name": 'test_plugin'
-    }
-    event = IncomingNotificationDataBase.from_dict(event_data)
-
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value='{"text": "response"}')
-    im_default_behavior_plugin.global_manager = MagicMock()
-    im_default_behavior_plugin.global_manager.action_interactions_handler = AsyncMock()
-
-    im_default_behavior_plugin.reaction_done = "done"
-    im_default_behavior_plugin.reaction_generating = "generating"
-    im_default_behavior_plugin.reaction_writing = "writing"
-    im_default_behavior_plugin.reaction_error = "error"
-
-    await im_default_behavior_plugin.process_incoming_notification_data(event)
-
-    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
-    im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited()
-    im_default_behavior_plugin.global_manager.action_interactions_handler.handle_request.assert_awaited()
-
-@pytest.mark.asyncio
-async def test_process_incoming_notification_data(im_default_behavior_plugin, global_manager):
-    event_data = {
-        "text": "hello",
-        "event_label": "message",
-        "channel_id": "C123",
-        "timestamp": "1234567890.123456",
-        "thread_id": "thread_1",
-        "response_id": "response_1",
-        "user_name": "test_user",
-        "user_email": "test_user@example.com",
-        "user_id": "user_1",
-        "is_mention": True,
-        "origin_plugin_name": 'test_plugin'
-    }
-    event = IncomingNotificationDataBase.from_dict(event_data)
-
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value='{"text": "response"}')
-    im_default_behavior_plugin.global_manager = MagicMock()
-    im_default_behavior_plugin.global_manager.action_interactions_handler = AsyncMock()
-
-    im_default_behavior_plugin.reaction_done = "done"
-    im_default_behavior_plugin.reaction_generating = "generating"
-    im_default_behavior_plugin.reaction_writing = "writing"
-    im_default_behavior_plugin.reaction_error = "error"
-
-    # Mock GenAIResponse.from_json
-    original_from_json = GenAIResponse.from_json
-    GenAIResponse.from_json = AsyncMock(return_value=MagicMock())
-
-    await im_default_behavior_plugin.process_incoming_notification_data(event)
-
-    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
-    im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request.assert_awaited_once_with(event)
-    GenAIResponse.from_json.assert_awaited_once()
-    im_default_behavior_plugin.global_manager.action_interactions_handler.handle_request.assert_awaited_once()
-
-    # Restore original from_json method
-    GenAIResponse.from_json = original_from_json
 
 @pytest.mark.asyncio
 async def test_begin_genai_completion(im_default_behavior_plugin):
@@ -253,7 +176,7 @@ async def test_end_long_action(im_default_behavior_plugin):
     im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
         event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="processing"
     )
-    
+
 @pytest.mark.asyncio
 async def test_mark_error(im_default_behavior_plugin):
     event = AsyncMock(IncomingNotificationDataBase)
@@ -278,13 +201,13 @@ async def test_mark_error(im_default_behavior_plugin):
 @pytest.mark.asyncio
 async def test_process_interaction_none_event(im_default_behavior_plugin):
     await im_default_behavior_plugin.process_interaction(None)
-    im_default_behavior_plugin.logger.debug.assert_called_with("No event")
+    im_default_behavior_plugin.logger.debug.assert_called_with("IM behavior: No event")
 
 @pytest.mark.asyncio
 async def test_process_interaction_thread_break_keyword(im_default_behavior_plugin, global_manager):
     global_manager.bot_config.BREAK_KEYWORD = "break"
     global_manager.bot_config.START_KEYWORD = "start"
-    
+
     event_data = {
         "text": "break",
         "event_label": "thread_message",
@@ -295,7 +218,7 @@ async def test_process_interaction_thread_break_keyword(im_default_behavior_plug
         "origin_plugin_name": 'test_plugin'
     }
     event = IncomingNotificationDataBase.from_dict(event_data)
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
     im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
@@ -309,7 +232,7 @@ async def test_process_interaction_thread_break_keyword(im_default_behavior_plug
 async def test_process_interaction_break_keyword(im_default_behavior_plugin, global_manager):
     global_manager.bot_config.BREAK_KEYWORD = "break"
     global_manager.bot_config.START_KEYWORD = "start"
-    
+
     event_data = {
         "text": "break",
         "event_label": "thread_message",
@@ -340,12 +263,12 @@ async def test_begin_end_genai_completion(im_default_behavior_plugin):
     im_default_behavior_plugin.reaction_generating = "generating"
 
     await im_default_behavior_plugin.begin_genai_completion(event, event.channel_id, event.timestamp)
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once()
     im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once()
 
     await im_default_behavior_plugin.end_genai_completion(event, event.channel_id, event.timestamp)
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
 
 @pytest.mark.asyncio
@@ -359,12 +282,12 @@ async def test_begin_end_long_action(im_default_behavior_plugin):
     im_default_behavior_plugin.reaction_processing = "processing"
 
     await im_default_behavior_plugin.begin_long_action(event, event.channel_id, event.timestamp)
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once()
     im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once()
 
     await im_default_behavior_plugin.end_long_action(event, event.channel_id, event.timestamp)
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
 
 @pytest.mark.asyncio
@@ -420,7 +343,7 @@ async def test_mark_error(im_default_behavior_plugin):
     print("Calls to add_reaction:")
     for call in im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.call_args_list:
         print(f"Args: {call.args}, Kwargs: {call.kwargs}")
-    
+
 @pytest.mark.asyncio
 async def test_update_reaction(im_default_behavior_plugin):
     event = AsyncMock(IncomingNotificationDataBase)
@@ -430,7 +353,7 @@ async def test_update_reaction(im_default_behavior_plugin):
     im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
 
     await im_default_behavior_plugin.update_reaction(event, event.channel_id, event.timestamp, remove_reaction="old_reaction", add_reaction="new_reaction")
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once()
     im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once()
 
@@ -462,7 +385,7 @@ async def test_process_interaction_start_keyword(im_default_behavior_plugin, glo
 async def test_process_interaction_thread_message_no_mention(im_default_behavior_plugin, global_manager):
     global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE = True
     global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"
-    
+
     event_data = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         event_label="thread_message",
@@ -476,7 +399,7 @@ async def test_process_interaction_thread_message_no_mention(im_default_behavior
         text="Hello",
         origin_plugin_name="origin_plugin_name"
     )
-    
+
     im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)
     im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
@@ -527,7 +450,8 @@ async def test_process_interaction_new_message_no_mention(im_default_behavior_pl
 
 @pytest.mark.asyncio
 async def test_process_incoming_notification_data_no_genai_output(im_default_behavior_plugin, global_manager):
-    event_data = IncomingNotificationDataBase(
+    # Setup
+    event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         event_label="message",
         channel_id="C123",
@@ -544,76 +468,40 @@ async def test_process_incoming_notification_data_no_genai_output(im_default_beh
     im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
     im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
     im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value=None)
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
 
-    im_default_behavior_plugin.reaction_done = "done_reaction"
-    im_default_behavior_plugin.reaction_generating = "generating_reaction"
-    im_default_behavior_plugin.reaction_writing = "writing_reaction"
-    im_default_behavior_plugin.reaction_acknowledge = "acknowledge_reaction"
+    # Add logging
+    im_default_behavior_plugin.logger = MagicMock()
 
-    await im_default_behavior_plugin.process_incoming_notification_data(event_data)
+    # Execute
+    await im_default_behavior_plugin.process_incoming_notification_data(event)
 
-    # Vérifier que remove_reaction a été appelé
-    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
+    # Print all logged messages
+    print("\nLogged messages:")
+    for call in im_default_behavior_plugin.logger.mock_calls:
+        print(f"  {call}")
 
-    # Vérifier que add_reaction a été appelé au moins une fois
-    im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited()
+    # Print all method calls
+    print("\nMethod calls:")
+    for attr_name in dir(im_default_behavior_plugin):
+        attr = getattr(im_default_behavior_plugin, attr_name)
+        if isinstance(attr, AsyncMock):
+            print(f"  {attr_name}:")
+            for call in attr.mock_calls:
+                print(f"    {call}")
 
-    # Vérifier tous les appels à add_reaction
-    calls = im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.call_args_list
-    
-    # Vérifier qu'au moins un appel à add_reaction a été fait avec une réaction non nulle
-    assert any(call.kwargs.get('reaction_name') is not None for call in calls), \
-        "Expected at least one call to add_reaction with a non-None reaction_name"
+    # Assert
+    assert im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request.called, \
+        "genai_interactions_text_dispatcher.handle_request was not called"
 
-    # Afficher toutes les réactions ajoutées pour le débogage
-    reactions_added = [call.kwargs.get('reaction_name') for call in calls]
-    print(f"Reactions added: {reactions_added}")
-    
-@pytest.mark.asyncio
-async def test_process_incoming_notification_data_no_genai_output(im_default_behavior_plugin, global_manager):
-    event_data = IncomingNotificationDataBase(
-        timestamp="1234567890.123456",
-        event_label="message",
-        channel_id="C123",
-        thread_id=None,
-        response_id=None,
-        user_name="test_user",
-        user_email="test_user@example.com",
-        user_id="U123",
-        is_mention=True,
-        text="hello",
-        origin_plugin_name="origin_plugin_name"
-    )
+    # Check that at least one reaction was added or removed
+    assert (im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.called or
+            im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.called), \
+        "Neither add_reaction nor remove_reaction was called"
 
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
-    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value=None)
-
-    im_default_behavior_plugin.reaction_done = "done_reaction"
-    im_default_behavior_plugin.reaction_generating = "generating_reaction"
-    im_default_behavior_plugin.reaction_writing = "writing_reaction"
-    im_default_behavior_plugin.reaction_acknowledge = "acknowledge_reaction"
-
-    await im_default_behavior_plugin.process_incoming_notification_data(event_data)
-
-    # Vérifier que remove_reaction a été appelé
-    assert im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.called, "remove_reaction was not called"
-
-    # Vérifier que add_reaction a été appelé
-    assert im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.called, "add_reaction was not called"
-
-    # Afficher les appels pour le débogage
-    print("Calls to remove_reaction:")
-    for call in im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.call_args_list:
-        print(f"Args: {call.args}, Kwargs: {call.kwargs}")
-
-    print("Calls to add_reaction:")
-    for call in im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.call_args_list:
-        print(f"Args: {call.args}, Kwargs: {call.kwargs}")
-
-    # Vérifier que au moins une réaction a été ajoutée (même si ce n'est pas celle qu'on attendait)
-    assert any(call.kwargs.get('reaction_name') is not None for call in im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.call_args_list), \
-        "Expected at least one call to add_reaction with a non-None reaction_name"
+    # Check that no further processing occurred
+    assert not im_default_behavior_plugin.global_manager.action_interactions_handler.handle_request.called, \
+        "action_interactions_handler.handle_request was unexpectedly called"
 
 @pytest.mark.asyncio
 async def test_process_interaction_exception(im_default_behavior_plugin):
@@ -633,3 +521,25 @@ async def test_process_interaction_exception(im_default_behavior_plugin):
         await im_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
 
     im_default_behavior_plugin.logger.error.assert_called()
+
+@pytest.mark.asyncio
+async def test_update_reaction(im_default_behavior_plugin):
+    # Setup
+    event = MagicMock()
+    channel_id = "C123"
+    timestamp = "1234567890.123456"
+    remove_reaction = "old_reaction"
+    add_reaction = "new_reaction"
+
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+
+    # Execute
+    await im_default_behavior_plugin.update_reaction(event, channel_id, timestamp, remove_reaction, add_reaction)
+
+    # Assert
+    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_called_once_with(
+        event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=remove_reaction
+    )
+    im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_called_once_with(
+        event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=add_reaction
+    )

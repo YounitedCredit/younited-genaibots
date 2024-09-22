@@ -1,8 +1,8 @@
 from abc import abstractmethod
-import time
-from typing import Tuple, Optional
+from typing import List, Optional, Tuple
+
 from core.backend.internal_data_plugin_base import InternalDataPluginBase
-from typing import List
+
 
 class InternalDataProcessingBase(InternalDataPluginBase):
     """
@@ -80,7 +80,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for concatenate data.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def subprompts(self):
@@ -88,7 +88,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for concatenate data.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def custom_actions(self):
@@ -96,7 +96,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for concatenate data.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def messages_queue(self):
@@ -137,7 +137,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :param data: The data to write
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def update_pricing(self, container_name, datafile_name, pricing_data):
         """
@@ -241,7 +241,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :return: True if older messages exist in the queue, False otherwise.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
         """
@@ -252,11 +252,11 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :return: None
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
         """
         Retrieves the contents of all messages for a `channel_id` and `thread_id`.
         Returns a list of message contents.
         """
-        pass
+        raise NotImplementedError

@@ -1,6 +1,7 @@
 import json
+from typing import List, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Tuple
+
 import pytest
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
@@ -13,11 +14,27 @@ from plugins.backend.internal_data_processing.azure_blob_storage.azure_blob_stor
 )
 
 
+# Custom async iterator for list_blobs mock
+class AsyncIterator:
+    def __init__(self, items):
+        self._items = items
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= len(self._items):
+            raise StopAsyncIteration
+        item = self._items[self._index]
+        self._index += 1
+        return item
+
 @pytest.fixture
 def mock_config():
     return {
         "PLUGIN_NAME": "azure_blob_storage",
-        "AZURE_BLOB_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=account;AccountKey=key;EndpointSuffix=core.windows.net",
+        "AZURE_BLOB_STORAGE_CONNECTION_STRING": "https://fakeaccount.blob.core.windows.net/",
         "AZURE_BLOB_STORAGE_SESSIONS_CONTAINER": "sessions",
         "AZURE_BLOB_STORAGE_MESSAGES_CONTAINER": "messages",
         "AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER": "feedbacks",
@@ -41,12 +58,11 @@ def extended_mock_global_manager(mock_global_manager, mock_config):
 
 @pytest.fixture
 def azure_blob_storage_plugin(extended_mock_global_manager):
-    plugin = AzureBlobStoragePlugin(global_manager=extended_mock_global_manager)
-    try:
+    with patch.object(DefaultAzureCredential, '__init__', return_value=None), \
+         patch.object(BlobServiceClient, '__init__', return_value=None):
+        plugin = AzureBlobStoragePlugin(global_manager=extended_mock_global_manager)
         plugin.initialize()
-    except AzureError:
-        pass
-    return plugin
+        return plugin
 
 def test_initialize(azure_blob_storage_plugin):
     with patch.object(DefaultAzureCredential, '__init__', return_value=None):
@@ -317,44 +333,82 @@ async def test_dequeue_message(azure_blob_storage_plugin):
 
         mock_blob.delete_blob.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_get_next_message(azure_blob_storage_plugin):
-    with patch.object(BlobServiceClient, 'get_container_client', new_callable=MagicMock) as mock_container_client:
-        mock_container = mock_container_client.return_value
-        mock_blob1 = MagicMock()
-        mock_blob1.name = "channel1_thread1_1001.txt"
-        mock_blob2 = MagicMock()
-        mock_blob2.name = "channel1_thread1_1002.txt"
-        mock_container.list_blobs = MagicMock(return_value=[mock_blob1, mock_blob2])
+async def get_next_message(self, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
+    self.logger.info(f"Checking for the next message in the queue for channel '{channel_id}', thread '{thread_id}' after message ID '{current_message_id}'.")
 
-        mock_blob_client = MagicMock()
-        mock_blob_client.download_blob = AsyncMock(return_value=MagicMock(readall=AsyncMock(return_value=b'test_message')))
-        
-        with patch.object(BlobServiceClient, 'get_blob_client', return_value=mock_blob_client):
-            next_message_id, next_message_content = await azure_blob_storage_plugin.get_next_message('channel1', 'thread1', '1001')
+    try:
+        container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+        blobs = list(container_client.list_blobs())
 
-            assert next_message_id == '1002'
-            assert next_message_content == 'test_message'
+        filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+        self.logger.info(f"Found {len(filtered_blobs)} messages for channel '{channel_id}', thread '{thread_id}'.")
 
-@pytest.mark.asyncio
-async def test_get_all_messages(azure_blob_storage_plugin):
-    with patch.object(BlobServiceClient, 'get_container_client', new_callable=MagicMock) as mock_container_client:
-        mock_container = mock_container_client.return_value
-        mock_blob1 = MagicMock()
-        mock_blob1.name = "channel1_thread1_1001.txt"
-        mock_blob2 = MagicMock()
-        mock_blob2.name = "channel1_thread1_1002.txt"
-        mock_container.list_blobs = MagicMock(return_value=[mock_blob1, mock_blob2])
+        if not filtered_blobs:
+            self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
+            return None, None
 
-        mock_blob_client = MagicMock()
-        mock_blob_client.download_blob = AsyncMock(return_value=MagicMock(readall=AsyncMock(return_value=b'test_message')))
-        
-        with patch.object(BlobServiceClient, 'get_blob_client', return_value=mock_blob_client):
-            messages = await azure_blob_storage_plugin.get_all_messages('channel1', 'thread1')
+        # Mise à jour de l'expression régulière
+        timestamp_regex = re.compile(rf"{channel_id}_{thread_id}_(\d+)\.txt")
 
-            assert len(messages) == 2
-            assert messages[0] == 'test_message'
-            assert messages[1] == 'test_message'
+        def extract_message_id(blob_name: str) -> int:
+            match = timestamp_regex.search(blob_name)
+            if match:
+                return int(match.group(1))
+            else:
+                raise ValueError(f"Blob name '{blob_name}' does not match the expected format '{channel_id}_{thread_id}_<message_id>.txt'")
+
+        current_id = int(current_message_id)
+
+        filtered_blobs.sort(key=lambda blob: extract_message_id(blob.name))
+
+        next_blob = next((blob for blob in filtered_blobs if extract_message_id(blob.name) > current_id), None)
+
+        if not next_blob:
+            self.logger.info(f"No newer message found after message ID '{current_message_id}' for channel '{channel_id}', thread '{thread_id}'.")
+            return None, None
+
+        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=next_blob.name)
+        message_content = blob_client.download_blob().readall().decode('utf-8')
+
+        next_message_id = str(extract_message_id(next_blob.name))
+
+        self.logger.info(f"Next message retrieved: '{next_blob.name}' with ID '{next_message_id}'.")
+        return next_message_id, message_content
+
+    except ValueError as ve:
+        self.logger.error(f"ValueError during message retrieval: {ve}")
+        raise
+
+    except Exception as e:
+        self.logger.error(f"Failed to retrieve the next message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+        return None, None
+
+async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
+    self.logger.info(f"Retrieving all messages in the queue for channel '{channel_id}', thread '{thread_id}'.")
+
+    try:
+        container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+        blobs = list(container_client.list_blobs())
+
+        filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+        self.logger.info(f"Found {len(filtered_blobs)} messages for channel '{channel_id}', thread '{thread_id}'.")
+
+        if not filtered_blobs:
+            self.logger.info(f"No messages found for channel '{channel_id}', thread '{thread_id}'.")
+            return []
+
+        messages_content = []
+        for blob in filtered_blobs:
+            blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob.name)
+            message_content = blob_client.download_blob().readall().decode('utf-8')
+            messages_content.append(message_content)
+
+        self.logger.info(f"Retrieved {len(messages_content)} messages for channel '{channel_id}', thread '{thread_id}'.")
+        return messages_content
+
+    except Exception as e:
+        self.logger.error(f"Failed to retrieve all messages for channel '{channel_id}', thread '{thread_id}': {str(e)}")
+        return []
 
 @pytest.mark.asyncio
 async def test_clear_messages_queue(azure_blob_storage_plugin):

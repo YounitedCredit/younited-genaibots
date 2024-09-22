@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -11,14 +12,14 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.reaction_base import ReactionBase
-from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
-    UserInteractionsBehaviorsDispatcher,
-)
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
+)
+from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
+    UserInteractionsBehaviorsDispatcher,
 )
 from utils.config_manager.config_model import (
     ActionInteractions,
@@ -167,6 +168,7 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.base_directory = Path('')
     mock_global_manager.available_actions = {}
     mock_global_manager.logger = MagicMock()
+    mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     return mock_global_manager
 

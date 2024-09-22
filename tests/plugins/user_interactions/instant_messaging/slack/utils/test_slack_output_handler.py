@@ -10,7 +10,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.user_interactions.instant_messaging.slack.utils.slack_output_handler import (
     SlackOutputHandler,
 )
-import aiohttp
+
 
 class AsyncContextManagerMock:
     def __init__(self, return_value):

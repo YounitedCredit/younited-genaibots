@@ -4,15 +4,16 @@ import hashlib
 import hmac
 import json
 import time
+import traceback
 from datetime import datetime, timezone
 from typing import List, Optional
 from urllib.parse import parse_qs
 
-import requests
+import aiohttp
 from fastapi import Request
 from pydantic import BaseModel
 from starlette.responses import Response
-import aiohttp
+
 from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
@@ -107,6 +108,7 @@ class SlackPlugin(UserInteractionsPluginBase):
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
+
     async def handle_request(self, request: Request):
         try:
             self.logger.debug(f"request received: {request}")
@@ -185,7 +187,7 @@ class SlackPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.debug("Request discarded")
         except Exception as e:
-            self.logger.error(f"An error occurred while processing user input: {e}")            
+            self.logger.error(f"An error occurred while processing user input: {e}\n{traceback.format_exc()}")
 
     async def handle_valid_request(self, event_data):
         try:
@@ -235,7 +237,6 @@ class SlackPlugin(UserInteractionsPluginBase):
         api_app_id = event_data.get('api_app_id', None)
         app_id = event_data.get('event', {}).get('app_id', None)
         self.logger.debug(f"event_type: {event_type}, ts: {ts}")
-
         if not self._validate_signature(headers, raw_body_str):
             return False
 
@@ -465,7 +466,7 @@ class SlackPlugin(UserInteractionsPluginBase):
                     try:
                         # Search for the message
                         search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{response_id}")
-                        
+
                         # If found, break out of the loop
                         if search_internal_ts:
                             response_id = search_internal_ts
@@ -653,7 +654,7 @@ class SlackPlugin(UserInteractionsPluginBase):
 
             # Use SlackOutputHandler to fetch conversation history
             messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id, thread_id=final_thread_id)
-            
+
             # Convert each message into IncomingNotificationDataBase
             event_data_list = []
             for message in messages:
@@ -668,14 +669,14 @@ class SlackPlugin(UserInteractionsPluginBase):
             return event_data_list
         except Exception as e:
             self.logger.error(f"Error fetching conversation history: {e}")
-            return []   
-        
-    
+            return []
+
+
     async def remove_reaction_from_thread(self, channel_id, thread_id, reaction_name):
         try:
             await self.slack_output_handler.remove_reaction_from_thread(channel_id, thread_id, reaction_name)
         except Exception as e:
             self.logger.error(f"Error removing reaction: {e} in Slack Output Handler remove_reaction")
-    
+
     def get_bot_id(self) -> str:
         return self.slack_config.SLACK_BOT_USER_ID

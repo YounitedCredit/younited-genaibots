@@ -1,13 +1,12 @@
 
 import asyncio
-import json
-import re
-import traceback
-from typing import List
 import datetime
-import yaml
+import json
+import traceback
 from datetime import datetime, timezone
-from decimal import Decimal
+from typing import List
+
+import yaml
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -105,7 +104,7 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while handling message event: {e}")
             raise
-            
+
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Step 1: Retrieve stored message history from the backend
@@ -113,12 +112,12 @@ class ChatInputHandler():
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
             # Preserve the information that messages was empty initially
-            was_messages_empty = not messages            
+            was_messages_empty = not messages
 
             # Step 2: If the user is not the bot, process the conversation history
             if event_data.user_id != "AUTOMATED_RESPONSE":
                 await self.process_conversation_history(event_data, messages)
-            
+
             # Step 3: If messages was initially empty, add the initial system message
             if was_messages_empty:
                 feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
@@ -129,14 +128,14 @@ class ChatInputHandler():
 
                 if general_behavior_content:
                     init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
-                
+
                 # Add the initial system message to messages
                 messages.insert(0, {"role": "system", "content": init_prompt})
-            
+
             # Step 4: Construct the new incoming message based on event_data and append to the message history
             constructed_message = self.construct_message(event_data)
             messages.append(constructed_message)
-            
+
             # Step 5: Generate response based on the updated messages (history + new message)
             return await self.generate_response(event_data, messages)
 
@@ -151,7 +150,7 @@ class ChatInputHandler():
 
     async def process_conversation_history(self, event_data: IncomingNotificationDataBase, messages):
         try:
-            # Fetch and process conversation history 
+            # Fetch and process conversation history
             relevant_events = []
             current_event_timestamp = datetime.fromtimestamp(float(event_data.timestamp), tz=timezone.utc)
 
@@ -176,7 +175,7 @@ class ChatInputHandler():
                         last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
 
                     bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
-                    
+
                     for past_event in conversation_history:
                         try:
                             past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
@@ -190,7 +189,7 @@ class ChatInputHandler():
                         except Exception as e:
                             self.logger.error(f"Error processing past event: {e}")
             except Exception as e:
-                self.logger.error(f"Error getting last user message timestamp: {e}")                
+                self.logger.error(f"Error getting last user message timestamp: {e}")
                 return
 
             # Add the relevant events to the messages
@@ -259,16 +258,16 @@ class ChatInputHandler():
                 user_content_text.append({"type": "text", "text": file_content})
 
         return {"role": "user", "content": user_content_text + user_content_images}
-    
+
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
         completion = None  # Initialize to None
         try:
-            original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp            
+            original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp
             # Process the event
             self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
             await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
                 event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
-            
+
             completion = await self.call_completion(
                 event_data.channel_id, original_msg_ts, messages, event_data)
             await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
@@ -435,7 +434,7 @@ class ChatInputHandler():
             for action in python_dict['response']:
                 if 'value' in action['Action']['Parameters']:
                     value_str = action['Action']['Parameters']['value']
-                    
+
                     # Only process if value_str is a string and formatted as YAML
                     if isinstance(value_str, str) and value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
                         # Remove the markdown code block syntax
@@ -460,7 +459,7 @@ class ChatInputHandler():
                 is_internal=False
             )
             return None
-        
+
     async def calculate_and_update_costs(self, cost_params: GenAICostBase, costs_blob_container_name, blob_name, event:IncomingNotificationDataBase):
         # Initialize total_cost, input_cost, and output_cost to 0
         total_cost = input_cost = output_cost = 0

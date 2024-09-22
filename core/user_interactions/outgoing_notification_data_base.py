@@ -3,8 +3,9 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 
-from .outgoing_notification_event_types import OutgoingNotificationEventTypes
 from .outgoing_notification_content_type import OutgoingNotificationContentType
+from .outgoing_notification_event_types import OutgoingNotificationEventTypes
+
 
 class OutgoingNotificationDataBase:
     """

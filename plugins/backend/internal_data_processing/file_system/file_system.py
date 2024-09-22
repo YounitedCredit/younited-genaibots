@@ -1,19 +1,17 @@
 import inspect
 import json
 import os
-import traceback
-from typing import List, NoReturn
 import re
+import time
+import traceback
+from typing import List, NoReturn, Optional, Tuple
+
 from pydantic import BaseModel
 
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
-import time
-import os
-import json
-from typing import Optional, Tuple
 
 
 class FileSystemConfig(BaseModel):
@@ -107,12 +105,12 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def custom_actions(self):
         # Implement the custom_actions property
         return self.custom_actions_container
-    
+
     @property
     def subprompts(self):
         # Implement the subprompts property
         return self.subprompts_container
-    
+
     @property
     def messages_queue(self):
         # Implement the messages_queue property
@@ -167,18 +165,24 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 raise
 
     async def append_data(self, container_name: str, data_identifier: str, data: str) -> NoReturn:
-        # Construct the full path to the file
+        """
+         Adds data to a specified container file.
+        """
+        # Construire le chemin complet vers le fichier
         file_path = os.path.join(self.root_directory, container_name, data_identifier)
 
         try:
-            # Open the file in append mode
-            with open(file_path, 'a') as file:
-                # Write the data to the file
+            # Ouvrir le fichier en mode 'append' pour ajouter les données à la fin
+            with open(file_path, 'a', encoding='utf-8') as file:
+                # Écrire les données dans le fichier
                 file.write(data)
-            self.logger.info("Data appended to the file.")
+                file.write("\n")  # Ajouter une nouvelle ligne après les données, si nécessaire
+            self.logger.info(f"Data successfully appended to {file_path}.")
         except IOError as e:
-            # Log an error message if an IOError occurs (e.g., if the file could not be opened)
-            self.logger.error(f"Failed to append data to the file: {e}")
+            # Logger une erreur si un problème survient lors de l'ouverture ou de l'écriture
+            self.logger.error(f"Failed to append data to the file {file_path}: {e}")
+            raise e  # Renvoyer l'erreur pour qu'elle puisse être gérée plus haut
+
 
     async def read_data_content(self, data_container, data_file):
         self.logger.debug(f"Reading data content from {data_file} in {data_container}")
@@ -209,7 +213,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception:
             error_traceback = traceback.format_exc()
             self.logger.error(f"Failed to write to file: {str(error_traceback)}")
-    
+
     async def remove_data_content(self, data_container, data_file):
         self.logger.debug(f"Removing data content from {data_file} in {data_container}")
         file_path = os.path.join(self.root_directory, data_container, data_file)
@@ -467,7 +471,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to retrieve all messages for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return []
-        
+
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the queue for a given channel_id and thread_id.
@@ -480,7 +484,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             current_time = int(time.time())
             queue_path = os.path.join(self.root_directory, self.message_queue_container)
             files = os.listdir(queue_path)
-            
+
             # Filter messages for the specific channel_id and thread_id
             filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}")]
             self.logger.info(f"Found {len(filtered_files)} messages for channel '{channel_id}', thread '{thread_id}'.")
@@ -497,7 +501,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                     message_id = file_name.split('_')[-1].split('.')[0]
                     timestamp = float(message_id)  # Ensure message_id is a valid timestamp
                     time_difference = current_time - timestamp
-                    
+
                     if time_difference > message_ttl:
                         self.logger.warning(f"Removed message '{file_name}' from queue as it is older than {message_ttl} seconds.")
                         # Dequeue the message properly by passing channel_id, thread_id, and message_id
@@ -506,10 +510,10 @@ class FileSystemPlugin(InternalDataProcessingBase):
                         updated_files.append(file_name)
                 except ValueError:
                     self.logger.error(f"Invalid message file format: {file_name}, skipping.")
-            
+
             # Return True if there are valid messages left in the queue after removing stale ones
             return len(updated_files) > 0
-        
+
         except Exception as e:
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False

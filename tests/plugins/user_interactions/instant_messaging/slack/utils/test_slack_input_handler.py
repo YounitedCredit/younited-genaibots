@@ -1,22 +1,19 @@
 import base64
 import io
+import zipfile
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-import pytz
-import requests
 from PIL import Image
+
 from plugins.user_interactions.instant_messaging.slack.slack_event_data import (
     SlackEventData,
-)
-from plugins.user_interactions.instant_messaging.slack.utils.slack_block_processor import (
-    SlackBlockProcessor,
 )
 from plugins.user_interactions.instant_messaging.slack.utils.slack_input_handler import (
     SlackInputHandler,
 )
-import zipfile
+
 
 @pytest.fixture
 def slack_config():
@@ -232,15 +229,15 @@ async def test_request_to_notification_data(slack_input_handler, mocker):
     assert result.user_id == "USER_ID"
     assert result.is_mention == False
     assert result.text == "Hello, world!"
-    assert result.origin_plugin_name == "slack_plugin" 
+    assert result.origin_plugin_name == "slack_plugin"
 
 @pytest.mark.asyncio
 async def test_get_user_info_success(mocker, slack_input_handler):
     # Mock the async Slack API client
     mocker.patch.object(slack_input_handler.async_client, 'users_info', return_value={'ok': True, 'user': {'name': 'John Doe', 'profile': {'email': 'john.doe@example.com'}}})
-    
+
     name, email, user_id = await slack_input_handler.get_user_info('USER_ID')
-    
+
     assert name == 'John Doe'
     assert email == 'john.doe@example.com'
     assert user_id == 'USER_ID'
@@ -249,9 +246,9 @@ async def test_get_user_info_success(mocker, slack_input_handler):
 async def test_get_user_info_failure(mocker, slack_input_handler):
     # Mock the async Slack API client to return an error
     mocker.patch.object(slack_input_handler.async_client, 'users_info', return_value={'ok': False, 'error': 'user_not_found'})
-    
+
     name, email, user_id = await slack_input_handler.get_user_info('USER_ID')
-    
+
     assert name == 'Unknown'
     assert email == 'Unknown'
     assert user_id == 'USER_ID'
@@ -260,13 +257,13 @@ async def test_get_user_info_failure(mocker, slack_input_handler):
 async def test_get_user_info_invalid_response(slack_input_handler, mocker):
     mock_response = {'ok': False}
     mocker.patch.object(slack_input_handler.async_client, "users_info", return_value=mock_response)
-    
+
     name, email, user_id = await slack_input_handler.get_user_info("USER123")
-    
+
     assert name == "Unknown"
     assert email == "Unknown"
     assert user_id == "USER123"
-    
+
 @pytest.mark.asyncio
 async def test_handle_text_file_pdf(slack_input_handler, mocker):
     # Créer un PDF minimal valide
@@ -386,9 +383,9 @@ async def test_search_message_in_thread_exception(slack_input_handler, mocker):
 @pytest.mark.asyncio
 async def test_get_message_permalink_and_text_error(slack_input_handler, mocker):
     mocker.patch.object(slack_input_handler.async_client, "chat_getPermalink", return_value={"ok": False, "error": "channel_not_found"})
-    
+
     permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
-    
+
     assert permalink is None
     assert message_text is None
     slack_input_handler.logger.error.assert_called_once_with("Error getting permalink: channel_not_found")
@@ -517,10 +514,10 @@ async def test_request_to_notification_data_with_url(slack_input_handler, mocker
     mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "process_message_event", return_value=("Check this link <https://example.com>", False, "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
-    
+
     # Fix: Return three values instead of two
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john.doe@example.com", "USER_ID"))
-    
+
     mocker.patch.object(slack_input_handler, "determine_event_label_and_thread_id", return_value=("message", "1620834875.000400"))
     mocker.patch.object(slack_input_handler, "is_relevant_message", return_value=True)
     mocker.patch.object(slack_input_handler, "is_message_too_old", return_value=False)
@@ -548,7 +545,7 @@ async def test_request_to_notification_data_with_url(slack_input_handler, mocker
 async def test_extract_info_from_url(slack_input_handler):
     url = "https://example.slack.com/archives/C12345/p1620834875000400"
     channel_id, message_ts, thread_ts, is_thread = await slack_input_handler.extract_info_from_url(url)
-    
+
     assert channel_id == "C12345"
     assert message_ts == "1620834875.000400"
     assert thread_ts is None
@@ -603,7 +600,7 @@ async def test_get_message_permalink_and_text(slack_input_handler, mocker):
     mock_client.chat_getPermalink.return_value = {"ok": True, "permalink": "https://example.slack.com/archives/C12345/p1620834875000400"}
     mock_client.conversations_history.return_value = {"ok": True, "messages": [{"text": "Test message", "user": "U12345"}]}
     mock_client.users_info.return_value = {"ok": True, "user": {"name": "John Doe"}}
-    
+
     slack_input_handler.async_client = mock_client
 
     permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
@@ -616,7 +613,7 @@ async def test_get_message_permalink_and_text_app(slack_input_handler, mocker):
     mock_client = mocker.AsyncMock()
     mock_client.chat_getPermalink.return_value = {"ok": True, "permalink": "https://example.slack.com/archives/C12345/p1620834875000400"}
     mock_client.conversations_history.return_value = {"ok": True, "messages": [{"text": "App message", "username": "App Name"}]}
-    
+
     slack_input_handler.async_client = mock_client
 
     permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
@@ -629,7 +626,7 @@ async def test_get_message_permalink_and_text_api_app(slack_input_handler, mocke
     mock_client = mocker.AsyncMock()
     mock_client.chat_getPermalink.return_value = {"ok": True, "permalink": "https://example.slack.com/archives/C12345/p1620834875000400"}
     mock_client.conversations_history.return_value = {"ok": True, "messages": [{"text": "API App message", "username": "API App Name"}]}
-    
+
     slack_input_handler.async_client = mock_client
 
     permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
@@ -682,7 +679,7 @@ async def test_get_message_permalink_and_text_non_threaded(slack_input_handler, 
     mock_client.chat_getPermalink.return_value = {"ok": True, "permalink": "https://example.slack.com/archives/C12345/p1620834875000400"}
     mock_client.conversations_history.return_value = {"ok": True, "messages": [{"text": "Non-threaded message", "user": "U12345"}]}
     mock_client.users_info.return_value = {"ok": True, "user": {"name": "John Doe"}}
-    
+
     slack_input_handler.async_client = mock_client
 
     permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
@@ -694,7 +691,7 @@ async def test_get_message_permalink_and_text_non_threaded(slack_input_handler, 
 async def test_get_message_permalink_and_text_api_error(slack_input_handler, mocker):
     mock_client = mocker.AsyncMock()
     mock_client.chat_getPermalink.return_value = {"ok": False, "error": "channel_not_found"}
-    
+
     slack_input_handler.async_client = mock_client
 
     permalink, message_text = await slack_input_handler.get_message_permalink_and_text("C12345", "1620834875.000400")
@@ -786,13 +783,13 @@ async def test_get_message_content_api_error(slack_input_handler, mocker):
 async def test_fetch_message_data_success(slack_input_handler, mocker):
     # Mock the response to simulate a successful HTTP request
     mock_response_data = {"ok": True, "messages": [{"text": "Test message"}]}
-    
+
     # Patch the _fetch_message_data method to return the mocked response
     mocker.patch.object(slack_input_handler, '_fetch_message_data', return_value=mock_response_data)
-    
+
     # Call the method under test
     result = await slack_input_handler._fetch_message_data("C12345", "1620834875.000400", "message")
-    
+
     # Assert that the result matches the expected mocked data
     assert result == {"ok": True, "messages": [{"text": "Test message"}]}
 
@@ -800,8 +797,8 @@ async def test_fetch_message_data_success(slack_input_handler, mocker):
 async def test_fetch_message_data_http_error(slack_input_handler, mocker):
     # Mock the method to raise a ValueError instead of returning the response
     mocker.patch.object(
-        slack_input_handler, 
-        '_fetch_message_data', 
+        slack_input_handler,
+        '_fetch_message_data',
         side_effect=ValueError("Failed to retrieve message from Slack API: server_error")
     )
 
@@ -813,8 +810,8 @@ async def test_fetch_message_data_http_error(slack_input_handler, mocker):
 async def test_fetch_message_data_api_error(slack_input_handler, mocker):
     # Mock the method to raise a ValueError instead of returning the response
     mocker.patch.object(
-        slack_input_handler, 
-        '_fetch_message_data', 
+        slack_input_handler,
+        '_fetch_message_data',
         side_effect=ValueError("Failed to retrieve message from Slack API: channel_not_found")
     )
 
@@ -825,7 +822,7 @@ async def test_fetch_message_data_api_error(slack_input_handler, mocker):
 def test_build_api_params(slack_input_handler):
     # Build API params for a regular message
     params = slack_input_handler._build_api_params("C12345", "1620834875.000400", "message")
-    
+
     # Adjust expected values to ensure consistency with the method's return values
     assert params == {
         'channel': "C12345",
@@ -836,7 +833,7 @@ def test_build_api_params(slack_input_handler):
 
     # Build API params for a threaded message
     params_reply = slack_input_handler._build_api_params("C12345", "1620834875.000400", "thread")
-    
+
     # Adjust the expected 'limit' to be an integer, matching the actual return type
     assert params_reply == {
         'channel': "C12345",
@@ -895,9 +892,9 @@ async def test_extract_files_from_zip(slack_input_handler, mocker):
         zip_file.writestr('image.png', b'fake image data')
 
     mocker.patch.object(slack_input_handler, "handle_image_file", return_value="base64_image_data")
-    
+
     all_files_content, zip_images = await slack_input_handler.extract_files_from_zip(zip_content.getvalue())
-    
+
     assert len(all_files_content) == 1
     assert "Hello, world!" in all_files_content[0]
     assert len(zip_images) == 1
@@ -994,7 +991,7 @@ async def test_extract_files_from_zip_with_pdf(slack_input_handler, mocker):
     mock_handle_text_file = mocker.patch.object(slack_input_handler, "handle_text_file", return_value=["PDF content"])
 
     all_files_content, zip_images = await slack_input_handler.extract_files_from_zip(zip_content.getvalue())
-    
+
     assert len(all_files_content) == 1
     assert all_files_content[0] == "PDF content"
     assert len(zip_images) == 0
@@ -1023,7 +1020,7 @@ async def test_get_message_content_with_blocks(slack_input_handler, mocker):
             }
         ]
     }
-    
+
     slack_input_handler.async_client = mock_client
 
     # Mock the Slack token to prevent the invalid_auth error
@@ -1125,7 +1122,7 @@ async def test_process_text(slack_input_handler, mocker):
     mocker.patch.object(slack_input_handler, "_process_urls", return_value="Processed URLs")
 
     result = await slack_input_handler._process_text("Original text", "1620834875.000400", "USER_ID")
-    
+
     assert result == "Processed URLs"
     slack_input_handler._process_slack_links.assert_called_once_with("Original text", "1620834875.000400", "USER_ID")
     slack_input_handler._process_urls.assert_called_once_with("Processed Slack links")
@@ -1165,7 +1162,7 @@ async def test_process_slack_links(slack_input_handler, mocker):
 async def test_process_single_slack_link(slack_input_handler, mocker):
     # Mock extract_info_from_url to simulate extracting info from the URL
     mocker.patch.object(slack_input_handler, "extract_info_from_url", return_value=("C12345", "1620834875.000300", None, False))
-    
+
     # Mock get_message_content to return message content with metadata, including 'source_link'
     mocker.patch.object(slack_input_handler, "get_message_content", return_value={
         "metadata": {
@@ -1179,7 +1176,7 @@ async def test_process_single_slack_link(slack_input_handler, mocker):
 
     # Mock format_slack_timestamp to return a formatted timestamp
     mocker.patch.object(slack_input_handler, "format_slack_timestamp", return_value="2021-05-12 19:41:15")
-    
+
     # Mock get_user_info to return user details
     mocker.patch.object(slack_input_handler, "get_user_info", return_value=("John Doe", "john@example.com", "U12345"))
 
@@ -1200,7 +1197,7 @@ async def test_process_urls(slack_input_handler, mocker):
 
     text_with_url = "Check this <https://example.com>"
     result = await slack_input_handler._process_urls(text_with_url)
-    
+
     assert "Check this <https://example.com>" in result
     assert "Processed URL content" in result
 
@@ -1212,7 +1209,7 @@ async def test_process_single_url(slack_input_handler, mocker):
 
     url = "https://example.com"
     result = await slack_input_handler._process_single_url(url)
-    
+
     assert "Example content" in result
 
 @pytest.mark.asyncio
@@ -1234,7 +1231,7 @@ async def test_create_event_data_instance(slack_input_handler, mocker):
         base64_images=[],
         files_content=[]
     )
-    
+
     assert isinstance(result, SlackEventData)
     assert result.timestamp == "1620834875.000400"
     assert result.user_name == "John Doe"

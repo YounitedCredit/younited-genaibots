@@ -1,6 +1,7 @@
-import os
-from unittest.mock import AsyncMock, mock_open, patch
 import json
+import os
+from unittest.mock import AsyncMock, call, mock_open, patch
+
 import pytest
 
 from core.backend.pricing_data import PricingData
@@ -84,13 +85,25 @@ def test_init_shares(mock_makedirs, file_system_plugin):
     file_system_plugin.init_shares()
     assert mock_makedirs.call_count == 11
 
-@pytest.mark.asyncio
-async def test_append_data(file_system_plugin):
+
+pytest.mark.asyncio
+async def test_append_data(file_system_plugin, mocker):
+    # Simule l'ouverture du fichier en mode append ('a')
     m = mock_open()
+
+    # Patch 'os.path.join' pour s'assurer qu'il renvoie un chemin cohérent
+    mocker.patch("os.path.join", return_value="/mocked/root/container/file")
+
+    # Patch 'open' pour utiliser notre mock_open
     with patch("builtins.open", m):
-        file_system_plugin.append_data('container', 'file', 'data')
-        m.assert_called_once_with(os.path.join(file_system_plugin.root_directory, 'container', 'file'), 'a')
-        m().write.assert_called_once_with('data')
+        # Appel à la méthode append_data avec les nouvelles données
+        await file_system_plugin.append_data('container', 'file', 'data')
+
+        # Vérifie que le fichier est bien ouvert en mode append ('a')
+        m.assert_called_once_with("/mocked/root/container/file", 'a', encoding='utf-8')
+
+        # Vérifie que les données ont bien été écrites dans le fichier en deux appels
+        m().write.assert_has_calls([call('data'), call('\n')])
 
 @pytest.mark.asyncio
 async def test_update_pricing(file_system_plugin):
@@ -151,7 +164,7 @@ async def test_update_session_new_file(file_system_plugin):
 async def test_update_session_existing_file(file_system_plugin):
     # Mocking the open function to simulate reading an existing file and writing to it
     m = mock_open(read_data='[{"role": "system", "content": "existing_content"}]')
-    
+
     # List to capture written data
     written_data = []
 

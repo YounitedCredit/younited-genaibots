@@ -1,5 +1,7 @@
-from typing import List, Dict, Optional, Tuple
+from typing import Optional, Tuple
+
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
+
 
 class MockInternalDataProcessing(InternalDataProcessingBase):
     def __init__(self):

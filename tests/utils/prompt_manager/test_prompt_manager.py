@@ -56,7 +56,7 @@ async def test_get_sub_prompt(mock_global_manager_with_dispatcher):
 
     # Create an instance of the PromptManager
     prompt_manager = PromptManager(mock_global_manager_with_dispatcher)
-    
+
     message_type = 'test_message'
 
     # Call the get_sub_prompt method

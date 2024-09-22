@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple
 
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 
+
 class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
@@ -17,8 +18,8 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
             return
 
         self.plugins = plugins
-        self.default_plugin = plugins[0]
-        self.default_plugin_name = self.default_plugin.plugin_name
+        self.default_plugin_name = self.global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME
+        self.default_plugin = self.get_plugin(self.default_plugin_name)
 
     def get_plugin(self, plugin_name = None):
         if plugin_name is None:
@@ -88,18 +89,18 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def vectors(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.vectors
-    
+
     @property
     def subprompts(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.subprompts
-    
+
     @property
     def custom_actions(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.custom_actions
 
-    @property 
+    @property
     def messages_queue(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.messages_queue
@@ -114,7 +115,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
 
     async def write_data_content(self, data_container, data_file, data, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
-        await plugin.write_data_content(data_container= data_container, data_file= data_file, data= data)   
+        await plugin.write_data_content(data_container= data_container, data_file= data_file, data= data)
 
     async def update_pricing(self, container_name, datafile_name, pricing_data, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
@@ -135,7 +136,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     async def list_container_files(self, container_name, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.list_container_files(container_name= container_name)
-    
+
     async def enqueue_message(self, channel_id: str, thread_id: str, message_id :str, message: str, plugin_name: Optional[str] = None) -> None:
         """
         Adds a message to the queue for a given channel and thread.
@@ -168,7 +169,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Checking for older messages in {channel_id}_{thread_id} through {plugin.plugin_name}.")
         return await plugin.has_older_messages(channel_id=channel_id, thread_id=thread_id)
-    
+
     async def clear_messages_queue(self, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> None:
         """
         Clears all messages in the queue for a given channel and thread.
@@ -185,3 +186,14 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Retrieving all messages for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
         return await plugin.get_all_messages(channel_id=channel_id, thread_id=thread_id)
+
+    def get_plugin(self, plugin_name = None):
+        if plugin_name is None:
+            return self.default_plugin
+
+        for plugin in self.plugins:
+            if plugin.plugin_name == plugin_name:
+                return plugin
+
+        self.logger.error(f"BackendInternalDataProcessingDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
+        return self.default_plugin

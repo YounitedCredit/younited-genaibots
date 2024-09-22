@@ -2,8 +2,8 @@ import json
 import re
 import traceback
 from typing import List
+
 import aiohttp
-import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -240,11 +240,11 @@ class SlackOutputHandler:
         try:
             # Step 1: Fetch the conversation history
             messages = await self.fetch_conversation_history(channel_id, thread_id)
-            
+
             if not messages:
                 self.logger.info(f"No messages found in thread: {thread_id}")
                 return
-            
+
             # Step 2: Loop through messages to find the ones with the desired reaction
             for message in messages:
                 if 'reactions' in message:

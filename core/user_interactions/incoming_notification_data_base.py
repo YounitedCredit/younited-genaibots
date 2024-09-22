@@ -1,5 +1,6 @@
-from typing import List, Dict, Optional
 import json
+from typing import Dict, List, Optional
+
 
 class IncomingNotificationDataBase:
     """
@@ -122,7 +123,7 @@ class IncomingNotificationDataBase:
             files_content=data.get('files_content', []),
             raw_data=data.get('raw_data')
         )
-    
+
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
 

@@ -38,10 +38,10 @@ def test_outgoing_notification_data_base_initialization(sample_data):
     # Créer l'objet en utilisant les bons types pour event_type et message_type
     sample_data['event_type'] = OutgoingNotificationEventTypes.MESSAGE  # Utiliser l'enum directement
     sample_data['message_type'] = OutgoingNotificationContentType.TEXT  # Utiliser l'enum directement
-    
+
     # Test initialization of OutgoingNotificationDataBase
     notification = OutgoingNotificationDataBase(**sample_data)
-    
+
     # Assertions pour vérifier que chaque champ est correctement initialisé
     assert notification.timestamp == sample_data['timestamp']
     assert notification.event_type == sample_data['event_type']
@@ -67,7 +67,7 @@ def test_outgoing_notification_data_base_to_dict(sample_data):
     # Test conversion of OutgoingNotificationDataBase to dictionary
     notification = OutgoingNotificationDataBase(**sample_data)
     notification_dict = notification.to_dict()
-    
+
     expected_dict = {
         'timestamp': sample_data['timestamp'],
         'event_type': sample_data['event_type'].name,  # Conversion en nom
@@ -87,7 +87,7 @@ def test_outgoing_notification_data_base_to_dict(sample_data):
         'reaction_name': sample_data['reaction_name'],
         'is_internal': sample_data['is_internal']  # Ajouter le nouvel attribut
     }
-    
+
     assert notification_dict == expected_dict
 
 
@@ -112,9 +112,9 @@ def test_outgoing_notification_data_base_from_dict(sample_data):
         'reaction_name': sample_data['reaction_name'],
         'is_internal': sample_data['is_internal']  # Ajouter le nouvel attribut
     }
-    
+
     notification = OutgoingNotificationDataBase.from_dict(sample_dict)
-    
+
     assert notification.timestamp == sample_data['timestamp']
     assert notification.event_type == sample_data['event_type']
     assert notification.channel_id == sample_data['channel_id']

@@ -1,20 +1,21 @@
 import inspect
 import json
+import logging
 import os
 import re
-import traceback
-from typing import List
-from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient, BlobClient
-from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from pydantic import BaseModel
 import time
+import traceback
+from typing import List, Optional, Tuple
+
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+from pydantic import BaseModel
+
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 from core.backend.pricing_data import PricingData
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from typing import Optional, Tuple
-import logging
 
 AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
 
@@ -37,6 +38,7 @@ class AzureBlobStorageConfig(BaseModel):
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
         self.logger =global_manager.logger
+
         super().__init__(global_manager)
         self.initialization_failed = False
         self.plugin_manager : PluginManager = global_manager.plugin_manager
@@ -45,14 +47,13 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
         self.plugin_name = None
 
-        # Reduce log level for specific libraries
-        logging.getLogger("http.client").setLevel(logging.WARNING)
-        logging.getLogger("azure").setLevel(logging.WARNING)
-        logging.getLogger("opentelemetry").setLevel(logging.WARNING)
-        logging.getLogger("requests").setLevel(logging.WARNING)
-        logging.getLogger("urllib3").setLevel(logging.WARNING)
-
     def initialize(self):
+        # Configure logging for Azure SDK and specific policies
+        logging.getLogger("http.client").setLevel(self.logger.level)  # HTTP client logs
+        logging.getLogger("azure").setLevel(self.logger.level)  # Azure SDK logs
+        logging.getLogger("azure.storage.blob").setLevel(self.logger.level)  # Azure Blob Storage logs
+        logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING) # Detailed HTTP logs
+
         self.logger.debug("Initializing Azure Blob Storage connection")
         self.connection_string = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
         self.sessions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
@@ -66,7 +67,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
         self.subprompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER
         self.messages_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
-        self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME        
+        self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
             credential = DefaultAzureCredential()
@@ -135,12 +136,12 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def subprompts(self):
         # Implement the subprompts property
         return self.subprompts_container
-    
+
     @property
     def messages_queue(self):
         # Implement the blob_messages_queue property
         return self.messages_queue_container
-    
+
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
@@ -165,7 +166,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.subprompts_container,
             self.messages_queue_container
         ]
-        
+
         for container in container_names:
             try:
                 container_client = self.blob_service_client.get_container_client(container)
@@ -364,7 +365,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(f"An error occurred while updating prompt system message: {str(e)}")
             self.logger.error(traceback.format_exc())
             return
-        
+
     async def enqueue_message(self, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
         """
         Adds a message to the Azure Blob Storage queue.
@@ -501,8 +502,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the Azure Blob Storage queue for a given channel and thread.
-        """        
-        
+        """
+
         message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
         current_time = int(time.time())
 

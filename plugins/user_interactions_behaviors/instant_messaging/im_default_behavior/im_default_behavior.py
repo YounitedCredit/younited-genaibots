@@ -10,9 +10,6 @@ from core.user_interactions.message_type import MessageType
 from core.user_interactions_behaviors.user_interactions_behavior_base import (
     UserInteractionsBehaviorBase,
 )
-from core.user_interactions.user_interactions_plugin_base import (
-    UserInteractionsPluginBase,
-)
 from utils.config_manager.config_model import BotConfig
 
 
@@ -23,7 +20,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         if not isinstance(global_manager, GlobalManager):
             raise TypeError("global_manager must be an instance of GlobalManager")
 
-        self.global_manager : GlobalManager = global_manager        
+        self.global_manager : GlobalManager = global_manager
         self.logger = global_manager.logger
         bot_config_dict = global_manager.config_manager.config_model.BOT_CONFIG
         self.bot_config : BotConfig = bot_config_dict
@@ -35,7 +32,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
     def initialize(self):
         #Dispatchers
-        self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher        
+        self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
@@ -82,7 +79,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.reaction_generating = self.user_interaction_dispatcher.reactions.GENERATING
             self.reaction_writing = self.user_interaction_dispatcher.reactions.WRITING
             self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
-            self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT    
+            self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
             self.abort_container = self.backend_internal_data_processing_dispatcher.abort
 
             break_keyword = self.global_manager.bot_config.BREAK_KEYWORD
@@ -108,7 +105,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 elif clear_keyword in event.text:
                     self.logger.info(f"IM behavior: Clear keyword detected in thread message, invoking clearing queue for {channel_id} {thread_id}.")
                     messages_in_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(channel_id=event.channel_id, thread_id=event.thread_id)
-                    
+
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=True, show_ref=False)
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=False, show_ref=False)
 
@@ -116,10 +113,10 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     for message in messages_in_queue:
                         event_to_process = IncomingNotificationDataBase.from_json(message)
                         await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=event.channel_id,timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
-                    return            
+                    return
 
             # Check if the event should be processed based on the configuration
-            if event.event_label == "thread_message" and not event.is_mention and require_mention_thread_message:                
+            if event.event_label == "thread_message" and not event.is_mention and require_mention_thread_message:
                 self.logger.info(
                     "IM behavior: Event is a threaded message without mention and the bot configuration "
                     f"requires mentions for thread messages REQUIRE_MENTION_THREAD_MESSAGE: "
@@ -140,7 +137,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"IM behavior: Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
-            if await self.backend_internal_data_processing_dispatcher.has_older_messages(channel_id=event.channel_id, thread_id=event.thread_id):                
+            if await self.backend_internal_data_processing_dispatcher.has_older_messages(channel_id=event.channel_id, thread_id=event.thread_id):
                 # check if the activate_message_queuing is enabled
                 if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
                     event_json = event.to_json()
@@ -153,7 +150,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.info(f"IM behavior: Message from channel {event.channel_id} enqueued due to pending messages.")
                     if event.event_label == "message":
                         self.logger.warning(f"IM behavior: Message from channel {event.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False but this is the main thread message.")
-                    else:  
+                    else:
                         await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
 
                     return
@@ -167,15 +164,15 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         is_internal=False
                     )
                     return
-            
+
             # Enqueue this message for processing
             self.logger.info(f"IM behavior: No pending messages found. Enqueuing current message for processing in channel '{event.channel_id}', thread '{event.thread_id}'")
-            
+
             await self.backend_internal_data_processing_dispatcher.enqueue_message(
                 channel_id=event.channel_id,
                 thread_id=event.thread_id,
                 message_id=event.timestamp,
-                message=event.to_json()  
+                message=event.to_json()
             )
 
             # remove the potential waiting reaction and acknowledge the message
@@ -195,7 +192,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Process the incoming notification data
             await self.process_incoming_notification_data(event)
 
-            
+
         except Exception as e:
             self.logger.error(f"IM behavior: Error processing incoming request: {str(e)}")
             self.logger.error(traceback.format_exc())
@@ -204,7 +201,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             raise
 
         finally:
-            
+
             end_time = time.time()  # Stop the timer
             elapsed_time = end_time - start_time  # Calculate elapsed time
             self.logger.info(f"IM behavior: process_interaction in instant messaging default behavior took {elapsed_time} seconds.")
@@ -215,6 +212,16 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             channel_id = event.channel_id
             timestamp = event.timestamp
             # Clearup misleading residual reactions
+            # Reactions for the bot to use in the chat
+
+            self.reaction_processing = self.user_interaction_dispatcher.reactions.PROCESSING
+            self.reaction_done = self.user_interaction_dispatcher.reactions.DONE
+            self.reaction_acknowledge = self.user_interaction_dispatcher.reactions.ACKNOWLEDGE
+            self.reaction_generating = self.user_interaction_dispatcher.reactions.GENERATING
+            self.reaction_writing = self.user_interaction_dispatcher.reactions.WRITING
+            self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
+            self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
+
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
 
@@ -258,7 +265,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
             # After processing, check if there are any pending messages in the queue and process them
             await self.backend_internal_data_processing_dispatcher.dequeue_message(message_id=event.timestamp, channel_id=event.channel_id, thread_id=event.thread_id)
-            
+
             # Remove the "wait" reaction from the thread if message queuing is disabled or the current message is the last message in the queue
             if self.bot_config.ACTIVATE_MESSAGE_QUEUING == False:
                 self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")

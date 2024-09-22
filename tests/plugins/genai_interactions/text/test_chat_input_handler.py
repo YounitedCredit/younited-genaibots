@@ -1,7 +1,7 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone
 
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
@@ -10,6 +10,7 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
+
 
 @pytest.fixture
 def mock_chat_plugin():
@@ -81,7 +82,7 @@ async def handle_thread_message_event(self, event_data: IncomingNotificationData
         blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
         sessions = self.backend_internal_data_processing_dispatcher.sessions
         messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
-        was_messages_empty = not messages            
+        was_messages_empty = not messages
 
         # Step 2: Process the conversation history if needed
         if event_data.user_id != "AUTOMATED_RESPONSE":
@@ -266,7 +267,7 @@ async def test_call_completion_success(chat_input_handler, incoming_notification
 async def test_call_completion_failure(chat_input_handler, incoming_notification):
     # Test the call_completion method when an exception occurs
     mock_messages = [{"role": "user", "content": "test message"}]
-    
+
     # Mock the generate_completion method to raise an exception
     chat_input_handler.chat_plugin.generate_completion = AsyncMock(side_effect=Exception("Mocked exception"))
 
@@ -366,9 +367,9 @@ async def test_filter_messages_with_images(chat_input_handler):
             {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,abc"}}
         ]}
     ]
-    
+
     filtered_messages = await chat_input_handler.filter_messages(messages)
-    
+
     # Assert that the image is removed and only the text remains
     assert len(filtered_messages[0]["content"]) == 1
     assert filtered_messages[0]["content"][0]["type"] == "text"
@@ -378,11 +379,11 @@ async def test_filter_messages_with_images(chat_input_handler):
 async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
     # Mock the methods
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
-    
+
     with patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt:
         # Call the method
         result = await chat_input_handler.handle_thread_message_event(incoming_notification)
-        
+
         # Ensure the result is None when there are no messages
         assert result is None
 
@@ -397,7 +398,7 @@ async def test_calculate_and_update_costs(chat_input_handler, incoming_notificat
     total_cost, input_cost, output_cost = await chat_input_handler.calculate_and_update_costs(
         cost_params, "costs_container", "blob_name", incoming_notification
     )
-    
+
     assert total_cost == 0.025  # (500/1000) * 0.02 + (500/1000) * 0.03
     assert input_cost == 0.01  # (500/1000) * 0.02
     assert output_cost == 0.015  # (500/1000) * 0.03
@@ -484,6 +485,6 @@ async def test_handle_completion_errors(chat_input_handler, incoming_notificatio
 
     with patch.object(chat_input_handler.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message:
         await chat_input_handler.handle_completion_errors(incoming_notification, exception)
-        
+
         mock_send_message.assert_called()
         assert "Test error" in mock_send_message.call_args[1]['message']

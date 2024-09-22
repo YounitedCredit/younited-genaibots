@@ -17,6 +17,7 @@ from utils.config_manager.config_model import (
     Utils,
 )
 
+
 def test_bot_config():
     # Test valid BotConfig
     valid_data = {

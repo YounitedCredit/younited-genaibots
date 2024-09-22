@@ -5,7 +5,6 @@ import os
 import re
 import zipfile
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 import aiohttp
 import requests
@@ -545,7 +544,7 @@ class SlackInputHandler:
                 self.logger.error(f"An error occurred while trying to get {url}: {e}")
                 return f"An error occurred while trying to get {url}:\n"
 
-    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):        
+    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):
         user_name, user_email, _ = await self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
 
@@ -693,7 +692,7 @@ class SlackInputHandler:
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}")
             return None
-        
+
     async def _fetch_message_data(self, channel_id, message_ts, message_type):
         params = self._build_api_params(channel_id, message_ts, message_type)
         headers = {'Authorization': f'Bearer {self.SLACK_BOT_USER_TOKEN}'}
@@ -752,7 +751,7 @@ class SlackInputHandler:
         # Format the datetime object to a readable string
         formatted_time = utc_dt.strftime('%Y-%m-%d %H:%M:%S')
         return formatted_time
-    
+
     async def _format_message_content(self, messages):
         formatted_messages = []
         for message in messages:

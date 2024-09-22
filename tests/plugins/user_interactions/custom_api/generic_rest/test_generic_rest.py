@@ -1,3 +1,4 @@
+import json
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,7 +21,7 @@ from plugins.user_interactions.custom_api.generic_rest.generic_rest import (
 from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
     GenericRestReactions,
 )
-import json
+
 
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
@@ -141,7 +142,7 @@ async def test_process_event_data(generic_rest_plugin):
         raw_data=None,
         origin_plugin_name="generic_rest"
     )
-    
+
     headers = {}
     raw_body_str = json.dumps(event_data.to_dict())  # Convert event_data to JSON string
 

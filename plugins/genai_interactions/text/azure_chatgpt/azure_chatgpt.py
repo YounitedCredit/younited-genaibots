@@ -407,9 +407,10 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 # Load the JSON content
                 try:
                     response_dict = json.loads(json_content)
+                    normalized_response_dict = self.normalize_keys(response_dict)
 
                     # Locate the "UserInteraction" action and replace escape sequences
-                    for action in response_dict.get("response", []):
+                    for action in normalized_response_dict.get("response", []):
                         if action["Action"]["ActionName"] == "UserInteraction":
                             value = action["Action"]["Parameters"]["value"]
 
@@ -441,9 +442,10 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error("Task was cancelled")
             raise
         except Exception as e:
-            self.logger.error(f"An unexpected error occurred: {str(e)}")
+            self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
             await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.ERROR, is_internal=True)
             raise  # Re-raise the exception after logging
+
 
     async def trigger_genai(self, event :IncomingNotificationDataBase):
 
@@ -478,9 +480,17 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
 
+    def camel_case(self, snake_str):
+        components = snake_str.split('_')
+        return ''.join(x.title() for x in components)
+
+    def normalize_keys(self, d):
+        if isinstance(d, dict):
+            return {self.camel_case(k): self.normalize_keys(v) for k, v in d.items()}
+        elif isinstance(d, list):
+            return [self.normalize_keys(i) for i in d]
+        else:
+            return d
+
     async def trigger_feedback(self, event: IncomingNotificationDataBase) -> Any:
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
-
-
-class AzureChatgptInputHandler(BaseModel):
-    pass

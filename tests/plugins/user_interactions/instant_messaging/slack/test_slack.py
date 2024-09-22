@@ -7,7 +7,6 @@ import time
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import importlib
 import pytest
 from fastapi import Request
 from pydantic import BaseModel
@@ -20,6 +19,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.user_interactions.instant_messaging.slack.slack import (
     SlackPlugin,
 )
+
 
 class MockResponse:
     def __init__(self, status, json_data):
@@ -587,7 +587,7 @@ async def test_send_message_user(slack_plugin):
         # Call the method
         response = await slack_plugin.send_message(message, event, message_type)
         assert response.get('ok') is True
-        
+
 @pytest.mark.asyncio
 async def test_send_message_app(slack_plugin):
     message = "Hello, world!"

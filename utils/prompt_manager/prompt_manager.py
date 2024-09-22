@@ -1,4 +1,4 @@
-from typing import List, NoReturn
+from typing import List
 
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 from utils.config_manager.config_manager import ConfigManager
