@@ -55,7 +55,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
     @property
     def plugin_name(self):
-        return "file_sytem"
+        return "file_system"
 
     @plugin_name.setter
     def plugin_name(self, value):
