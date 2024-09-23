@@ -135,6 +135,13 @@ class UserInteractionsPluginBase(PluginBase, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str):
+        """
+        Removes a reaction from a thread.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def get_bot_id(self) -> str:
         """
         Get the bot ID.

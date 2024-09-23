@@ -1,3 +1,4 @@
+import json
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,7 +21,7 @@ from plugins.user_interactions.custom_api.generic_rest.generic_rest import (
 from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
     GenericRestReactions,
 )
-import json
+
 
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
@@ -133,7 +134,6 @@ async def test_process_event_data(generic_rest_plugin):
         response_id="1726517091.230556",
         is_mention=False,
         text="test",
-        origin="GenaiBotDebugger",
         user_email="antoine@gmail.com",
         user_id="1",  # Assurez-vous que user_id est une chaîne également
         user_name="antoine@gmail.com",
@@ -142,7 +142,7 @@ async def test_process_event_data(generic_rest_plugin):
         raw_data=None,
         origin_plugin_name="generic_rest"
     )
-    
+
     headers = {}
     raw_body_str = json.dumps(event_data.to_dict())  # Convert event_data to JSON string
 
@@ -233,7 +233,6 @@ async def test_request_to_notification_data(generic_rest_plugin):
         "user_email": "test@example.com",
         "is_mention": False,
         "text": "Hello",
-        "origin": "API",
         "files_content": [],
         "images": [],
         "origin_plugin_name": "plugin_name",

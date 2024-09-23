@@ -90,13 +90,12 @@ async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
                 user_id="user_id",
                 text="user text",
                 timestamp="timestamp",
-                
+
                 event_label="event_label",
                 response_id="response_id",
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin",
                 origin_plugin_name="origin_plugin_name"
             )
 
@@ -150,13 +149,12 @@ async def test_handle_action_with_existing_blob(vertexai_gemini_plugin):
                 user_id="user_id",
                 text="user text",
                 timestamp="timestamp",
-                
+
                 event_label="event_label",
                 response_id="response_id",
                 user_name="user_name",
                 user_email="user_email",
                 is_mention=True,
-                origin="origin",
                 origin_plugin_name="origin_plugin_name"
             )
 

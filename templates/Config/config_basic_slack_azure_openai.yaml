@@ -16,11 +16,12 @@ BOT_CONFIG:
   REQUIRE_MENTION_THREAD_MESSAGE: True # Require bot mention in thread messages to trigger response
   BEGIN_MARKER: "[BEGINIMDETECT]" # Marker indicating the beginning of message detection
   END_MARKER: "[ENDIMDETECT]" # Marker indicating the end of message detection
-  ACKNOWLEDGE_NONPROCESSED_MESSAGE: False # Acknowledge messages that are not processed
   GET_URL_CONTENT: True # Retrieve content from URLs in messages
   LLM_CONVERSION_FORMAT: "json" # Format for LLM conversion (e.g., "json", "xml")
   BREAK_KEYWORD: "!STOP" # Keyword to interrupt an ongoing action
   START_KEYWORD: "!START" # Keyword to start an action
+  ACTIVATE_MESSAGE_QUEUING: True # If activated, message mentioning the bot while he is processing a previous message will queue this new message to be processed after the current one. If deactivated, the new message will be ignored.
+  MESSAGE_QUEUING_TTL: 90
 
   # BOT DEFAULT PLUGINS
   ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: "main_actions" # Default plugin for action interactions
@@ -49,7 +50,6 @@ PLUGINS:
         PLUGIN_NAME: "file_system" # Plugin name for internal data processing via file system
         DIRECTORY: "C:\\GenAI" # Root directory for file system storage
         SESSIONS_CONTAINER: "sessions" # Directory for session data
-        MESSAGES_CONTAINER: "messages" # Directory for message data
         FEEDBACKS_CONTAINER: "feedbacks" # Directory for feedback data
         CONCATENATE_CONTAINER: "concatenate" # Directory for concatenated data
         PROMPTS_CONTAINER: "prompts" # Directory for prompt files

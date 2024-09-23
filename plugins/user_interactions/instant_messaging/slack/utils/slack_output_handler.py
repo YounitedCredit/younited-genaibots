@@ -3,7 +3,7 @@ import re
 import traceback
 from typing import List
 
-import requests
+import aiohttp
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -46,7 +46,9 @@ class SlackOutputHandler:
             elif e.response["error"] == "invalid_name":
                 self.logger.error(f"Invalid reaction name: {reaction}")
             else:
-                self.logger.exception(f"{e.response['error']} channel id {channel_id} timestamp {timestamp}")
+                self.logger.error(f"{e.response['error']} channel id {channel_id} timestamp {timestamp}")
+        except Exception as e:
+            self.logger.error(f"Error adding reaction: {e}")
 
     # Function to remove reaction from a message
     async def remove_reaction(self, channel_id, timestamp, reaction):
@@ -59,22 +61,28 @@ class SlackOutputHandler:
         except SlackApiError as e:
             if e.response["error"] == "no_reaction":
                 self.logger.debug("No reaction to remove. Skipping.")
+            elif e.response["error"] == "message_not_found":
+                self.logger.warning("Message not found. Cannot remove reaction.")
             else:
-                raise e  # Re-raise the exception if it's not 'no_reaction'
+                self.logger.warning(f"Impossible to remove reaction: {e.response['error']} channel id {channel_id} timestamp {timestamp}")
+        except Exception as e:
+            self.logger.error(f"Error removing reaction: {e}")
 
     async def send_slack_message(self, channel_id, response_id, message, message_type=MessageType.TEXT, title=None):
         headers = {'Authorization': f'Bearer {self.slack_bot_token}'}
         payload = {
             'channel': channel_id,
-            'thread_ts': response_id  # Pour répondre dans un thread
+            'thread_ts': response_id  # To reply in a thread
         }
 
+        # Ensure message_type is of correct enum type
         if isinstance(message_type, str):
             try:
                 message_type = MessageType(message_type)
             except ValueError:
                 raise ValueError(f"{message_type} is not a valid MessageType")
 
+        # Build message payload based on type
         if message_type == MessageType.TEXT:
             blocks = [{
                 "type": "section",
@@ -85,14 +93,23 @@ class SlackOutputHandler:
             }]
             payload['blocks'] = json.dumps(blocks)
         elif message_type.value in ["card", "codeblock", "comment", "file"]:
-            # Pour 'card', 'codeblock', 'comment', et 'file', utilisez format_slack_message
             blocks = self.format_slack_message(title, message, message_format=message_type)
             payload['blocks'] = json.dumps(blocks)
         else:
             raise ValueError(f"Invalid message type: {message_type}. Use 'TEXT', 'CARD', 'CODEBLOCK', 'COMMENT', or 'FILE'.")
 
-        response = requests.post('https://slack.com/api/chat.postMessage', headers=headers, json=payload)
-        return response
+        # Use aiohttp for async HTTP request to Slack API
+        async with aiohttp.ClientSession() as session:
+            async with session.post('https://slack.com/api/chat.postMessage', headers=headers, json=payload) as response:
+                if response.status != 200:
+                    self.logger.error(f"Slack API error: {response.status}")
+                    return None
+
+                result = await response.json()  # Asynchronously read the response body
+
+                if not result.get("ok"):
+                    self.logger.error(f"Slack API error: {result.get('error')}")
+                return result
 
     def format_slack_message(self, title, message_text, message_format: MessageType):
         if message_format.value == "text":
@@ -186,7 +203,7 @@ class SlackOutputHandler:
             # Handle exceptions
             error_traceback = traceback.format_exc()
             error_message = f":interrobang: Error uploading file: {str(error_traceback)}"
-            self.logger.exception(f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
+            self.logger.error(f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
             await self.send_slack_message(channel_id, thread_id, error_message)
 
     async def fetch_conversation_history(self, channel_id, thread_id) -> List[IncomingNotificationDataBase]:
@@ -211,3 +228,31 @@ class SlackOutputHandler:
         except Exception as e:
             self.logger.error(f"Error fetching conversation history: {e}")
             return []
+
+    async def remove_reaction_from_thread(self, channel_id, thread_id, emoji_name):
+        """
+        Fetches messages from a Slack thread, checks if they have a specific reaction, and removes that reaction.
+        
+        :param channel_id: ID of the Slack channel
+        :param thread_id: Thread timestamp of the Slack thread
+        :param emoji_name: The name of the emoji reaction to remove
+        """
+        try:
+            # Step 1: Fetch the conversation history
+            messages = await self.fetch_conversation_history(channel_id, thread_id)
+
+            if not messages:
+                self.logger.info(f"No messages found in thread: {thread_id}")
+                return
+
+            # Step 2: Loop through messages to find the ones with the desired reaction
+            for message in messages:
+                if 'reactions' in message:
+                    for reaction in message['reactions']:
+                        if reaction['name'] == emoji_name:
+                            # Step 3: Remove the reaction
+                            self.logger.info(f"Removing reaction '{emoji_name}' from message: {message['ts']}")
+                            await self.remove_reaction(channel_id, message['ts'], emoji_name)
+
+        except Exception as e:
+            self.logger.error(f"Error in remove_reaction_from_thread: {e}")

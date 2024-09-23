@@ -7,10 +7,8 @@ LOAD_ACTIONS_FROM_BACKEND=False  # Whether to load actions from backend storage
 # ====================================================
 # PROMPT CONFIGURATION
 # ====================================================
-PROMPTS_FOLDER="prompts"  # Directory where prompt files are stored
 CORE_PROMPT="core_prompt"  # Filename of the core prompt
 MAIN_PROMPT="main_prompt"  # Filename of the main prompt
-SUBPROMPTS_FOLDER="subprompts"  # Directory for subprompt files
 FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"  # Filename for general feedback behavior
 
 # ====================================================
@@ -18,9 +16,9 @@ FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"  # Filename for general feedback 
 # ====================================================
 REQUIRE_MENTION_NEW_MESSAGE=False  # Require bot mention in new messages to trigger response
 REQUIRE_MENTION_THREAD_MESSAGE=True  # Require bot mention in thread messages to trigger response
-ACKNOWLEDGE_NONPROCESSED_MESSAGE=False  # Acknowledge messages that are not processed
 GET_ALL_THREAD_FROM_MESSAGE_LINKS=True  # Fetch all thread messages from message links
-RECORD_NONPROCESSED_MESSAGE = False # Record messages that are not processed
+ACTIVATE_MESSAGE_QUEUING = True # Activate message queuing, if False, the bot won't treat message until previous message is processed or TTL time is reached
+MESSAGE_QUEUING_TTL = 120 # Time-to-live for queued messages (in seconds)
 
 # ====================================================
 # BOT DEFAULT PLUGINS
@@ -47,7 +45,6 @@ LOCAL_LOGGING_FILE_PATH="C:\\LOGS\\GENAI_BOT.log"  # File path for storing local
 # ====================================================
 FILE_SYSTEM_DIRECTORY="C:\\GenAI"  # Root directory for file system storage
 FILE_SYSTEM_SESSIONS_CONTAINER="sessions"  # Directory for session data
-FILE_SYSTEM_MESSAGES_CONTAINER="messages"  # Directory for message data
 FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"  # Directory for feedback data
 FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"  # Directory for concatenated data
 FILE_SYSTEM_PROMPTS_CONTAINER="prompts"  # Directory for prompt files
@@ -56,6 +53,7 @@ FILE_SYSTEM_PROCESSING_CONTAINER="processing"  # Directory for processing data
 FILE_SYSTEM_ABORT_CONTAINER="abort"  # Directory for aborted operations
 FILE_SYSTEM_VECTORS_CONTAINER="vectors"  # Directory for vector data
 FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"  # Directory for custom action files
+FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER="messages_queue"
 
 # ====================================================
 # BACKEND - Azure Blob Storage
@@ -65,11 +63,12 @@ FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"  # Directory for custom ac
 # AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER="concatenate"  # Blob container for concatenated data
 # AZURE_BLOB_STORAGE_COSTS_CONTAINER="costs"  # Blob container for cost data
 # AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER="feedbacks"  # Blob container for feedback data
-# AZURE_BLOB_STORAGE_MESSAGES_CONTAINER="messages"  # Blob container for messages
 # AZURE_BLOB_STORAGE_PROCESSING_CONTAINER="processing"  # Blob container for processing data
 # AZURE_BLOB_STORAGE_PROMPTS_CONTAINER="prompts"  # Blob container for prompts
 # AZURE_BLOB_STORAGE_SESSIONS_CONTAINER="sessions"  # Blob container for sessions
 # AZURE_BLOB_STORAGE_VECTORS_CONTAINER="vectors"  # Blob container for vector data
+# AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER="custom_actions"  # Blob container for custom action files
+# AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER="messages_queue"
 
 # ====================================================
 # USER INTERACTIONS - INSTANT MESSAGING (SLACK) CONFIGURATION

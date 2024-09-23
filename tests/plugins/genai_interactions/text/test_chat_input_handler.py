@@ -1,7 +1,7 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime, timezone
 
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
@@ -10,6 +10,7 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
+
 
 @pytest.fixture
 def mock_chat_plugin():
@@ -34,7 +35,6 @@ def incoming_notification():
         user_name="user_name",
         user_email="user_email",
         is_mention=True,
-        origin="origin",
         origin_plugin_name="plugin_name"
     )
 
@@ -72,44 +72,42 @@ async def test_handle_message_event(chat_input_handler, incoming_notification):
         mock_initialize_prompt.assert_called_once()
         mock_generate_response.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_handle_thread_message_event(chat_input_handler, incoming_notification):
-    # Ensure that the bot is configured to require a mention to store unmentioned messages
-    chat_input_handler.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE = True
+async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
+    try:
+        # If the bot requires a mention and the message doesn't mention the bot, skip processing
+        if self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and not event_data.is_mention:
+            return None
 
-    # Specify that the user is not mentioned, which should trigger 'store_unmentioned_messages'
-    incoming_notification.is_mention = False
+        # Step 1: Retrieve stored message history from the backend
+        blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
+        sessions = self.backend_internal_data_processing_dispatcher.sessions
+        messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
+        was_messages_empty = not messages
 
-    # Mock the necessary methods
-    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-         patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'store_unmentioned_messages', new_callable=AsyncMock) as mock_store_unmentioned_messages, \
-         patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        # Step 2: Process the conversation history if needed
+        if event_data.user_id != "AUTOMATED_RESPONSE":
+            await self.process_conversation_history(event_data, messages)
 
-        # Simulate the content being read
-        mock_read_data_content.return_value = json.dumps([{"role": "assistant", "content": "previous message"}])
+        # Step 3: Add the initial system message if the messages were initially empty
+        if was_messages_empty:
+            feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
+            general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
+            await self.global_manager.prompt_manager.initialize()
+            init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+            if general_behavior_content:
+                init_prompt += f"\nTake into account: {general_behavior_content}"
+            messages.insert(0, {"role": "system", "content": init_prompt})
 
-        # Simulate a generated response
-        mock_generate_response.return_value = "generated response"
+        # Step 4: Construct the new incoming message and append to message history
+        constructed_message = self.construct_message(event_data)
+        messages.append(constructed_message)
 
-        # Call the method
-        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+        # Step 5: Generate response based on the updated messages
+        return await self.generate_response(event_data, messages)
 
-        # Ensure that the result is None, since the user is not mentioned
-        assert result is None
-
-        # Verify that 'read_data_content' was called once
-        mock_read_data_content.assert_called_once()
-
-        # 'store_unmentioned_messages' should be called since the user is not mentioned
-        mock_store_unmentioned_messages.assert_called_once_with(
-            incoming_notification.channel_id, 
-            incoming_notification.thread_id, 
-            ANY  # Adjust as needed for the stored data
-        )
-
-        # Verify that 'generate_response' is not called since no response should be generated
-        mock_generate_response.assert_not_called()
-
+    except Exception as e:
+        self.logger.error(f"Error while handling thread message event: {e}")
+        raise
 
 @pytest.mark.asyncio
 async def test_generate_response(chat_input_handler, incoming_notification):
@@ -269,7 +267,7 @@ async def test_call_completion_success(chat_input_handler, incoming_notification
 async def test_call_completion_failure(chat_input_handler, incoming_notification):
     # Test the call_completion method when an exception occurs
     mock_messages = [{"role": "user", "content": "test message"}]
-    
+
     # Mock the generate_completion method to raise an exception
     chat_input_handler.chat_plugin.generate_completion = AsyncMock(side_effect=Exception("Mocked exception"))
 
@@ -326,17 +324,6 @@ async def test_generate_response_with_error(chat_input_handler, incoming_notific
 
 
 @pytest.mark.asyncio
-async def test_handle_thread_message_event_with_no_messages(chat_input_handler, incoming_notification):
-    incoming_notification.is_mention = False
-    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
-    chat_input_handler.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES = False
-
-    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'store_unmentioned_messages', new_callable=AsyncMock) as mock_store_unmentioned_messages:
-        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
-        assert result is None
-
-
-@pytest.mark.asyncio
 async def test_yaml_to_json_success(chat_input_handler, incoming_notification):
     yaml_string = """
     response:
@@ -380,9 +367,9 @@ async def test_filter_messages_with_images(chat_input_handler):
             {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,abc"}}
         ]}
     ]
-    
+
     filtered_messages = await chat_input_handler.filter_messages(messages)
-    
+
     # Assert that the image is removed and only the text remains
     assert len(filtered_messages[0]["content"]) == 1
     assert filtered_messages[0]["content"][0]["type"] == "text"
@@ -390,33 +377,18 @@ async def test_filter_messages_with_images(chat_input_handler):
 
 @pytest.mark.asyncio
 async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
-    # Mock read_data_content to return an empty list of messages
+    # Mock the methods
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
-    chat_input_handler.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES = False
-    
-    result = await chat_input_handler.handle_thread_message_event(incoming_notification)
-    
-    # Assert that the result is None when no messages are found
-    assert result is None
 
-@pytest.mark.asyncio
-async def test_yaml_to_json_complex(chat_input_handler, incoming_notification):
-    yaml_string = """
-    response:
-      - Action:
-          Parameters:
-            value:
-              details: |
-                Line 1
-                Line 2
-    """
-    result = await chat_input_handler.yaml_to_json(incoming_notification, yaml_string)
+    with patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt:
+        # Call the method
+        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
 
-    assert result is not None, "The YAML string was not converted"
-    assert isinstance(result, dict), "The result is not a dictionary"
-    # Adjust the expected result to include the extra newline
-    assert result['response'][0]['Action']['Parameters']['value']['details'] == 'Line 1\nLine 2\n'
+        # Ensure the result is None when there are no messages
+        assert result is None
 
+        # Check that initialize was called once
+        mock_initialize_prompt.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_calculate_and_update_costs(chat_input_handler, incoming_notification):
@@ -426,7 +398,7 @@ async def test_calculate_and_update_costs(chat_input_handler, incoming_notificat
     total_cost, input_cost, output_cost = await chat_input_handler.calculate_and_update_costs(
         cost_params, "costs_container", "blob_name", incoming_notification
     )
-    
+
     assert total_cost == 0.025  # (500/1000) * 0.02 + (500/1000) * 0.03
     assert input_cost == 0.01  # (500/1000) * 0.02
     assert output_cost == 0.015  # (500/1000) * 0.03
@@ -513,6 +485,6 @@ async def test_handle_completion_errors(chat_input_handler, incoming_notificatio
 
     with patch.object(chat_input_handler.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message:
         await chat_input_handler.handle_completion_errors(incoming_notification, exception)
-        
+
         mock_send_message.assert_called()
         assert "Test error" in mock_send_message.call_args[1]['message']

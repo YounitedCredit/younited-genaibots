@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import List, Optional, Tuple
 
 from core.backend.internal_data_plugin_base import InternalDataPluginBase
 
@@ -13,14 +14,6 @@ class InternalDataProcessingBase(InternalDataPluginBase):
     def sessions(self):
         """
         Property for sessions data.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def messages(self):
-        """
-        Property for messages data.
         """
         raise NotImplementedError
 
@@ -87,10 +80,26 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for concatenate data.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def subprompts(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def custom_actions(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def messages_queue(self):
         """
         Property for concatenate data.
         """
@@ -126,27 +135,6 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :param data_container: The data container to write to
         :param data_file: The data file to write
         :param data: The data to write
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    async def store_unmentioned_messages(self, channel_id, thread_id, message):
-        """
-        Store unmentioned messages from a specified channel and thread.
-
-        :param channel_id: The ID of the channel
-        :param thread_id: The timestamp of the thread
-        :param message: The message to store
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    async def retrieve_unmentioned_messages(self, channel_id, thread_id):
-        """
-        Asynchronously retrieve unmentioned messages from a specified channel and thread.
-
-        :param channel_id: The ID of the channel
-        :param thread_id: The timestamp of the thread
         """
         raise NotImplementedError
 
@@ -205,5 +193,70 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Asynchronously list the files in a specified container.
 
         :param container_name: The name of the container
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def enqueue_message(self, channel_id: str, thread_id: str, message: str) -> None:
+        """
+        Adds a message to the queue for a given channel and thread.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread (often a timestamp).
+        :param message: The message content to enqueue.
+        :return: None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str) -> None:
+        """
+        Removes a message from the queue after processing.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
+        :param message_id: The unique identifier of the message (e.g., channel_id_thread_id_message_id).
+        :return: None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_next_message(self, channel_id: str, thread_id: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Retrieves the next (oldest) message from the queue for the given channel and thread.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
+        :return: A tuple containing the message_id and the message content. If no messages exist, returns (None, None).
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
+        """
+        Checks if there are any older messages waiting in the queue for a given channel and thread.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
+        :return: True if older messages exist in the queue, False otherwise.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
+        """
+        Clears all messages in the queue for a given channel and thread.
+
+        :param channel_id: The ID of the channel.
+        :param thread_id: The ID of the thread.
+        :return: None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
+        """
+        Retrieves the contents of all messages for a `channel_id` and `thread_id`.
+        Returns a list of message contents.
         """
         raise NotImplementedError

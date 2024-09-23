@@ -72,6 +72,9 @@ class TestUserInteractionsPlugin(UserInteractionsPluginBase):
     def get_bot_id(self) -> str:
         return super().get_bot_id()
 
+    def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str):
+        return super().remove_reaction_from_thread(channel_id, thread_id, reaction_name)
+
     async def fetch_conversation_history(
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:

@@ -18,17 +18,17 @@ from core.genai_interactions.genai_interactions_text_dispatcher import (
     GenaiInteractionsTextDispatcher,
 )
 from core.genai_interactions.genai_vectorsearch_dispatcher import GenaiVectorsearch
-from core.user_interactions.user_interactions_behavior_base import (
-    UserInteractionsBehaviorBase,
-)
-from core.user_interactions.user_interactions_behavior_dispatcher import (
-    UserInteractionsBehaviorsDispatcher,
-)
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
+)
+from core.user_interactions_behaviors.user_interactions_behavior_base import (
+    UserInteractionsBehaviorBase,
+)
+from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
+    UserInteractionsBehaviorsDispatcher,
 )
 from utils.config_manager.config_manager import ConfigManager
 from utils.config_manager.config_model import BotConfig
@@ -83,6 +83,7 @@ class GlobalManager:
         self.user_interactions_dispatcher.initialize(user_interactions_plugins)
         self.genai_interactions_text_dispatcher.initialize(genai_interactions_text_plugins)
         self.backend_internal_data_processing_dispatcher.initialize(backend_internal_data_processing_plugins)
+
         self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
         self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
         self.user_interactions_behavior_dispatcher.initialize(user_interactions_behavior_plugins)

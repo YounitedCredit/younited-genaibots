@@ -3,8 +3,9 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 
-from .outgoing_notification_event_types import OutgoingNotificationEventTypes
 from .outgoing_notification_content_type import OutgoingNotificationContentType
+from .outgoing_notification_event_types import OutgoingNotificationEventTypes
+
 
 class OutgoingNotificationDataBase:
     """
@@ -23,9 +24,7 @@ class OutgoingNotificationDataBase:
     is_mention : bool
         A flag indicating whether the user was mentioned in the event.
     message_type: : message_type
-        Determine the message type for the notification
-    origin : str
-        The original source of the user interaction that triggered the event.
+        Determine the message type for the notification    
     origin_plugin_name : str, optional
         The name of the plugin that originated the event (default is None).
     raw_data : dict, optional
@@ -53,14 +52,13 @@ class OutgoingNotificationDataBase:
         Returns the attributes of the object as a dictionary.
     """
 
-    def __init__(self, channel_id, event_type : OutgoingNotificationEventTypes, is_mention, origin, response_id, thread_id, timestamp, user_email, user_id, user_name, files_content=None, images=None, origin_plugin_name=None, raw_data=None, reaction_name=None, message_type : MessageType = None, text = None, is_internal = False):
+    def __init__(self, channel_id, event_type : OutgoingNotificationEventTypes, is_mention, response_id, thread_id, timestamp, user_email, user_id, user_name, files_content=None, images=None, origin_plugin_name=None, raw_data=None, reaction_name=None, message_type : MessageType = None, text = None, is_internal = False):
         self.channel_id = channel_id
         self.event_type = event_type
         self.files_content = files_content if files_content is not None else []
         self.images = images if images is not None else []
         self.is_mention = is_mention
         self.message_type = message_type
-        self.origin = origin
         self.origin_plugin_name = origin_plugin_name
         self.raw_data = raw_data
         self.reaction_name = reaction_name
@@ -81,7 +79,6 @@ class OutgoingNotificationDataBase:
             'images': self.images,
             'is_mention': self.is_mention,
             'message_type': self.message_type.name if self.message_type else None,  # Check if message_type is not None
-            'origin': self.origin,
             'origin_plugin_name': self.origin_plugin_name,
             'raw_data': self.raw_data,
             'reaction_name': self.reaction_name,
@@ -104,7 +101,6 @@ class OutgoingNotificationDataBase:
             images=data.get('images'),
             is_mention=data.get('is_mention'),
             message_type=OutgoingNotificationContentType(data.get('message_type')),
-            origin=data.get('origin'),
             origin_plugin_name=data.get('origin_plugin_name'),
             raw_data=data.get('raw_data'),
             reaction_name=data.get('reaction_name'),
@@ -125,7 +121,6 @@ class OutgoingNotificationDataBase:
             channel_id=incoming_notification_data.channel_id,
             event_type = event_type,
             is_mention=incoming_notification_data.is_mention,
-            origin=incoming_notification_data.origin,
             origin_plugin_name=incoming_notification_data.origin_plugin_name,
             raw_data=incoming_notification_data.raw_data,
             response_id=incoming_notification_data.response_id,

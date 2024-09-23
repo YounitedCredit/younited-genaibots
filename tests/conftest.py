@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -11,14 +12,14 @@ from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.reaction_base import ReactionBase
-from core.user_interactions.user_interactions_behavior_dispatcher import (
-    UserInteractionsBehaviorsDispatcher,
-)
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
+)
+from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
+    UserInteractionsBehaviorsDispatcher,
 )
 from utils.config_manager.config_model import (
     ActionInteractions,
@@ -110,7 +111,6 @@ def mock_config_manager(mock_utils, mock_plugins):
             GET_ALL_THREAD_FROM_MESSAGE_LINKS=True,
             LOG_DEBUG_LEVEL="DEBUG",
             SHOW_COST_IN_THREAD=True,
-            ACKNOWLEDGE_NONPROCESSED_MESSAGE=True,
             GET_URL_CONTENT=True,
             ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="action_interactions_default_plugin_name",
             INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="internal_data_processing_default_plugin_name",
@@ -123,7 +123,9 @@ def mock_config_manager(mock_utils, mock_plugins):
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
             LOAD_ACTIONS_FROM_BACKEND = False,
-            RECORD_NONPROCESSED_MESSAGES=False
+            CLEARQUEUE_KEYWORD= '!CLEARQUEUE',
+            ACTIVATE_MESSAGE_QUEUING = False,
+            MESSAGE_QUEUING_TTL = 120
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -166,6 +168,7 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.base_directory = Path('')
     mock_global_manager.available_actions = {}
     mock_global_manager.logger = MagicMock()
+    mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     return mock_global_manager
 
@@ -221,7 +224,6 @@ def mock_incoming_notification_data_base():
         user_id="user_id",
         is_mention=True,
         text="text",
-        origin="origin",
         origin_plugin_name="plugin_name"  # Adding the mandatory field
     )
     return event_data

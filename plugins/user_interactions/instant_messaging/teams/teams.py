@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import inspect
 import json
 from datetime import datetime
 from typing import List, Optional
@@ -134,7 +133,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             )
 
         except Exception as e:
-            self.logger.exception(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
+            self.logger.error(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
             return Response(
                 content=json.dumps({"status": "error", "message": "Internal server error"}),
                 media_type=self.APPJSON,
@@ -172,7 +171,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.debug("Request discarded")
         except Exception as e:
-            self.logger.exception(f"An error occurred while processing user input: {e}")
+            self.logger.error(f"An error occurred while processing user input: {e}")
             raise  # re-raise the exception
 
     async def validate_request(self, event_data = None, headers = None, raw_body_str = None):
@@ -366,7 +365,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             text=text,
             images=base64_images,
             files_content=files_content,
-            origin=inspect.currentframe().f_back.f_globals['__name__'],
+            #origin=inspect.currentframe().f_back.f_globals['__name__'],
             raw_data=event_data,
             origin_plugin_name=self.teams_config.PLUGIN_NAME
         )
@@ -399,3 +398,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
 
     def get_bot_id(self) -> str:
         return self.teams_config.TEAMS_APP_ID
+
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str):
+        # NOT IMPLEMENTED YET
+        raise NotImplementedError("remove_reaction_from_thread is not implemented in Teams plugin.")

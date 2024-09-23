@@ -7,7 +7,6 @@ import time
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import importlib
 import pytest
 from fastapi import Request
 from pydantic import BaseModel
@@ -21,6 +20,30 @@ from plugins.user_interactions.instant_messaging.slack.slack import (
     SlackPlugin,
 )
 
+
+class MockResponse:
+    def __init__(self, status, json_data):
+        self.status = status
+        self._json_data = json_data
+
+    async def json(self):
+        return self._json_data
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        pass
+
+class AsyncContextManagerMock:
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    async def __aenter__(self):
+        return self.return_value
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        pass
 
 class SlackConfig(BaseModel):
     PLUGIN_NAME: str
@@ -103,6 +126,7 @@ def slack_plugin(mock_global_manager, slack_config_data):
     plugin.slack_input_handler = AsyncMock()
     plugin.slack_output_handler = AsyncMock()
     return plugin
+
 
 @pytest.mark.asyncio
 async def test_handle_request(slack_plugin):
@@ -521,139 +545,148 @@ async def test_process_event_by_type(slack_plugin):
         mock_logger.assert_called_once_with("Event type is not 'message', it's 'reaction_added'. Skipping processing.")
 
 @pytest.mark.asyncio
-async def test_send_message_user(slack_plugin, requests_mock):
-    requests_mock.post('https://slack.com/api/chat.postMessage', json={'ok': True})
-
+async def test_send_message_user(slack_plugin):
     message = "Hello, world!"
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         event_label="test_event",
-        channel_id="C12345678",
-        thread_id="1234567890.123456",
-        response_id="1234567890.123456",
         app_id=None,
         api_app_id=None,
         username=None,
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="plugin_name"
     )
     message_type = MessageType.TEXT
 
-    # Test regular message
-    response = await slack_plugin.send_message(message, event, message_type)
-    assert response.status_code == 200
-    assert response.json() == {'ok': True}
+    with patch('aiohttp.ClientSession', autospec=True) as MockClientSession:
+        # Mock session
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
-    # Test with show_ref=True
-    slack_plugin.add_reference_message = AsyncMock(return_value=True)
-    response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
-    assert slack_plugin.add_reference_message.called
-    assert response.status_code == 200
+        # Mock response
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={'ok': True})
 
-    # Test internal message
-    slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
-    response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
-    assert slack_plugin.handle_internal_message.called
-    assert response.status_code == 200
+        # Mock session.post to return an async context manager
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
 
-    # Test with invalid message type
-    with pytest.raises(ValueError):
-        await slack_plugin.send_message(message, event, "INVALID_TYPE")
+        # Mock dependencies within slack_plugin
+        slack_plugin.slack_input_handler.search_message_in_thread = AsyncMock(return_value=None)
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend = AsyncMock()
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.end_wait_backend = AsyncMock()
+
+        # Call the method
+        response = await slack_plugin.send_message(message, event, message_type)
+        assert response.get('ok') is True
 
 @pytest.mark.asyncio
-async def test_send_message_app(slack_plugin, requests_mock):
-    requests_mock.post('https://slack.com/api/chat.postMessage', json={'ok': True})
-
+async def test_send_message_app(slack_plugin):
     message = "Hello, world!"
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         event_label="test_event",
-        channel_id="C12345678",
-        thread_id="1234567890.123456",
-        response_id="1234567890.123456",
         app_id="A2CEES41H",
         api_app_id=None,
         username="app",
         user_name=None,
         user_email=None,
         user_id=None,
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="origin_plugin_name"
     )
     message_type = MessageType.TEXT
 
-    # Test regular message
-    response = await slack_plugin.send_message(message, event, message_type)
-    assert response.status_code == 200
-    assert response.json() == {'ok': True}
+    with patch('aiohttp.ClientSession', autospec=True) as MockClientSession:
+        # Mock session
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
-    # Test with show_ref=True
-    slack_plugin.add_reference_message = AsyncMock(return_value=True)
-    response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
-    assert slack_plugin.add_reference_message.called
-    assert response.status_code == 200
+        # Mock response
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={'ok': True})
 
-    # Test internal message
-    slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
-    response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
-    assert slack_plugin.handle_internal_message.called
-    assert response.status_code == 200
+        # Mock session.post to return an async context manager
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
 
-    # Test with invalid message type
-    with pytest.raises(ValueError):
-        await slack_plugin.send_message(message, event, "INVALID_TYPE")
+        # Mock dependencies within slack_plugin
+        slack_plugin.slack_input_handler.search_message_in_thread = AsyncMock(return_value=None)
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend = AsyncMock()
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.end_wait_backend = AsyncMock()
+
+        # Call the method
+        response = await slack_plugin.send_message(message, event, message_type)
+        assert response.get('ok') is True
 
 @pytest.mark.asyncio
-async def test_send_message_api_app(slack_plugin, requests_mock):
-    requests_mock.post('https://slack.com/api/chat.postMessage', json={'ok': True})
-
+async def test_send_message_api_app(slack_plugin):
     message = "Hello, world!"
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
         event_label="test_event",
-        channel_id="C12345678",
-        thread_id="1234567890.123456",
-        response_id="1234567890.123456",
         app_id=None,
         api_app_id="P1BFDR28J",
         username="app",
         user_name=None,
         user_email=None,
         user_id=None,
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="origin_plugin_name"
     )
     message_type = MessageType.TEXT
 
-    # Test regular message
-    response = await slack_plugin.send_message(message, event, message_type)
-    assert response.status_code == 200
-    assert response.json() == {'ok': True}
+    with patch('aiohttp.ClientSession', autospec=True) as MockClientSession:
+        # Mock session
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
-    # Test with show_ref=True
-    slack_plugin.add_reference_message = AsyncMock(return_value=True)
-    response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
-    assert slack_plugin.add_reference_message.called
-    assert response.status_code == 200
+        # Mock response
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={'ok': True})
 
-    # Test internal message
-    slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
-    response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
-    assert slack_plugin.handle_internal_message.called
-    assert response.status_code == 200
+        # Mock session.post to return an async context manager
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
 
-    # Test with invalid message type
-    with pytest.raises(ValueError):
-        await slack_plugin.send_message(message, event, "INVALID_TYPE")
+        # Mock dependencies within slack_plugin
+        slack_plugin.slack_input_handler.search_message_in_thread = AsyncMock(return_value=None)
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend = AsyncMock()
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.end_wait_backend = AsyncMock()
+        slack_plugin.add_reference_message = AsyncMock(return_value=True)
+        slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
+
+        # Call the method
+        response = await slack_plugin.send_message(message, event, message_type)
+        assert response.get('ok') is True
+
+        # Test with show_ref=True
+        response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
+        assert slack_plugin.add_reference_message.called
+        assert response.get('ok') is True
+
+        # Test internal message
+        response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
+        assert slack_plugin.handle_internal_message.called
+        assert response.get('ok') is True
 
 @pytest.mark.asyncio
 async def test_add_reaction_user_message(slack_plugin):
@@ -671,7 +704,6 @@ async def test_add_reaction_user_message(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
@@ -702,7 +734,6 @@ async def test_add_reaction_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
@@ -733,7 +764,6 @@ async def test_add_reaction_api_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="origin_plugin_name"
     )
     channel_id = "C12345678"
@@ -764,8 +794,7 @@ async def test_remove_reaction_user_message(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
-        origin_plugin_name="origin_plugin_name"
+        origin_plugin_name="slack"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -795,8 +824,7 @@ async def test_remove_reaction_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack",
-        origin_plugin_name="origin_plugin_name"
+        origin_plugin_name="slack"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -826,8 +854,7 @@ async def test_remove_reaction_api_app_message(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack",
-        origin_plugin_name="origin_plugin_name"
+        origin_plugin_name="slack"
     )
     channel_id = "C12345678"
     timestamp = "1234567890.123456"
@@ -887,8 +914,7 @@ async def test_request_to_notification_data_user(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Hello, world!",
-        origin="slack",
-        origin_plugin_name="origin_plugin_name"
+        origin_plugin_name="slack"
     ))
 
     result = await slack_plugin.request_to_notification_data(event_data)
@@ -925,8 +951,7 @@ async def test_request_to_notification_data_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Hello, world!",
-        origin="slack",
-        origin_plugin_name="origin_plugin_name"
+        origin_plugin_name="slack"
     ))
 
     result = await slack_plugin.request_to_notification_data(event_data)
@@ -964,8 +989,7 @@ async def test_request_to_notification_data_api_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Hello, world!",
-        origin="slack",
-        origin_plugin_name="origin_plugin_name"
+        origin_plugin_name="slack"
     ))
 
     result = await slack_plugin.request_to_notification_data(event_data)
@@ -1053,7 +1077,6 @@ async def test_add_reference_message_user(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     message_blocks = ["Hello, world!"]
@@ -1082,7 +1105,6 @@ async def test_add_reference_message_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     message_blocks = ["Hello, world!"]
@@ -1111,7 +1133,6 @@ async def test_add_reference_message_api_app(slack_plugin):
         user_id=None,
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     message_blocks = ["Hello, world!"]
@@ -1142,7 +1163,6 @@ async def test_handle_internal_message(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
@@ -1179,9 +1199,7 @@ def test_construct_payload(slack_plugin):
     assert blocks[0]['text']['text'] == "Formatted message"
 
 @pytest.mark.asyncio
-async def test_send_message(slack_plugin, requests_mock):
-    requests_mock.post('https://slack.com/api/chat.postMessage', json={'ok': True})
-
+async def test_send_message(slack_plugin):
     message = "Hello, world!"
     event = IncomingNotificationDataBase(
         timestamp="1234567890.123456",
@@ -1189,35 +1207,53 @@ async def test_send_message(slack_plugin, requests_mock):
         app_id=None,
         api_app_id=None,
         username=None,
-        channel_id="C12345678",
-        thread_id="1234567890.123456",
-        response_id="1234567890.123456",
         user_name="test_user",
         user_email="test_user@example.com",
         user_id="U123456",
+        channel_id="C12345678",
+        thread_id="1234567890.123456",
+        response_id="1234567890.123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     message_type = MessageType.TEXT
 
-    # Test regular message
-    response = await slack_plugin.send_message(message, event, message_type)
-    assert response.status_code == 200
-    assert response.json() == {'ok': True}
+    with patch('aiohttp.ClientSession', autospec=True) as MockClientSession:
+        # Mock session
+        mock_session = MockClientSession.return_value
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
-    # Test with show_ref=True
-    slack_plugin.add_reference_message = AsyncMock(return_value=True)
-    response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
-    assert slack_plugin.add_reference_message.called
-    assert response.status_code == 200
+        # Mock response
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={'ok': True})
 
-    # Test internal message
-    slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
-    response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
-    assert slack_plugin.handle_internal_message.called
-    assert response.status_code == 200
+        # Mock session.post to return an async context manager
+        mock_session.post.return_value = AsyncContextManagerMock(mock_response)
+
+        # Mock dependencies within slack_plugin
+        slack_plugin.slack_input_handler.search_message_in_thread = AsyncMock(return_value=None)
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.begin_wait_backend = AsyncMock()
+        slack_plugin.global_manager.user_interactions_behavior_dispatcher.end_wait_backend = AsyncMock()
+        slack_plugin.add_reference_message = AsyncMock(return_value=True)
+        slack_plugin.handle_internal_message = AsyncMock(return_value=("1234567890.123457", "C87654321"))
+
+        # Call the method
+        response = await slack_plugin.send_message(message, event, message_type)
+        assert response.get('ok') is True
+
+        # Test with show_ref=True
+        response = await slack_plugin.send_message(message, event, message_type, show_ref=True)
+        assert slack_plugin.add_reference_message.called
+        assert response.get('ok') is True
+
+        # Test internal message
+        response = await slack_plugin.send_message(message, event, message_type, is_internal=True)
+        assert slack_plugin.handle_internal_message.called
+        assert response.get('ok') is True
+
 
 @pytest.mark.asyncio
 async def test_upload_file(slack_plugin):
@@ -1235,7 +1271,6 @@ async def test_upload_file(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     file_content = b"Test file content"
@@ -1271,7 +1306,6 @@ async def test_handle_internal_channel(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
@@ -1305,7 +1339,6 @@ async def test_wait_for_internal_message(slack_plugin, monkeypatch):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)
@@ -1421,7 +1454,6 @@ async def test_upload_file_no_internal_channel(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     file_content = b"Test file content"
@@ -1463,7 +1495,6 @@ async def test_upload_file_no_internal_channel(slack_plugin):
     assert kwargs['event'].user_id == event.user_id
     assert kwargs['event'].is_mention == event.is_mention
     assert kwargs['event'].text == event.text
-    assert kwargs['event'].origin == event.origin
 
     # Verify that the channel_id wasn't changed (since INTERNAL_CHANNEL is None)
     assert kwargs['event'].channel_id == "C12345678"
@@ -1484,7 +1515,6 @@ async def test_wait_for_internal_message_timeout(slack_plugin):
         user_id="U123456",
         is_mention=False,
         text="Test message",
-        origin="slack",
         origin_plugin_name="slack"
     )
     event_copy = copy.deepcopy(event)

@@ -1,13 +1,12 @@
 
 import asyncio
-import json
-import re
-import traceback
-from typing import List
 import datetime
-import yaml
+import json
+import traceback
 from datetime import datetime, timezone
-from decimal import Decimal
+from typing import List
+
+import yaml
 
 from core.backend.pricing_data import PricingData
 from core.genai_interactions.genai_cost_base import GenAICostBase
@@ -105,36 +104,39 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while handling message event: {e}")
             raise
-            
+
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Step 1: Retrieve stored message history from the backend
             blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
+            # Preserve the information that messages was empty initially
+            was_messages_empty = not messages
 
-            # Step 2: If no messages are found and RECORD_NONPROCESSED_MESSAGES is False
-            if not messages and not self.bot_config.RECORD_NONPROCESSED_MESSAGES:
-                return await self.handle_no_message_found(event_data)
-
-            # Step 3: If RECORD_NONPROCESSED_MESSAGES is False, process conversation history from the backend
-            if not self.global_manager.bot_config.RECORD_NONPROCESSED_MESSAGES and event_data.user_id != "AUTOMATED_RESPONSE":
+            # Step 2: If the user is not the bot, process the conversation history
+            if event_data.user_id != "AUTOMATED_RESPONSE":
                 await self.process_conversation_history(event_data, messages)
+
+            # Step 3: If messages was initially empty, add the initial system message
+            if was_messages_empty:
+                feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
+                general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
+                await self.global_manager.prompt_manager.initialize()
+                init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+                constructed_message = f"Timestamp: {str(event_data.timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+
+                if general_behavior_content:
+                    init_prompt += f"\nAlso take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, take them as the prompt not another feedback to add: {str(general_behavior_content)}"
+
+                # Add the initial system message to messages
+                messages.insert(0, {"role": "system", "content": init_prompt})
 
             # Step 4: Construct the new incoming message based on event_data and append to the message history
             constructed_message = self.construct_message(event_data)
             messages.append(constructed_message)
 
-            # Step 5: Handle the processing of unmentioned or mentioned thread messages based on configuration
-            if event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and event_data.user_id != "AUTOMATED_RESPONSE" :
-                # Retrieve previously stored unmentioned messages if bot is mentioned
-                messages.extend(await self.backend_internal_data_processing_dispatcher.retrieve_unmentioned_messages(event_data.channel_id, event_data.thread_id))
-            elif not event_data.is_mention and self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE:
-                # Store the message for later processing if the bot is not mentioned
-                await self.backend_internal_data_processing_dispatcher.store_unmentioned_messages(event_data.channel_id, event_data.thread_id, constructed_message)
-                return None
-
-            # Step 6: Generate response based on the updated messages (history + new message)
+            # Step 5: Generate response based on the updated messages (history + new message)
             return await self.generate_response(event_data, messages)
 
         except Exception as e:
@@ -148,7 +150,7 @@ class ChatInputHandler():
 
     async def process_conversation_history(self, event_data: IncomingNotificationDataBase, messages):
         try:
-            # Fetch and process conversation history if RECORD_NONPROCESSED_MESSAGES is False
+            # Fetch and process conversation history
             relevant_events = []
             current_event_timestamp = datetime.fromtimestamp(float(event_data.timestamp), tz=timezone.utc)
 
@@ -163,28 +165,32 @@ class ChatInputHandler():
                 return
 
             try:
-                last_message_timestamp_str = self.get_last_user_message_timestamp(messages)
-                last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
-                if last_message_timestamp.tzinfo is None:
-                    last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
-            except Exception as e:
-                self.logger.error(f"Error getting last user message timestamp: {e}")                
-                return
+                if not messages:
+                    self.logger.info("No messages found, taking all conversation history as relevant events.")
+                    relevant_events.extend(conversation_history)
+                else:
+                    last_message_timestamp_str = self.get_last_user_message_timestamp(messages)
+                    last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
+                    if last_message_timestamp.tzinfo is None:
+                        last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
 
-            bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
-            
-            for past_event in conversation_history:
-                try:
-                    past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
-                    if last_message_timestamp < past_event_timestamp < current_event_timestamp:
-                        if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id and "AUTOMATED_RESPONSE" not in past_event.text:
-                            self.logger.info(
-                                f"Processing past event: channel_id={past_event.channel_id}, "
-                                f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
-                            )
-                            relevant_events.append(past_event)
-                except Exception as e:
-                    self.logger.error(f"Error processing past event: {e}")
+                    bot_id = self.user_interaction_dispatcher.get_bot_id(plugin_name=event_data.origin_plugin_name)
+
+                    for past_event in conversation_history:
+                        try:
+                            past_event_timestamp = datetime.fromtimestamp(float(past_event.timestamp), tz=timezone.utc)
+                            if last_message_timestamp < past_event_timestamp < current_event_timestamp:
+                                if past_event_timestamp != current_event_timestamp and past_event.user_id != bot_id and "AUTOMATED_RESPONSE" not in past_event.text:
+                                    self.logger.info(
+                                        f"Processing past event: channel_id={past_event.channel_id}, "
+                                        f"thread_id={past_event.thread_id}, timestamp={past_event.timestamp}"
+                                    )
+                                    relevant_events.append(past_event)
+                        except Exception as e:
+                            self.logger.error(f"Error processing past event: {e}")
+            except Exception as e:
+                self.logger.error(f"Error getting last user message timestamp: {e}")
+                return
 
             # Add the relevant events to the messages
             try:
@@ -252,15 +258,16 @@ class ChatInputHandler():
                 user_content_text.append({"type": "text", "text": file_content})
 
         return {"role": "user", "content": user_content_text + user_content_images}
-    
+
     async def generate_response(self, event_data: IncomingNotificationDataBase, messages):
         completion = None  # Initialize to None
         try:
-            original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp            
+            original_msg_ts = event_data.thread_id if event_data.thread_id else event_data.timestamp
             # Process the event
             self.logger.info("GENAI CALL: Calling Generative AI completion for user input..")
             await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
                 event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+
             completion = await self.call_completion(
                 event_data.channel_id, original_msg_ts, messages, event_data)
             await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
@@ -427,7 +434,7 @@ class ChatInputHandler():
             for action in python_dict['response']:
                 if 'value' in action['Action']['Parameters']:
                     value_str = action['Action']['Parameters']['value']
-                    
+
                     # Only process if value_str is a string and formatted as YAML
                     if isinstance(value_str, str) and value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
                         # Remove the markdown code block syntax
@@ -452,7 +459,7 @@ class ChatInputHandler():
                 is_internal=False
             )
             return None
-        
+
     async def calculate_and_update_costs(self, cost_params: GenAICostBase, costs_blob_container_name, blob_name, event:IncomingNotificationDataBase):
         # Initialize total_cost, input_cost, and output_cost to 0
         total_cost = input_cost = output_cost = 0

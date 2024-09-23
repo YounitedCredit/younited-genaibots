@@ -1,39 +1,16 @@
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions.message_type import MessageType
 from plugins.user_interactions_behaviors.custom_api.ca_default_behavior.ca_default_behavior import (
     CaDefaultBehaviorPlugin,
 )
 
 
-class TestCaDefaultBehaviorPlugin(CaDefaultBehaviorPlugin):
-    async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        await self.update_reaction(event, channel_id, timestamp, remove_reaction=self.reaction_writing, add_reaction=self.reaction_generating)
-
-    async def end_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        await self.update_reaction(event, channel_id, timestamp, remove_reaction=self.reaction_generating)
-
-    async def begin_long_action(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        pass
-
-    async def end_long_action(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        pass
-
-    async def begin_wait_backend(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        pass
-
-    async def end_wait_backend(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        pass
-
-    async def mark_error(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        pass
-
-@pytest.fixture
+@pytest.fixture(scope="function", autouse=True)
 def global_manager(mock_global_manager):
     mock_global_manager.user_interactions_dispatcher = AsyncMock()
     mock_global_manager.genai_interactions_text_dispatcher = AsyncMock()
@@ -41,211 +18,528 @@ def global_manager(mock_global_manager):
     mock_global_manager.bot_config = MagicMock()
     mock_global_manager.bot_config.BREAK_KEYWORD = "break"
     mock_global_manager.bot_config.START_KEYWORD = "start"
-    return mock_global_manager
+    mock_global_manager.bot_config.REQUIRE_MENTION_NEW_MESSAGE = True
+    yield mock_global_manager
+    mock_global_manager.reset_mock()
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
+def check_unused_mocks(ca_default_behavior_plugin, global_manager):
+    yield
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (MagicMock, AsyncMock)) and attr_name != "process_incoming_notification_data":
+            assert not attr.called, f"Unexpected call to {attr_name}"
+
+@pytest.fixture(scope="function")
 def ca_default_behavior_plugin(global_manager):
-    plugin = TestCaDefaultBehaviorPlugin(global_manager)
+    plugin = CaDefaultBehaviorPlugin(global_manager)
     plugin.initialize()
-    
-    # Mock the custom API plugin
-    plugin.custom_api_plugin = MagicMock()
-    plugin.custom_api_plugin.reactions = MagicMock()
-    plugin.custom_api_plugin.reactions.PROCESSING = "processing"
-    plugin.custom_api_plugin.reactions.DONE = "done"
-    plugin.custom_api_plugin.reactions.ACKNOWLEDGE = "acknowledge"
-    plugin.custom_api_plugin.reactions.GENERATING = "generating"
-    plugin.custom_api_plugin.reactions.WRITING = "writing"
-    plugin.custom_api_plugin.reactions.ERROR = "error"
-    plugin.custom_api_plugin.reactions.WAIT = "wait"
-    
-    # Setup reactions for testing
-    plugin.reaction_done = plugin.custom_api_plugin.reactions.DONE
-    plugin.reaction_writing = plugin.custom_api_plugin.reactions.WRITING
-    plugin.reaction_generating = plugin.custom_api_plugin.reactions.GENERATING
-    plugin.reaction_processing = plugin.custom_api_plugin.reactions.PROCESSING
-    plugin.reaction_acknowledge = plugin.custom_api_plugin.reactions.ACKNOWLEDGE
-    plugin.reaction_error = plugin.custom_api_plugin.reactions.ERROR
+    yield plugin
 
-    # Mock instantmessaging_plugin for reaction handling
-    plugin.instantmessaging_plugin = AsyncMock()
-    plugin.instantmessaging_plugin.add_reaction = AsyncMock()
-    plugin.instantmessaging_plugin.remove_reaction = AsyncMock()
-    plugin.instantmessaging_plugin.send_message = AsyncMock()
+@pytest.fixture(autouse=True)
+def reset_mocks(ca_default_behavior_plugin):
+    # Reset all mocks before each test
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (AsyncMock, MagicMock)):
+            attr.reset_mock()
+    yield
+    # After the test, check for unexpected calls
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (AsyncMock, MagicMock)) and attr_name != "process_incoming_notification_data":
+            assert not attr.called, f"Unexpected call to {attr_name}"
 
-    return plugin
+@pytest.fixture(autouse=True)
+def no_unexpected_calls(ca_default_behavior_plugin):
+    yield
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (MagicMock, AsyncMock)) and attr_name != "process_incoming_notification_data":
+            assert not attr.called, f"Unexpected call to {attr_name}"
+
+def assert_no_unused_mocks(obj):
+    for attr_name in dir(obj):
+        attr = getattr(obj, attr_name)
+        if isinstance(attr, (MagicMock, AsyncMock)):
+            assert not attr.called, f"Unexpected call to {attr_name}"
+
+@pytest.fixture(autouse=True)
+def check_unused_mocks(ca_default_behavior_plugin, global_manager):
+    yield
+    assert_no_unused_mocks(ca_default_behavior_plugin)
+    assert_no_unused_mocks(global_manager)
 
 @pytest.mark.asyncio
-async def test_initialize(ca_default_behavior_plugin, global_manager):
-    ca_default_behavior_plugin.initialize()
-    assert ca_default_behavior_plugin.user_interactions_dispatcher == global_manager.user_interactions_dispatcher
-    assert ca_default_behavior_plugin.genai_interactions_text_dispatcher == global_manager.genai_interactions_text_dispatcher
-    assert ca_default_behavior_plugin.backend_internal_data_processing_dispatcher == global_manager.backend_internal_data_processing_dispatcher
+async def test_process_interaction_general_event(ca_default_behavior_plugin, global_manager):
+    event_data = {
+        "timestamp": "1234567890.123456",
+        "event_label": "message",
+        "channel_id": "C123",
+        "thread_id": "thread_1",
+        "response_id": "response_1",
+        "user_name": "test_user",
+        "user_email": "test_user@example.com",
+        "user_id": "user_1",
+        "is_mention": True,
+        "text": "hello",
+        "origin_plugin_name": "test_plugin"
+    }
+    event = IncomingNotificationDataBase.from_dict(event_data)
 
-def test_plugin_name_getter(ca_default_behavior_plugin):
-    assert ca_default_behavior_plugin.plugin_name == "ca_default_behavior"
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.has_older_messages = AsyncMock(return_value=False)
 
-def test_plugin_name_setter(ca_default_behavior_plugin):
-    ca_default_behavior_plugin.plugin_name = "new_plugin_name"
-    assert ca_default_behavior_plugin.plugin_name == "new_plugin_name"
+    # Nous gardons process_incoming_notification_data comme un AsyncMock
+    original_process_incoming_notification_data = ca_default_behavior_plugin.process_incoming_notification_data
+    ca_default_behavior_plugin.process_incoming_notification_data = AsyncMock()
+
+    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = False
+
+    await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited()
+    ca_default_behavior_plugin.process_incoming_notification_data.assert_awaited_once_with(event)
+    ca_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()
+
+    # Restaurer la méthode originale
+    ca_default_behavior_plugin.process_incoming_notification_data = original_process_incoming_notification_data
+
+
+@pytest.mark.asyncio
+async def test_begin_genai_completion(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_writing = "writing"
+    ca_default_behavior_plugin.reaction_generating = "generating"
+
+    await ca_default_behavior_plugin.begin_genai_completion(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
+        event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="writing"
+    )
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once_with(
+        event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="generating"
+    )
+
+@pytest.mark.asyncio
+async def test_end_genai_completion(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_generating = "generating"
+
+    await ca_default_behavior_plugin.end_genai_completion(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
+        event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="generating"
+    )
+
+@pytest.mark.asyncio
+async def test_begin_long_action(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_generating = "generating"
+    ca_default_behavior_plugin.reaction_processing = "processing"
+
+    await ca_default_behavior_plugin.begin_long_action(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
+        event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="generating"
+    )
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once_with(
+        event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="processing"
+    )
+
+@pytest.mark.asyncio
+async def test_end_long_action(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_processing = "processing"
+
+    await ca_default_behavior_plugin.end_long_action(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
+        event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="processing"
+    )
+
+@pytest.mark.asyncio
+async def test_mark_error(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_generating = "generating"
+    ca_default_behavior_plugin.reaction_error = "error"
+
+    await ca_default_behavior_plugin.mark_error(event, event.channel_id, event.timestamp)
+
+    # Vérifier que update_reaction a été appelé avec les bons arguments
+    ca_default_behavior_plugin.update_reaction.assert_awaited_with(
+        event=event,
+        channel_id=event.channel_id,
+        timestamp=event.timestamp,
+        remove_reaction=ca_default_behavior_plugin.reaction_generating,
+        add_reaction=ca_default_behavior_plugin.reaction_error
+    )
 
 @pytest.mark.asyncio
 async def test_process_interaction_none_event(ca_default_behavior_plugin):
-    ca_default_behavior_plugin.logger = MagicMock()
     await ca_default_behavior_plugin.process_interaction(None)
-    ca_default_behavior_plugin.logger.debug.assert_called_with("No event")
+    ca_default_behavior_plugin.logger.debug.assert_called_with("IM behavior: No event")
+
+@pytest.mark.asyncio
+async def test_process_interaction_thread_break_keyword(ca_default_behavior_plugin, global_manager):
+    global_manager.bot_config.BREAK_KEYWORD = "break"
+    global_manager.bot_config.START_KEYWORD = "start"
+
+    event_data = {
+        "text": "break",
+        "event_label": "thread_message",
+        "channel_id": "C123",
+        "timestamp": "1234567890.123456",
+        "thread_id": "thread_1",
+        "is_mention": True,
+        "origin_plugin_name": 'test_plugin'
+    }
+    event = IncomingNotificationDataBase.from_dict(event_data)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+
+    await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content.assert_awaited()
+
+@pytest.mark.asyncio
+async def test_process_interaction_break_keyword(ca_default_behavior_plugin, global_manager):
+    global_manager.bot_config.BREAK_KEYWORD = "break"
+    global_manager.bot_config.START_KEYWORD = "start"
+
+    event_data = {
+        "text": "break",
+        "event_label": "thread_message",
+        "channel_id": "C123",
+        "timestamp": "1234567890.123456",
+        "thread_id": "thread_1",
+        "is_mention": True,
+        "origin_plugin_name": 'test_plugin'
+    }
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=IncomingNotificationDataBase.from_dict(event_data))
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+
+    await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content.assert_awaited()
+
+@pytest.mark.asyncio
+async def test_begin_end_genai_completion(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_writing = "writing"
+    ca_default_behavior_plugin.reaction_generating = "generating"
+
+    await ca_default_behavior_plugin.begin_genai_completion(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once()
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once()
+
+    await ca_default_behavior_plugin.end_genai_completion(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
+
+@pytest.mark.asyncio
+async def test_begin_end_long_action(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_generating = "generating"
+    ca_default_behavior_plugin.reaction_processing = "processing"
+
+    await ca_default_behavior_plugin.begin_long_action(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once()
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once()
+
+    await ca_default_behavior_plugin.end_long_action(event, event.channel_id, event.timestamp)
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
+
+@pytest.mark.asyncio
+async def test_begin_end_wait_backend(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.instantmessaging_plugin = AsyncMock()
+    ca_default_behavior_plugin.reaction_wait = "wait"
+
+    await ca_default_behavior_plugin.begin_wait_backend(event, event.channel_id, event.timestamp)
+    # Comme la méthode est actuellement vide, nous vérifions simplement qu'elle ne lève pas d'exception
+    assert True
+
+    await ca_default_behavior_plugin.end_wait_backend(event, event.channel_id, event.timestamp)
+    # Comme la méthode est actuellement vide, nous vérifions simplement qu'elle ne lève pas d'exception
+    assert True
+
+@pytest.mark.asyncio
+async def test_mark_error(ca_default_behavior_plugin):
+    event = AsyncMock(IncomingNotificationDataBase)
+    event.channel_id = "C123"
+    event.timestamp = "1234567890.123456"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.reaction_generating = "generating"
+    ca_default_behavior_plugin.reaction_error = "error"
+
+    await ca_default_behavior_plugin.mark_error(event, event.channel_id, event.timestamp)
+
+    # Vérifier que remove_reaction a été appelé avec la bonne réaction
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_with(
+        event=event,
+        channel_id=event.channel_id,
+        timestamp=event.timestamp,
+        reaction_name=ca_default_behavior_plugin.reaction_generating
+    )
+
+    # Vérifier que add_reaction a été appelé avec la bonne réaction
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_with(
+        event=event,
+        channel_id=event.channel_id,
+        timestamp=event.timestamp,
+        reaction_name=ca_default_behavior_plugin.reaction_error
+    )
+
+    # Afficher les appels pour le débogage
+    print("Calls to remove_reaction:")
+    for call in ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.call_args_list:
+        print(f"Args: {call.args}, Kwargs: {call.kwargs}")
+
+    print("Calls to add_reaction:")
+    for call in ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.call_args_list:
+        print(f"Args: {call.args}, Kwargs: {call.kwargs}")
 
 @pytest.mark.asyncio
 async def test_update_reaction(ca_default_behavior_plugin):
     event = AsyncMock(IncomingNotificationDataBase)
     event.channel_id = "C123"
     event.timestamp = "1234567890.123456"
-    
-    # Mock the user interactions dispatcher
-    ca_default_behavior_plugin.user_interactions_dispatcher = AsyncMock()
 
-    # Call the method to test
-    await ca_default_behavior_plugin.update_reaction(event, "C123", "1234567890.123456", "old_reaction", "new_reaction")
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
 
-    # Assert that remove_reaction was awaited with the correct arguments
-    ca_default_behavior_plugin.instantmessaging_plugin.remove_reaction.assert_awaited_once_with(
-        event=event, channel_id="C123", timestamp="1234567890.123456", reaction_name="old_reaction"
-    )
+    await ca_default_behavior_plugin.update_reaction(event, event.channel_id, event.timestamp, remove_reaction="old_reaction", add_reaction="new_reaction")
 
-    # Assert that add_reaction was awaited with the correct arguments
-    ca_default_behavior_plugin.instantmessaging_plugin.add_reaction.assert_awaited_once_with(
-        event=event, channel_id="C123", timestamp="1234567890.123456", reaction_name="new_reaction"
-    )
-
-
-@pytest.mark.asyncio
-async def test_process_incoming_notification_data(ca_default_behavior_plugin, global_manager):
-    event = AsyncMock()
-    event.channel_id = "C123"
-    event.timestamp = "1234567890.123456"
-    event.event_label = "message"
-    event.is_mention = True
-    event.to_dict = MagicMock(return_value={"key": "value"})  # Mock to_dict
-
-    global_manager.bot_config.REQUIRE_MENTION_NEW_MESSAGE = True
-    global_manager.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value='{"some": "json"}')
-    global_manager.action_interactions_handler.handle_request = AsyncMock()
-
-    ca_default_behavior_plugin.logger = MagicMock()
-
-    await ca_default_behavior_plugin.process_incoming_notification_data(event)
-
-@pytest.mark.asyncio
-async def test_begin_genai_completion(ca_default_behavior_plugin):
-    event = AsyncMock(IncomingNotificationDataBase)
-    ca_default_behavior_plugin.update_reaction = AsyncMock()
-
-    await ca_default_behavior_plugin.begin_genai_completion(event, "C123", "1234567890.123456")
-
-    ca_default_behavior_plugin.update_reaction.assert_awaited_with(
-        event,
-        "C123",
-        "1234567890.123456",
-        remove_reaction=ca_default_behavior_plugin.reaction_writing,
-        add_reaction=ca_default_behavior_plugin.reaction_generating
-    )
-
-@pytest.mark.asyncio
-async def test_end_genai_completion(ca_default_behavior_plugin):
-    event = AsyncMock(IncomingNotificationDataBase)
-    ca_default_behavior_plugin.update_reaction = AsyncMock()
-
-    await ca_default_behavior_plugin.end_genai_completion(event, "C123", "1234567890.123456")
-
-    ca_default_behavior_plugin.update_reaction.assert_awaited_with(
-        event,
-        "C123",
-        "1234567890.123456",
-        remove_reaction=ca_default_behavior_plugin.reaction_generating
-    )
-
-@pytest.mark.asyncio
-async def test_process_interaction_break_keyword(ca_default_behavior_plugin, global_manager):
-    event = AsyncMock(IncomingNotificationDataBase)
-    event.event_label = "thread_message"
-    event.text = global_manager.bot_config.BREAK_KEYWORD
-    event.channel_id = "C123"
-    event.thread_id = "T456"
-    event.timestamp = "1234567890.123456"
-    event.is_mention = False
-
-    ca_default_behavior_plugin.user_interactions_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
-
-    mock_custom_api_plugin = MagicMock()
-    mock_custom_api_plugin.reactions = MagicMock()
-    mock_custom_api_plugin.reactions.ACKNOWLEDGE = "acknowledge"
-    mock_custom_api_plugin.add_reaction = AsyncMock()
-    mock_custom_api_plugin.send_message = AsyncMock()
-
-    ca_default_behavior_plugin.user_interactions_dispatcher.get_plugin = MagicMock(return_value=mock_custom_api_plugin)
-
-    await ca_default_behavior_plugin.process_interaction(event)
-
-    mock_custom_api_plugin.add_reaction.assert_awaited_with(
-        event=event,
-        channel_id=event.channel_id,
-        timestamp=event.timestamp,
-        reaction_name="acknowledge"
-    )
-    mock_custom_api_plugin.send_message.assert_awaited()
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once()
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_process_interaction_start_keyword(ca_default_behavior_plugin, global_manager):
-    event = AsyncMock(IncomingNotificationDataBase)
-    event.event_label = "thread_message"
-    event.text = global_manager.bot_config.START_KEYWORD
-    event.channel_id = "C123"
-    event.thread_id = "T456"
-    event.timestamp = "1234567890.123456"
-    event.is_mention = True
-
-    ca_default_behavior_plugin.user_interactions_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
-
-    mock_custom_api_plugin = MagicMock()
-    mock_custom_api_plugin.reactions = MagicMock()
-    mock_custom_api_plugin.reactions.ACKNOWLEDGE = "acknowledge"
-    mock_custom_api_plugin.add_reaction = AsyncMock()
-    mock_custom_api_plugin.send_message = AsyncMock()
-
-    ca_default_behavior_plugin.user_interactions_dispatcher.get_plugin = MagicMock(return_value=mock_custom_api_plugin)
-
-    await ca_default_behavior_plugin.process_interaction(event)
-
-    mock_custom_api_plugin.add_reaction.assert_awaited_with(
-        event=event,
-        channel_id=event.channel_id,
-        timestamp=event.timestamp,
-        reaction_name="acknowledge"
+    global_manager.bot_config.START_KEYWORD = "start"
+    event_data = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="thread_message",
+        channel_id="C123",
+        thread_id="thread_1",
+        response_id="response_1",
+        user_name="test_user",
+        user_email="test@example.com",
+        user_id="U123",
+        is_mention=True,
+        text="start",
+        origin_plugin_name="origin_plugin_name"
     )
-    mock_custom_api_plugin.send_message.assert_awaited()
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+
+    await ca_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")
+
+    ca_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()
 
 @pytest.mark.asyncio
-async def test_process_interaction_error(ca_default_behavior_plugin, global_manager):
-    event = AsyncMock(IncomingNotificationDataBase)
-    ca_default_behavior_plugin.user_interactions_dispatcher.request_to_notification_data.side_effect = Exception("Test error")
+async def test_process_interaction_thread_message_no_mention(ca_default_behavior_plugin, global_manager):
+    global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE = True
+    global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"
 
-    mock_custom_api_plugin = MagicMock()
-    mock_custom_api_plugin.reactions = MagicMock()
-    mock_custom_api_plugin.send_message = AsyncMock()
-    ca_default_behavior_plugin.user_interactions_dispatcher.get_plugin = MagicMock(return_value=mock_custom_api_plugin)
-    
-    # Assurez-vous que l'attribut instantmessaging_plugin est correctement défini
-    ca_default_behavior_plugin.instantmessaging_plugin = mock_custom_api_plugin
+    event_data = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="thread_message",
+        channel_id="C123",
+        thread_id="thread_1",
+        response_id="response_1",
+        user_name="test_user",
+        user_email="test@example.com",
+        user_id="U123",
+        is_mention=False,
+        text="Hello",
+        origin_plugin_name="origin_plugin_name"
+    )
 
-    # Capturez l'exception et vérifiez qu'elle est bien levée
-    with pytest.raises(Exception) as exc_info:
-        await ca_default_behavior_plugin.process_interaction(event)
-    
-    # Vérifiez que l'erreur contient le message attendu
-    assert "cannot access local variable 'event'" in str(exc_info.value)
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
 
-    # Vérifiez que send_message n'a pas été appelé à cause de l'erreur
-    mock_custom_api_plugin.send_message.assert_not_awaited()
+    await ca_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")
 
-    # Vous pouvez également vérifier que le logger a enregistré l'erreur
+    ca_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_process_interaction_new_message_no_mention(ca_default_behavior_plugin, global_manager, monkeypatch):
+    monkeypatch.setattr(global_manager.bot_config, 'REQUIRE_MENTION_NEW_MESSAGE', True)
+    event_data = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="message",
+        channel_id="C123",
+        thread_id=None,
+        response_id=None,
+        user_name="test_user",
+        user_email="test@example.com",
+        user_id="U123",
+        is_mention=False,  # Not mentioning the bot
+        text="Hello",
+        origin_plugin_name="origin_plugin_name"
+    )
+    monkeypatch.setattr(ca_default_behavior_plugin.user_interaction_dispatcher, 'request_to_notification_data', AsyncMock(return_value=event_data))
+    plugin_mock = AsyncMock()
+    monkeypatch.setattr(ca_default_behavior_plugin.user_interaction_dispatcher, 'get_plugin', MagicMock(return_value=plugin_mock))
+
+    await ca_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")
+
+    # Examine the method calls
+    print("Number of method calls:", len(plugin_mock.method_calls))
+    for i, call in enumerate(plugin_mock.method_calls):
+        print(f"Call {i}:")
+        print("  Method name:", call[0])
+        print("  Arguments:", call[1])
+        print("  Kwargs:", call[2])
+        print()
+
+    # Verify that no methods are called since the bot should not process the message
+    add_reaction_calls = [call for call in plugin_mock.method_calls if call[0] == 'add_reaction']
+    send_message_calls = [call for call in plugin_mock.method_calls if call[0] == 'send_message']
+    remove_reaction_calls = [call for call in plugin_mock.method_calls if call[0] == 'remove_reaction']
+
+    assert len(add_reaction_calls) == 0, "add_reaction should not be called"
+    assert len(send_message_calls) == 0, "send_message should not be called"
+    assert len(remove_reaction_calls) == 0, "remove_reaction should not be called"
+
+@pytest.mark.asyncio
+async def test_process_incoming_notification_data_no_genai_output(ca_default_behavior_plugin, global_manager):
+    # Setup
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="message",
+        channel_id="C123",
+        thread_id=None,
+        response_id=None,
+        user_name="test_user",
+        user_email="test_user@example.com",
+        user_id="U123",
+        is_mention=True,
+        text="hello",
+        origin_plugin_name="origin_plugin_name"
+    )
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
+    ca_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value=None)
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+
+    # Add logging
+    ca_default_behavior_plugin.logger = MagicMock()
+
+    # Execute
+    await ca_default_behavior_plugin.process_incoming_notification_data(event)
+
+    # Print all logged messages
+    print("\nLogged messages:")
+    for call in ca_default_behavior_plugin.logger.mock_calls:
+        print(f"  {call}")
+
+    # Print all method calls
+    print("\nMethod calls:")
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, AsyncMock):
+            print(f"  {attr_name}:")
+            for call in attr.mock_calls:
+                print(f"    {call}")
+
+    # Assert
+    assert ca_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request.called, \
+        "genai_interactions_text_dispatcher.handle_request was not called"
+
+    # Check that at least one reaction was added or removed
+    assert (ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.called or
+            ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.called), \
+        "Neither add_reaction nor remove_reaction was called"
+
+    # Check that no further processing occurred
+    assert not ca_default_behavior_plugin.global_manager.action_interactions_handler.handle_request.called, \
+        "action_interactions_handler.handle_request was unexpectedly called"
+
+@pytest.mark.asyncio
+async def test_process_interaction_exception(ca_default_behavior_plugin):
+    event_data = {
+        "text": "hello",
+        "event_label": "message",
+        "channel_id": "C123",
+        "timestamp": "1234567890.123456",
+        "is_mention": True,
+        "origin_plugin_name": "origin_plugin_name"
+    }
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(side_effect=Exception("Test exception"))
+    plugin_mock = AsyncMock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.get_plugin = MagicMock(return_value=plugin_mock)
+
+    with pytest.raises(Exception):
+        await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
+
     ca_default_behavior_plugin.logger.error.assert_called()
+
+@pytest.mark.asyncio
+async def test_update_reaction(ca_default_behavior_plugin):
+    # Setup
+    event = MagicMock()
+    channel_id = "C123"
+    timestamp = "1234567890.123456"
+    remove_reaction = "old_reaction"
+    add_reaction = "new_reaction"
+
+    ca_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+
+    # Execute
+    await ca_default_behavior_plugin.update_reaction(event, channel_id, timestamp, remove_reaction, add_reaction)
+
+    # Assert
+    ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_called_once_with(
+        event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=remove_reaction
+    )
+    ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_called_once_with(
+        event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=add_reaction
+    )

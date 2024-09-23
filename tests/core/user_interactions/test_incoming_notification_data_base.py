@@ -21,7 +21,6 @@ def sample_data_user():
         'username': None,
         'is_mention': True,
         'text': 'This is a test message.',
-        'origin': 'test_origin',
         'images': ['image1.png', 'image2.png'],
         'files_content': ['file1.txt', 'file2.txt'],
         'raw_data': {'key': 'value'},
@@ -44,7 +43,6 @@ def sample_data_app():
         'api_app_id': None,
         'is_mention': True,
         'text': 'This is a test message.',
-        'origin': 'test_origin',
         'images': ['image1.png', 'image2.png'],
         'files_content': ['file1.txt', 'file2.txt'],
         'raw_data': {'key': 'value'},
@@ -67,7 +65,6 @@ def sample_data_api_app():
         'api_app_id': 'api_app123',
         'is_mention': True,
         'text': 'This is a test message.',
-        'origin': 'test_origin',
         'images': ['image1.png', 'image2.png'],
         'files_content': ['file1.txt', 'file2.txt'],
         'raw_data': {'key': 'value'},
@@ -90,7 +87,6 @@ def test_incoming_notification_data_base_initialization(sample_data_user):
     assert notification.username  if notification.username!="" else None  == sample_data_user["username"]
     assert notification.is_mention == sample_data_user['is_mention']
     assert notification.text == sample_data_user['text']
-    assert notification.origin == sample_data_user['origin']
     assert notification.images == sample_data_user['images']
     assert notification.files_content == sample_data_user['files_content']
     assert notification.raw_data == sample_data_user['raw_data']
@@ -121,7 +117,6 @@ def test_incoming_notification_data_base_from_dict(sample_data_user):
     assert notification.api_app_id if notification.api_app_id!="" else None == sample_data_user["api_app_id"]
     assert notification.is_mention == sample_data_user['is_mention']
     assert notification.text == sample_data_user['text']
-    assert notification.origin == sample_data_user['origin']
     assert notification.images == sample_data_user['images']
     assert notification.files_content == sample_data_user['files_content']
     assert notification.raw_data == sample_data_user['raw_data']
@@ -144,7 +139,6 @@ def test_incoming_notification_data_base_initialization_app(sample_data_app):
     assert notification.user_id if notification.user_id!="" else None == sample_data_app['user_id']
     assert notification.is_mention == sample_data_app['is_mention']
     assert notification.text == sample_data_app['text']
-    assert notification.origin == sample_data_app['origin']
     assert notification.images == sample_data_app['images']
     assert notification.files_content == sample_data_app['files_content']
     assert notification.raw_data == sample_data_app['raw_data']
@@ -167,7 +161,6 @@ def test_incoming_notification_data_base_initialization_api_app(sample_data_api_
     assert notification.user_id if notification.user_id!="" else None == sample_data_api_app['user_id']
     assert notification.is_mention == sample_data_api_app['is_mention']
     assert notification.text == sample_data_api_app['text']
-    assert notification.origin == sample_data_api_app['origin']
     assert notification.images == sample_data_api_app['images']
     assert notification.files_content == sample_data_api_app['files_content']
     assert notification.raw_data == sample_data_api_app['raw_data']
@@ -210,7 +203,6 @@ def test_incoming_notification_data_base_from_dict_app(sample_data_app):
     assert notification.app_id == sample_data_app['app_id']
     assert notification.is_mention == sample_data_app['is_mention']
     assert notification.text == sample_data_app['text']
-    assert notification.origin == sample_data_app['origin']
     assert notification.images == sample_data_app['images']
     assert notification.files_content == sample_data_app['files_content']
     assert notification.raw_data == sample_data_app['raw_data']
@@ -232,7 +224,6 @@ def test_incoming_notification_data_base_from_dict_app(sample_data_api_app):
     assert notification.api_app_id == sample_data_api_app['api_app_id']
     assert notification.is_mention == sample_data_api_app['is_mention']
     assert notification.text == sample_data_api_app['text']
-    assert notification.origin == sample_data_api_app['origin']
     assert notification.images == sample_data_api_app['images']
     assert notification.files_content == sample_data_api_app['files_content']
     assert notification.raw_data == sample_data_api_app['raw_data']

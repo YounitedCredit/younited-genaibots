@@ -38,7 +38,6 @@ async def test_user_interaction_execute(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name="origin_plugin_name"
@@ -79,7 +78,6 @@ async def test_user_interaction_execute_empty_message(mock_global_manager):
         user_id='user_123',
         is_mention=False,
         text='',
-        origin='test_origin',
         images=[],
         files_content=[],
         origin_plugin_name='test_plugin'

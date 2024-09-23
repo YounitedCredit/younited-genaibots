@@ -18,7 +18,6 @@ def test_teams_event_data_instantiation():
         "text": "text",
         "images": [],
         "files_content": [],
-        "origin": "origin",
         "raw_data": {},
         "origin_plugin_name": "origin_plugin_name"
     }

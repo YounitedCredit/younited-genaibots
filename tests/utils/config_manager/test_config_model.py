@@ -17,6 +17,7 @@ from utils.config_manager.config_model import (
     Utils,
 )
 
+
 def test_bot_config():
     # Test valid BotConfig
     valid_data = {
@@ -29,7 +30,6 @@ def test_bot_config():
         "REQUIRE_MENTION_THREAD_MESSAGE": True,
         "LOG_DEBUG_LEVEL": "DEBUG",
         "SHOW_COST_IN_THREAD": True,
-        "ACKNOWLEDGE_NONPROCESSED_MESSAGE": True,
         "GET_URL_CONTENT": True,
         "ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME": "default_action_plugin",
         "INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME": "default_processing_plugin",
@@ -40,9 +40,11 @@ def test_bot_config():
         "LLM_CONVERSION_FORMAT": "conversion_format",
         "BREAK_KEYWORD": "break",
         "START_KEYWORD": "start",
+        "CLEARQUEUE_KEYWORD": "clearqueue",
         "LOAD_ACTIONS_FROM_BACKEND": True,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": False,
-        "RECORD_NONPROCESSED_MESSAGES": False  # Correct field name
+        "ACTIVATE_MESSAGE_QUEUING": False,
+        "MESSAGE_QUEUING_TTL" : 120
     }
     bot_config = BotConfig(**valid_data)
     assert bot_config.CORE_PROMPT == "core_prompt"
@@ -112,7 +114,6 @@ def test_config_model():
         "REQUIRE_MENTION_THREAD_MESSAGE": True,
         "LOG_DEBUG_LEVEL": "DEBUG",
         "SHOW_COST_IN_THREAD": True,
-        "ACKNOWLEDGE_NONPROCESSED_MESSAGE": True,
         "GET_URL_CONTENT": True,
         "ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME": "default_action_plugin",
         "INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME": "default_processing_plugin",
@@ -123,9 +124,11 @@ def test_config_model():
         "LLM_CONVERSION_FORMAT": "conversion_format",
         "BREAK_KEYWORD": "break",
         "START_KEYWORD": "start",
+        "CLEARQUEUE_KEYWORD": '!CLEARQUEUE',
         "LOAD_ACTIONS_FROM_BACKEND": False,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": True,
-        "RECORD_NONPROCESSED_MESSAGES": False  # Correct field name
+        "MESSAGE_QUEUING_TTL" : 120,
+        "ACTIVATE_MESSAGE_QUEUING": True
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
 

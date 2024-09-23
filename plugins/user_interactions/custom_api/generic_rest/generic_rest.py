@@ -1,7 +1,8 @@
 import asyncio
 import json
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+
 import aiohttp
 from fastapi import Request
 from pydantic import BaseModel
@@ -11,8 +12,6 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
-
 from core.user_interactions.message_type import MessageType
 from core.user_interactions.outgoing_notification_data_base import (
     OutgoingNotificationDataBase,
@@ -20,13 +19,15 @@ from core.user_interactions.outgoing_notification_data_base import (
 from core.user_interactions.outgoing_notification_event_types import (
     OutgoingNotificationEventTypes,
 )
+from core.user_interactions.user_interactions_dispatcher import (
+    UserInteractionsDispatcher,
+)
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
 from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
     GenericRestReactions,
 )
-from utils.logging.logger_loader import logging
 from utils.plugin_manager.plugin_manager import PluginManager
 
 
@@ -102,7 +103,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             self.logger.error("Invalid JSON received")
             return Response("Invalid JSON", status_code=400)
         except Exception as e:
-            self.logger.exception(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
+            self.logger.error(f"Error processing request from <{request.headers.get('Referer')}>: {e}")
             return Response("Internal server error", status_code=500)
 
     async def validate_request(self, event_data=None, headers=None, raw_body_str=None):
@@ -112,14 +113,13 @@ class GenericRestPlugin(UserInteractionsPluginBase):
 
             # Get required keys from IncomingNotificationDataBase but exclude fields not expected in the incoming data
             required_keys = set(IncomingNotificationDataBase(
-                timestamp="", 
-                event_label="", 
-                channel_id="", 
-                thread_id="", 
-                response_id="", 
+                timestamp="",
+                event_label="",
+                channel_id="",
+                thread_id="",
+                response_id="",
                 is_mention=False,  # This might also be set later in the process
-                text="", 
-                origin="",
+                text="",
                 origin_plugin_name=""
             ).to_dict().keys()) - {'is_mention'}
 
@@ -149,7 +149,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             if validate_request:
                 try:
                     user_id = event_data.user_id
-                    channel_id = event_data.channel_id                    
+                    channel_id = event_data.channel_id
 
                     self.logger.info(f"Valid <GENERIC_REST> request received from user {user_id} in channel {channel_id}, processing..")
                     await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
@@ -164,7 +164,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             else:
                 self.logger.info("Request discarded")
         except Exception as e:
-            self.logger.exception(f"An error occurred while processing user input: {e}")
+            self.logger.error(f"An error occurred while processing user input: {e}")
             raise  # re-raise the exception
 
     async def send_message(self, message, event, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
@@ -180,7 +180,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             notification.message_type = message_type
             await self.post_notification(notification, self.rest_config.GENERIC_REST_MESSAGE_URL)
 
-    async def add_reference_message(self, event):        
+    async def add_reference_message(self, event):
         text =  f"[ref msg link]> | thread: `{event.channel_id}-{event.response_id}`"
         return text
 
@@ -210,7 +210,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         # Format the datetime object to a readable string
         formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
         return formatted_time
-    
+
     async def request_to_notification_data(self, event_data: IncomingNotificationDataBase):
         if isinstance(event_data, IncomingNotificationDataBase):
             return event_data
@@ -242,8 +242,12 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
-        return None    
-        
+        return None
+
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str):
+        # NOT IMPLEMENTED YET
+        return None
+
     def get_bot_id(self) -> str:
         return self.rest_config.GENERIC_REST_BOT_ID
         pass

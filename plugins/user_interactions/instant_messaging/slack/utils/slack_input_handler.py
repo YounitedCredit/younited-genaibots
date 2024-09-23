@@ -5,7 +5,6 @@ import os
 import re
 import zipfile
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 import aiohttp
 import requests
@@ -164,7 +163,7 @@ class SlackInputHandler:
         except Exception as ex:
             self.logger.error(f"Error reading request data: {ex}")
 
-    def resize_image(self, image_bytes, max_size):
+    async def resize_image(self, image_bytes, max_size):
         image = Image.open(io.BytesIO(image_bytes))
         if image.mode in ("RGBA", "P"):  # Check if image has transparency
             image = image.convert("RGB")  # Convert image to RGB
@@ -363,106 +362,117 @@ class SlackInputHandler:
 
     async def _process_single_slack_link(self, link, original_text, main_timestamp, user_id, depth=0):
         try:
+            # Limit recursion depth to avoid infinite loops
             if depth > 5:
                 return f"[Maximum depth reached for Slack link: {link}]"
 
             self.logger.debug(f"Processing Slack link (depth {depth}): {link}")
 
-            # Extract channel, message, and thread info from the URL
+            # Extract Slack link details (channel, message timestamp, thread timestamp, and if it's a thread)
             channel_id, message_ts, thread_ts, is_thread = await self.extract_info_from_url(link)
             self.logger.debug(f"Extracted info: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, is_thread={is_thread}")
 
-            # Case 1: If it's a thread link (is_thread == False and no thread_ts), always fetch the entire thread
+            # Fetch the full thread or specific message depending on link type
             if not is_thread and not thread_ts:
                 self.logger.info(f"Fetching entire thread for message_ts: {message_ts} (Thread link)")
                 result = await self.get_message_content(channel_id, message_ts, thread_ts=message_ts, original_link=link)
-
-            # Case 2: If it's a message inside a thread (is_thread == True), handle based on GET_ALL_THREAD_FROM_MESSAGE_LINKS
             elif is_thread:
                 if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS:
-                    self.logger.info(f"GET_ALL_THREAD_FROM_MESSAGE_LINKS is True, fetching entire thread for message: {message_ts} in thread: {thread_ts}")
-                    # Fetch the full thread and return all the messages in the thread
+                    self.logger.info(f"GET_ALL_THREAD_FROM_MESSAGE_LINKS is True, fetching entire thread for message: {message_ts}")
                     result = await self.get_message_content(channel_id, message_ts, thread_ts=None, original_link=link)
                 else:
-                    # Fetch only the specific message
-                    self.logger.info(f"Fetching single message for message_ts: {thread_ts}")
+                    self.logger.info(f"Fetching single message for thread_ts: {thread_ts}")
                     result = await self.get_message_content(channel_id, thread_ts, thread_ts=None, original_link=link)
 
-            # Handle case where no messages are found
+            # Handle case where no messages were retrieved
             if not result['messages']:
                 return f"No messages found for the given Slack link: {link}"
 
-            # Extract metadata and messages
+            # Extract metadata and process messages
             metadata = result['metadata']
             content_type = result['content_type']
             messages = result['messages']
-            messages = [message for message in messages if message['ts'] != main_timestamp]
-            # Tag the exact message that was linked
+            messages = [message for message in messages if message['ts'] != main_timestamp]  # Remove the originating message
+
+            # Find and tag the exact message that was linked
             tagged_message = None
-            if is_thread:
-                # When it's a message inside a thread, compare against `thread_ts`
-                for message in messages:
-                    if message['ts'] == thread_ts:
-                        tagged_message = message
-                        break
-            else:
-                # When it's a link to a full thread, compare against `message_ts`
-                for message in messages:
-                    if message['ts'] == message_ts:
-                        tagged_message = message
-                        break
+            target_ts = thread_ts if is_thread else message_ts
+            for message in messages:
+                if message['ts'] == target_ts:
+                    tagged_message = message
+                    break
 
+            # Return early if the exact message isn't found
             if not tagged_message:
-                self.logger.error(f"No matching message found for the timestamp: {thread_ts if is_thread else message_ts}")
+                self.logger.error(f"No matching message found for the timestamp: {target_ts}")
                 return f"No exact message found for the given Slack link: {link}"
-
 
             # Process the message text and handle nested links recursively
             processed_messages = []
             for message in messages:
-                processed_text = await self._process_slack_links_in_text(message['text'], depth + 1)
-                message['text'] = processed_text
+                # Process links in the text field
+                if "text" in message:
+                    processed_text = await self._process_slack_links_in_text(message['text'], depth + 1)
+                    message['text'] = processed_text
+
+                # Process links in the attachments (including 'from_url')
+                if "attachments" in message:
+                    for attachment in message['attachments']:
+                        if "from_url" in attachment:
+                            # Inject 'from_url' into the text for processing
+                            processed_attachment_url = await self._process_single_slack_link(attachment['from_url'], "", main_timestamp, user_id, depth + 1)
+                            message['text'] += f"\n{processed_attachment_url}"  # Injecting 'from_url' into text
+
+                        # Handle additional fields in attachments where links might exist
+                        if "title_link" in attachment:  # Sometimes links exist in titles
+                            processed_title_link = await self._process_single_slack_link(attachment['title_link'], "", main_timestamp, user_id, depth + 1)
+                            attachment['title_link'] = processed_title_link
+
+                # Process links in message blocks if they exist
+                if "message_blocks" in message:
+                    for block in message['message_blocks']:
+                        if "from_url" in block:
+                            # Process links found in blocks
+                            processed_block_url = await self._process_single_slack_link(block['from_url'], "", main_timestamp, user_id, depth + 1)
+                            message['text'] += f"\n{processed_block_url}"
+
                 processed_messages.append(message)
 
-            # Format the content for display
+            # Format the processed messages for display
             formatted_content = await self._format_message_content(processed_messages)
 
-            # Fetch user info for the author of the exact message
+            # Fetch user information for the exact tagged message
             tagged_message_user_id = tagged_message.get('user', None)
             if tagged_message_user_id:
                 user_name, user_email, _ = await self.get_user_info(tagged_message_user_id)
             else:
                 user_name, user_email = 'Unknown', 'Unknown'
 
-            # Create a metadata string for the source info, including the exact message information and config setting note
+            # Create metadata string with additional information about the message
             metadata_str = (f"Source: {metadata['source_link']}\n"
                             f"Channel ID: {metadata['channel_id']}\n"
                             f"Thread ID: {metadata['thread_id']}\n"
                             f"Content Type: {content_type}\n")
 
             if tagged_message:
-                # Include the content of the exact message that was referenced in the link, along with user info
                 tagged_message_content = tagged_message.get('text', 'No content found')
                 metadata_str += (f"Note: The exact message referenced in the link is tagged below.\n"
                                 f"Message content: \"{tagged_message_content}\"\n"
                                 f"Author: {user_name} (Email: {user_email})\n")
 
-            # If the entire thread was retrieved due to the config, add an explanation
+            # Add a note if the entire thread was retrieved based on config
             if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS and is_thread:
                 metadata_str += "Note: Due to the configuration settings, the entire thread was retrieved for analysis.\n"
 
-            # Combine the metadata and formatted message content
+            # Combine metadata and formatted content into a full message
             full_message_text = (f"\n[Automated Response] Slack link content (depth {depth}):\n"
                                 f"{metadata_str}\n\n"
                                 f"{formatted_content}")
 
             return full_message_text
 
-        except ValueError as ve:
-            self.logger.error(f"Invalid Slack URL: {link}. Error: {str(ve)}")
-            raise
         except Exception as e:
-            self.logger.error(f"Failed to process Slack link: {link}. Error: {str(e)}", exc_info=True)
+            self.logger.error(f"Error processing Slack link: {link}. Error: {str(e)}", exc_info=True)
             raise
 
 
@@ -532,9 +542,9 @@ class SlackInputHandler:
                 return f"The following text is an automated response inserted in the user conversation automatically giving the content of the URL in the user message: {content}\n"
             except requests.exceptions.RequestException as e:
                 self.logger.error(f"An error occurred while trying to get {url}: {e}")
-                return f"An error occurred while trying to get {url}: {e}\n"
+                return f"An error occurred while trying to get {url}:\n"
 
-    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):        
+    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):
         user_name, user_email, _ = await self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
 
@@ -552,7 +562,6 @@ class SlackInputHandler:
             username=username,
             is_mention=is_mention,
             text=text,
-            origin="slack",
             images=base64_images,
             files_content=files_content,
             origin_plugin_name=self.slack_config.PLUGIN_NAME
@@ -665,17 +674,24 @@ class SlackInputHandler:
         # Convertir tous les paramètres en chaînes
         params = {k: str(v) for k, v in params.items()}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
-                if response.status != 200:
-                    error_message = (await response.json()).get('error', 'Unknown error')
-                    raise ValueError(f"Failed to retrieve message from Slack API: {error_message}")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status != 200:
+                        error_message = await response.json()
+                        error_message = error_message.get('error', 'Unknown error')
+                        self.logger.error(f"Failed to retrieve message from Slack API: {error_message}")
+                        return None
 
-                data = await response.json()
-                if not data['ok']:
-                    raise ValueError(f"Failed to retrieve message from Slack API: {data['error']}")
+                    data = await response.json()
+                    if not data['ok']:
+                        self.logger.error(f"Failed to retrieve message from Slack API: {data['error']}")
+                        return None
 
-                return data
+                    return data
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred: {str(e)}")
+            return None
 
     async def _fetch_message_data(self, channel_id, message_ts, message_type):
         params = self._build_api_params(channel_id, message_ts, message_type)
@@ -735,7 +751,7 @@ class SlackInputHandler:
         # Format the datetime object to a readable string
         formatted_time = utc_dt.strftime('%Y-%m-%d %H:%M:%S')
         return formatted_time
-    
+
     async def _format_message_content(self, messages):
         formatted_messages = []
         for message in messages:

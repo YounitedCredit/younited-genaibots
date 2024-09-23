@@ -24,7 +24,6 @@ def sample_data():
         'user_id': 'user123',
         'is_mention': True,
         'text': 'This is a test message.',
-        'origin': 'test_origin',
         'images': ['image1.png', 'image2.png'],
         'files_content': ['file1.txt', 'file2.txt'],
         'raw_data': {'key': 'value'},
@@ -39,10 +38,10 @@ def test_outgoing_notification_data_base_initialization(sample_data):
     # Créer l'objet en utilisant les bons types pour event_type et message_type
     sample_data['event_type'] = OutgoingNotificationEventTypes.MESSAGE  # Utiliser l'enum directement
     sample_data['message_type'] = OutgoingNotificationContentType.TEXT  # Utiliser l'enum directement
-    
+
     # Test initialization of OutgoingNotificationDataBase
     notification = OutgoingNotificationDataBase(**sample_data)
-    
+
     # Assertions pour vérifier que chaque champ est correctement initialisé
     assert notification.timestamp == sample_data['timestamp']
     assert notification.event_type == sample_data['event_type']
@@ -54,7 +53,6 @@ def test_outgoing_notification_data_base_initialization(sample_data):
     assert notification.user_id == sample_data['user_id']
     assert notification.is_mention == sample_data['is_mention']
     assert notification.text == sample_data['text']
-    assert notification.origin == sample_data['origin']
     assert notification.images == sample_data['images']
     assert notification.files_content == sample_data['files_content']
     assert notification.raw_data == sample_data['raw_data']
@@ -69,7 +67,7 @@ def test_outgoing_notification_data_base_to_dict(sample_data):
     # Test conversion of OutgoingNotificationDataBase to dictionary
     notification = OutgoingNotificationDataBase(**sample_data)
     notification_dict = notification.to_dict()
-    
+
     expected_dict = {
         'timestamp': sample_data['timestamp'],
         'event_type': sample_data['event_type'].name,  # Conversion en nom
@@ -81,7 +79,6 @@ def test_outgoing_notification_data_base_to_dict(sample_data):
         'user_id': sample_data['user_id'],
         'is_mention': sample_data['is_mention'],
         'text': sample_data['text'],
-        'origin': sample_data['origin'],
         'images': sample_data['images'],
         'files_content': sample_data['files_content'],
         'raw_data': sample_data['raw_data'],
@@ -90,7 +87,7 @@ def test_outgoing_notification_data_base_to_dict(sample_data):
         'reaction_name': sample_data['reaction_name'],
         'is_internal': sample_data['is_internal']  # Ajouter le nouvel attribut
     }
-    
+
     assert notification_dict == expected_dict
 
 
@@ -107,7 +104,6 @@ def test_outgoing_notification_data_base_from_dict(sample_data):
         'user_id': sample_data['user_id'],
         'is_mention': sample_data['is_mention'],
         'text': sample_data['text'],
-        'origin': sample_data['origin'],
         'images': sample_data['images'],
         'files_content': sample_data['files_content'],
         'raw_data': sample_data['raw_data'],
@@ -116,9 +112,9 @@ def test_outgoing_notification_data_base_from_dict(sample_data):
         'reaction_name': sample_data['reaction_name'],
         'is_internal': sample_data['is_internal']  # Ajouter le nouvel attribut
     }
-    
+
     notification = OutgoingNotificationDataBase.from_dict(sample_dict)
-    
+
     assert notification.timestamp == sample_data['timestamp']
     assert notification.event_type == sample_data['event_type']
     assert notification.channel_id == sample_data['channel_id']
@@ -129,7 +125,6 @@ def test_outgoing_notification_data_base_from_dict(sample_data):
     assert notification.user_id == sample_data['user_id']
     assert notification.is_mention == sample_data['is_mention']
     assert notification.text == sample_data['text']
-    assert notification.origin == sample_data['origin']
     assert notification.images == sample_data['images']
     assert notification.files_content == sample_data['files_content']
     assert notification.raw_data == sample_data['raw_data']

@@ -5,6 +5,7 @@ import pytest
 
 from utils.config_manager.config_manager import ConfigManager
 
+
 def test_config_manager_initialization(mock_global_manager):
     # Setup: Create a ConfigManager instance using the mock_global_manager
     with patch('builtins.open', mock_open(read_data="""
@@ -18,7 +19,6 @@ def test_config_manager_initialization(mock_global_manager):
       REQUIRE_MENTION_THREAD_MESSAGE: true
       LOG_DEBUG_LEVEL: 'DEBUG'
       SHOW_COST_IN_THREAD: true
-      ACKNOWLEDGE_NONPROCESSED_MESSAGE: true
       GET_ALL_THREAD_FROM_MESSAGE_LINKS: true
       GET_URL_CONTENT: true
       ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'
@@ -28,10 +28,13 @@ def test_config_manager_initialization(mock_global_manager):
       GENAI_IMAGE_DEFAULT_PLUGIN_NAME: 'default_genai_image_plugin'
       GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: 'default_genai_vector_search_plugin'
       LLM_CONVERSION_FORMAT: 'LLM_conversion_format'
-      RECORD_NONPROCESSED_MESSAGES: false
       BREAK_KEYWORD: 'start'
       START_KEYWORD: 'stop'
-      LOAD_ACTIONS_FROM_BACKEND: False
+      CLEARQUEUE_KEYWORD: '!CLEARQUEUE'
+      LOAD_ACTIONS_FROM_BACKEND: false
+      MESSAGE_QUEUING_TTL: 120
+      ACTIVATE_MESSAGE_QUEUING: false
+
     PLUGINS:
       ACTION_INTERACTIONS:
         CUSTOM: {}
@@ -62,6 +65,7 @@ def test_config_manager_initialization(mock_global_manager):
         assert config_manager.config['BOT_CONFIG']['MAIN_PROMPT'] == 'main_prompt'
         assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS'] == {'CUSTOM': {}, 'DEFAULT': {}}
         assert config_manager.config['UTILS']['LOGGING']['FILE']['PLUGIN_NAME'] == 'file_logging'
+
 
 def test_config_file_not_found(mock_global_manager):
     # Test handling of a missing configuration file

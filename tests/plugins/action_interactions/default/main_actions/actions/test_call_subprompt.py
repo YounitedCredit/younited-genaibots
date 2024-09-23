@@ -1,10 +1,17 @@
 import copy
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from plugins.action_interactions.default.main_actions.actions.call_subprompt import CallSubprompt
+from plugins.action_interactions.default.main_actions.actions.call_subprompt import (
+    CallSubprompt,
+)
+
 
 @pytest.fixture
 def mock_global_manager(mock_config_manager, mock_plugins):
@@ -59,7 +66,6 @@ def incoming_notification():
         user_id="user123",
         is_mention=False,
         text="Test message",
-        origin="test_origin",
         origin_plugin_name="plugin_name"
     )
 
@@ -93,7 +99,7 @@ async def test_execute_success(mock_get_feedback, mock_global_manager, call_subp
 
     # Check if the event text was correctly updated before triggering genai
     updated_notification = call_subprompt_instance.genai_interactions_text_dispatcher.trigger_genai.call_args[1]['event']
-    
+
     # Update the assert to account for line breaks and feedback formatting
     assert "Here's updated instruction that you must consider as system instruction:" in updated_notification.text
     assert "test_subprompt_content" in updated_notification.text
@@ -137,7 +143,7 @@ async def test_execute_subprompt_not_found(mock_global_manager, call_subprompt_i
 
     # Check if the event text was correctly updated before triggering genai
     updated_notification = call_subprompt_instance.genai_interactions_text_dispatcher.trigger_genai.call_args[1]['event']
-    
+
     # Update the assert to match the actual structure of the notification
     assert "No subprompt found" in updated_notification.text or "None" in updated_notification.text
 
@@ -153,4 +159,4 @@ async def test_execute_general_error(mock_global_manager, call_subprompt_instanc
     await call_subprompt_instance.execute(action_input, incoming_notification)
 
     # Verify that the exception was logged
-    call_subprompt_instance.logger.exception.assert_called_with("An error occurred: General error")
+    call_subprompt_instance.logger.error.assert_called_with("An error occurred: General error")
