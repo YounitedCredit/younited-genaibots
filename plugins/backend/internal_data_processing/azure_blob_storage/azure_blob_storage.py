@@ -423,24 +423,22 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
                 self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
                 return None, None
 
-            # Regular expression to match the blob name structure: {channel_id}_{thread_id}_{message_id}.txt
-            timestamp_regex = re.compile(rf"{channel_id}_(\d+\.\d+)_(\d+\.\d+)\.txt")
-
-            # Extract the message_id (timestamp) from the blob name using regex
+            # Helper function to extract the message_id (third part) from the blob name
             def extract_message_id(blob_name: str) -> float:
-                match = timestamp_regex.search(blob_name)
-                if match:
-                    return float(match.group(2))  # Group 2 contains the message_id
+                # Split the blob name into channel_id, thread_id, and message_id
+                parts = blob_name.split('_')
+                if len(parts) == 3:
+                    return float(parts[2].replace('.txt', ''))  # Extract the message_id and convert it to float
                 else:
                     raise ValueError(f"Blob name '{blob_name}' does not match the expected format '{channel_id}_{thread_id}_<message_id>.txt'")
 
-            # Get the timestamp of the current message
-            current_timestamp = extract_message_id(f"{channel_id}_{thread_id}_{current_message_id}.txt")
+            # Get the current message's message_id as a float (current_message_id is a string)
+            current_timestamp = float(current_message_id)
 
-            # Sort blobs by the message_id
+            # Sort blobs by message_id
             filtered_blobs.sort(key=lambda blob: extract_message_id(blob.name))
 
-            # Find the next message based on the timestamp comparison
+            # Find the next blob by comparing message_id (timestamp)
             next_blob = next((blob for blob in filtered_blobs if extract_message_id(blob.name) > current_timestamp), None)
 
             if not next_blob:
@@ -451,6 +449,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=next_blob.name)
             message_content = blob_client.download_blob().readall().decode('utf-8')
 
+            # Extract the next_message_id from the blob name
             next_message_id = next_blob.name.split('_')[-1].replace('.txt', '')
 
             self.logger.info(f"Next message retrieved: '{next_blob.name}' with ID '{next_message_id}'.")
@@ -464,6 +463,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to retrieve the next message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return None, None
+
 
     async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
         """
@@ -502,10 +502,10 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the Azure Blob Storage queue for a given channel and thread.
+        Removes any messages older than MESSAGE_QUEUING_TTL seconds.
         """
-
         message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
-        current_time = int(time.time())
+        current_time = time.time()  # Get current time with full precision
 
         self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'.")
 
@@ -522,20 +522,25 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
                 self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
                 return False
 
-            updated_files = []
+            # Check for messages older than the TTL and remove them
+            updated_blobs = []
             for blob in filtered_blobs:
-                # Extract the message_id (timestamp) from the blob name
-                message_id = blob.name.split('_')[-1].split('.')[0]
-                timestamp = float(message_id)
+                try:
+                    # Extract the message_id (last part of the blob name)
+                    message_id = blob.name.split('_')[-1].replace('.txt', '')
+                    timestamp = float(message_id)  # Use full timestamp with decimal precision
+                    time_difference = current_time - timestamp
 
-                if current_time - timestamp > message_ttl:
-                    self.logger.warning(f"Removing message '{blob.name}' as it is older than {message_ttl} seconds.")
-                    await self.dequeue_message(channel_id, thread_id, message_id)
-                else:
-                    updated_files.append(blob.name)
+                    if time_difference > message_ttl:
+                        self.logger.warning(f"Removing message '{blob.name}' as it is older than {message_ttl} seconds.")
+                        await self.dequeue_message(channel_id, thread_id, message_id)
+                    else:
+                        updated_blobs.append(blob.name)
+                except ValueError as e:
+                    self.logger.error(f"Invalid blob name format: {blob.name}, skipping. Error: {e}")
 
-            # Return True if there are valid messages left after removing old ones
-            return len(updated_files) > 0
+            # Return True if there are valid messages left in the queue after removing stale ones
+            return len(updated_blobs) > 0
 
         except Exception as e:
             self.logger.error(f"Failed to check for older messages: {str(e)}")

@@ -1296,3 +1296,73 @@ async def test_request_to_notification_data_full_flow(slack_input_handler, mocke
     assert result.event_label == "message"
     assert result.channel_id == "CHANNEL_ID"
     assert result.thread_id == "1620834875.000400"
+
+def test_is_message_too_old_invalid_timestamp(slack_input_handler):
+    event_ts = "invalid_timestamp"
+    with pytest.raises(TypeError):
+        slack_input_handler.is_message_too_old(event_ts)
+
+@pytest.mark.asyncio
+async def test_is_relevant_message_missing_fields(slack_input_handler):
+    event_ts = datetime.now(timezone.utc) - timedelta(seconds=30)
+    result = await slack_input_handler.is_relevant_message("message", event_ts, None, None, None, "BOT_USER_ID", None)
+    assert result is False
+
+@pytest.mark.asyncio
+async def test_resize_image_no_resize_needed(slack_input_handler):
+    small_image_bytes = base64.b64decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12NgYGBgAAAABQAB'
+        'JzQnCgAAAABJRU5ErkJggg=='  # Very small 1x1 image
+    )
+    max_size = (100, 100)
+    result = await slack_input_handler.resize_image(small_image_bytes, max_size)
+    image = Image.open(io.BytesIO(result))
+    
+    assert image.size == (1, 1)  # Ensure the image is not resized
+
+@pytest.mark.asyncio
+async def test_download_image_as_byte_array_failure_handling(slack_input_handler, mocker):
+    mocker.patch("requests.get", side_effect=Exception("Download failed"))
+    result = await slack_input_handler.download_image_as_byte_array("https://example.com/image.png")
+    
+    assert result is None
+    slack_input_handler.logger.error.assert_called_once_with("An error occurred while downloading the image: Download failed")
+
+@pytest.mark.asyncio
+async def test_handle_zip_file_error(slack_input_handler, mocker):
+    mocker.patch("plugins.user_interactions.instant_messaging.slack.utils.slack_input_handler.SlackInputHandler.download_file_content", side_effect=Exception("Download error"))
+    file = {"url_private": "https://example.com/file.zip"}
+    
+    files_content, zip_images = await slack_input_handler.handle_zip_file(file)
+    
+    assert files_content is None
+    assert zip_images is None
+    slack_input_handler.logger.error.assert_called_once_with("Failed to handle zip file: Download error")
+
+def test_determine_event_label_and_thread_id_edge_cases(slack_input_handler):
+    # Cas où le thread_ts est absent
+    event = {
+        "ts": "1620834875.000400"
+    }
+    event_label, thread_id = slack_input_handler.determine_event_label_and_thread_id(event, None, "1620834875.000400")
+    assert event_label == "message"
+    assert thread_id == "1620834875.000400"
+
+    # Cas où thread_id est identique à ts
+    event = {
+        "ts": "1620834875.000400",
+        "thread_ts": "1620834875.000400"
+    }
+    event_label, thread_id = slack_input_handler.determine_event_label_and_thread_id(event, "1620834875.000400", "1620834875.000400")
+    assert event_label == "message"
+    assert thread_id == "1620834875.000400"
+
+@pytest.mark.asyncio
+async def test_get_user_info_no_response(slack_input_handler, mocker):
+    mocker.patch.object(slack_input_handler.async_client, 'users_info', return_value={'ok': False})
+    
+    name, email, user_id = await slack_input_handler.get_user_info('USER_ID')
+    
+    assert name == 'Unknown'
+    assert email == 'Unknown'
+    assert user_id == 'USER_ID'

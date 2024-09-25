@@ -101,24 +101,34 @@ async def test_upload_file_to_slack(slack_output_handler, mocker):
     mock_client.assert_called_once_with(channel="CHANNEL_ID", thread_ts="1620834875.000400", title="title", filename="filename.txt", content="file_content")
 
 @pytest.mark.asyncio
-async def test_add_reaction_error(slack_output_handler, mocker):
+async def test_add_reaction_error_invalid_name(slack_output_handler, mocker):
+    # Mock the reactions_add method to raise a SlackApiError with "invalid_name"
     mock_client = mocker.patch.object(slack_output_handler.client, 'reactions_add')
-    mock_client.side_effect = SlackApiError(message="", response={"error": "already_reacted"})
-    mock_logger = mocker.patch.object(slack_output_handler.logger, 'debug')
+    mock_client.side_effect = SlackApiError(message="", response={"error": "invalid_name"})
+    
+    # Mock the logger to verify the correct message is logged
+    mock_logger = mocker.patch.object(slack_output_handler.logger, 'error')
 
-    await slack_output_handler.add_reaction("CHANNEL_ID", "1620834875.000400", "thumbsup")
+    await slack_output_handler.add_reaction("CHANNEL_ID", "1620834875.000400", "invalid_reaction")
 
-    mock_logger.assert_called_once_with("Already reacted. Skipping.")
+    # Verify that the correct error log message was called
+    mock_logger.assert_called_once_with("Invalid reaction name: invalid_reaction")
+
 
 @pytest.mark.asyncio
-async def test_remove_reaction_error(slack_output_handler, mocker):
+async def test_remove_reaction_error_message_not_found(slack_output_handler, mocker):
+    # Mock the reactions_remove method to raise a SlackApiError with "message_not_found"
     mock_client = mocker.patch.object(slack_output_handler.client, 'reactions_remove')
-    mock_client.side_effect = SlackApiError(message="", response={"error": "no_reaction"})
-    mock_logger = mocker.patch.object(slack_output_handler.logger, 'debug')
+    mock_client.side_effect = SlackApiError(message="", response={"error": "message_not_found"})
+    
+    # Mock the logger to verify the correct message is logged
+    mock_logger = mocker.patch.object(slack_output_handler.logger, 'warning')
 
     await slack_output_handler.remove_reaction("CHANNEL_ID", "1620834875.000400", "thumbsup")
 
-    mock_logger.assert_called_once_with("No reaction to remove. Skipping.")
+    # Verify that the correct warning log message was called
+    mock_logger.assert_called_once_with("Message not found. Cannot remove reaction.")
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("message_type", [MessageType.TEXT, MessageType.CODEBLOCK, MessageType.COMMENT])
@@ -196,3 +206,95 @@ async def test_upload_file_to_slack_empty_content(slack_output_handler, mocker):
     await slack_output_handler.upload_file_to_slack(event, "", "filename.txt", "title")
 
     mock_client.assert_called_once_with(channel="CHANNEL_ID", thread_ts="1620834875.000400", title="title", filename="filename.txt", content="Empty result")
+
+@pytest.mark.asyncio
+async def test_fetch_conversation_history(slack_output_handler, mocker):
+    # Patch the WebClient initialization inside the fetch_conversation_history method
+    mock_web_client = mocker.patch('plugins.user_interactions.instant_messaging.slack.utils.slack_output_handler.WebClient', autospec=True)
+    
+    # Mock the conversations_replies method to return a successful response
+    mock_client_instance = mock_web_client.return_value
+    mock_client_instance.conversations_replies.return_value = {
+        "ok": True,
+        "messages": [{"text": "Hello", "ts": "1620834875.000400"}]
+    }
+
+    # Call the method under test
+    messages = await slack_output_handler.fetch_conversation_history("CHANNEL_ID", "1620834875.000400")
+
+    # Assert that the method was called with the correct arguments
+    mock_client_instance.conversations_replies.assert_called_once_with(channel="CHANNEL_ID", ts="1620834875.000400", inclusive=True)
+
+    # Verify the result
+    assert len(messages) == 1
+    assert messages[0]["text"] == "Hello"
+
+
+@pytest.mark.asyncio
+async def test_remove_reaction_from_thread_with_reaction(slack_output_handler, mocker):
+    # Mock fetch_conversation_history to return messages with reactions
+    mock_fetch = mocker.patch.object(slack_output_handler, 'fetch_conversation_history', return_value=[
+        {"ts": "1620834875.000400", "reactions": [{"name": "thumbsup"}]}
+    ])
+    
+    # Mock remove_reaction
+    mock_remove_reaction = mocker.patch.object(slack_output_handler, 'remove_reaction', new_callable=AsyncMock)
+    
+    await slack_output_handler.remove_reaction_from_thread("CHANNEL_ID", "1620834875.000400", "thumbsup")
+    
+    # Ensure fetch_conversation_history is called correctly
+    mock_fetch.assert_called_once_with("CHANNEL_ID", "1620834875.000400")
+    
+    # Ensure remove_reaction is called for the correct message
+    mock_remove_reaction.assert_called_once_with("CHANNEL_ID", "1620834875.000400", "thumbsup")
+
+@pytest.mark.asyncio
+async def test_remove_reaction_from_thread_no_reaction(slack_output_handler, mocker):
+    # Mock fetch_conversation_history to return messages without reactions
+    mock_fetch = mocker.patch.object(slack_output_handler, 'fetch_conversation_history', return_value=[
+        {"ts": "1620834875.000400"}
+    ])
+    
+    # Mock remove_reaction (should not be called)
+    mock_remove_reaction = mocker.patch.object(slack_output_handler, 'remove_reaction', new_callable=AsyncMock)
+    
+    await slack_output_handler.remove_reaction_from_thread("CHANNEL_ID", "1620834875.000400", "thumbsup")
+    
+    # Ensure fetch_conversation_history is called correctly
+    mock_fetch.assert_called_once_with("CHANNEL_ID", "1620834875.000400")
+    
+    # Ensure remove_reaction is not called as no reaction exists
+    mock_remove_reaction.assert_not_called()
+
+def test_format_slack_message_text(slack_output_handler):
+    blocks = slack_output_handler.format_slack_message("Title", "This is a text message", MessageType.TEXT)
+    
+    assert blocks == [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "This is a text message"
+            }
+        }
+    ]
+
+def test_format_slack_message_codeblock(slack_output_handler):
+    blocks = slack_output_handler.format_slack_message("Title", "def func(): pass", MessageType.CODEBLOCK)
+    
+    assert blocks == [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "Title"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "```def func(): pass```"
+            }
+        }
+    ]

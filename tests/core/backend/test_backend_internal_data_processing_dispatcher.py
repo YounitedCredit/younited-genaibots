@@ -40,15 +40,6 @@ def test_get_plugin_not_found(dispatcher, mock_plugin):
     dispatcher.logger.error.assert_called_with("BackendInternalDataProcessingDispatcher: Plugin 'non_existent_plugin' not found, returning default plugin")
     assert plugin is None
 
-def test_get_plugin_default(dispatcher, mock_plugin):
-    dispatcher.initialize([mock_plugin])
-    dispatcher.default_plugin = mock_plugin
-    plugin = dispatcher.get_plugin()
-    assert plugin == mock_plugin
-
-    plugin = dispatcher.get_plugin(mock_plugin.plugin_name)
-    assert plugin == mock_plugin
-
 def test_property_plugins(dispatcher, mock_plugin):
     dispatcher.plugins = [mock_plugin]
     assert dispatcher.plugins == [mock_plugin]
@@ -119,3 +110,136 @@ async def test_list_container_files(dispatcher, mock_plugin):
     dispatcher.default_plugin = mock_plugin  # Définir manuellement le default_plugin
     await dispatcher.list_container_files('container')
     mock_plugin.list_container_files.assert_called_with(container_name='container')
+
+def test_property_feedbacks(dispatcher, mock_plugin):
+    mock_plugin.feedbacks = 'mock_feedbacks'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.feedbacks == 'mock_feedbacks'
+
+def test_property_concatenate(dispatcher, mock_plugin):
+    mock_plugin.concatenate = 'mock_concatenate'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.concatenate == 'mock_concatenate'
+
+def test_property_prompts(dispatcher, mock_plugin):
+    mock_plugin.prompts = 'mock_prompts'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.prompts == 'mock_prompts'
+
+def test_property_costs(dispatcher, mock_plugin):
+    mock_plugin.costs = 'mock_costs'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.costs == 'mock_costs'
+
+def test_property_processing(dispatcher, mock_plugin):
+    mock_plugin.processing = 'mock_processing'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.processing == 'mock_processing'
+
+def test_property_abort(dispatcher, mock_plugin):
+    mock_plugin.abort = 'mock_abort'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.abort == 'mock_abort'
+
+def test_property_vectors(dispatcher, mock_plugin):
+    mock_plugin.vectors = 'mock_vectors'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.vectors == 'mock_vectors'
+
+def test_property_subprompts(dispatcher, mock_plugin):
+    mock_plugin.subprompts = 'mock_subprompts'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.subprompts == 'mock_subprompts'
+
+def test_property_custom_actions(dispatcher, mock_plugin):
+    mock_plugin.custom_actions = 'mock_custom_actions'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.custom_actions == 'mock_custom_actions'
+
+def test_property_messages_queue(dispatcher, mock_plugin):
+    mock_plugin.messages_queue = 'mock_messages_queue'
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    assert dispatcher.messages_queue == 'mock_messages_queue'
+
+def test_get_plugin_not_found_returns_default(dispatcher, mock_plugin):
+    plugin2 = MagicMock(spec=InternalDataProcessingBase)
+    plugin2.plugin_name = 'plugin2'
+    dispatcher.initialize([mock_plugin, plugin2])
+    dispatcher.default_plugin = mock_plugin  
+    plugin = dispatcher.get_plugin('non_existent_plugin')
+    dispatcher.logger.error.assert_called_with("BackendInternalDataProcessingDispatcher: Plugin 'non_existent_plugin' not found, returning default plugin")
+    assert plugin == mock_plugin  
+
+@pytest.mark.asyncio
+async def test_enqueue_message(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin  # Définit mock_plugin comme le plugin par défaut
+    await dispatcher.enqueue_message('channel_id', 'thread_id', 'message_id', 'message')
+    
+    # Utiliser des arguments nommés dans l'assertion
+    mock_plugin.enqueue_message.assert_called_with(
+        channel_id='channel_id',
+        thread_id='thread_id',
+        message_id='message_id',
+        message='message'
+    )
+
+@pytest.mark.asyncio
+async def test_dequeue_message(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin  # Définit mock_plugin comme le plugin par défaut
+    await dispatcher.dequeue_message('channel_id', 'thread_id', 'message_id')
+
+    # Utiliser des arguments nommés dans l'assertion
+    mock_plugin.dequeue_message.assert_called_with(
+        channel_id='channel_id',
+        thread_id='thread_id',
+        message_id='message_id'
+    )
+
+@pytest.mark.asyncio
+async def test_get_next_message(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin  # Définit mock_plugin comme le plugin par défaut
+    await dispatcher.get_next_message('channel_id', 'thread_id', 'current_message_id')
+
+    # Utiliser des arguments nommés dans l'assertion
+    mock_plugin.get_next_message.assert_called_with(
+        channel_id='channel_id',
+        thread_id='thread_id',
+        current_message_id='current_message_id'
+    )
+
+@pytest.mark.asyncio
+async def test_clear_messages_queue(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin  # Définit mock_plugin comme le plugin par défaut
+    await dispatcher.clear_messages_queue('channel_id', 'thread_id')
+
+    # Utiliser des arguments nommés dans l'assertion
+    mock_plugin.clear_messages_queue.assert_called_with(
+        channel_id='channel_id',
+        thread_id='thread_id'
+    )
+
+@pytest.mark.asyncio
+async def test_get_all_messages(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin  # Définit mock_plugin comme le plugin par défaut
+    await dispatcher.get_all_messages('channel_id', 'thread_id')
+
+    # Utiliser des arguments nommés dans l'assertion
+    mock_plugin.get_all_messages.assert_called_with(
+        channel_id='channel_id',
+        thread_id='thread_id'
+    )

@@ -392,21 +392,19 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
                 return None, None
 
-            # Regular expression to match the filename structure: {channel_id}_{thread_id}_{message_id}.txt
-            timestamp_regex = re.compile(rf"{channel_id}_(\d+\.\d+)_(\d+\.\d+)\.txt")
-
-            # Extract the message_id (which is a timestamp) from the filename using regex
+            # Helper function to extract the message_id (third part) from the filename
             def extract_message_id(file_name: str) -> float:
-                match = timestamp_regex.search(file_name)
-                if match:
-                    return float(match.group(2))  # Group 2 contains the message_id (the third part)
+                # Split the filename into channel_id, thread_id, and message_id
+                parts = file_name.split('_')
+                if len(parts) == 3:
+                    return float(parts[2].replace('.txt', ''))  # Extract the message_id and convert it to a float
                 else:
                     raise ValueError(f"Filename '{file_name}' does not match the expected format '{channel_id}_{thread_id}_<message_id>.txt'")
 
-            # Get the timestamp of the current message
-            current_timestamp = extract_message_id(f"{channel_id}_{thread_id}_{current_message_id}.txt")
+            # Get the message_id (timestamp) of the current message
+            current_timestamp = float(current_message_id)
 
-            # Sort files by the message_id (third timestamp in the filename)
+            # Sort files by the message_id (third part in the filename)
             filtered_files.sort(key=extract_message_id)
 
             # Find the next message based on the timestamp comparison
@@ -435,6 +433,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to retrieve the next message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return None, None
+
 
 
     async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
@@ -481,7 +480,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
         self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'")
         try:
-            current_time = int(time.time())
+            current_time = time.time()  # Get the current time with full precision
             queue_path = os.path.join(self.root_directory, self.message_queue_container)
             files = os.listdir(queue_path)
 
@@ -499,17 +498,17 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 try:
                     # Extract the message_id (last part of the filename)
                     message_id = file_name.split('_')[-1].split('.')[0]
-                    timestamp = float(message_id)  # Ensure message_id is a valid timestamp
+                    timestamp = float(message_id)  # Use full timestamp with decimal precision
                     time_difference = current_time - timestamp
 
                     if time_difference > message_ttl:
-                        self.logger.warning(f"Removed message '{file_name}' from queue as it is older than {message_ttl} seconds.")
+                        self.logger.warning(f"Removing message '{file_name}' from queue as it is older than {message_ttl} seconds.")
                         # Dequeue the message properly by passing channel_id, thread_id, and message_id
                         await self.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
                     else:
                         updated_files.append(file_name)
-                except ValueError:
-                    self.logger.error(f"Invalid message file format: {file_name}, skipping.")
+                except ValueError as e:
+                    self.logger.error(f"Invalid message file format: {file_name}, skipping. Error: {e}")
 
             # Return True if there are valid messages left in the queue after removing stale ones
             return len(updated_files) > 0

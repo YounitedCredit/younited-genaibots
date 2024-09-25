@@ -26,7 +26,7 @@ class ObservationThought(ActionBase):
         plan = parameters.get('plan', 'No Plan')
         nextstep = parameters.get('nextstep', 'No Next Step')
         # Implement the execution of the OBSERVATION_THOUGHT action
-        message = f":mag: *Observation*: {observation} \n\n :brain: *Thought*: {thought} \n\n :clipboard: *Plan*:\n{plan} \n\n :rocket: *Next Step*: {nextstep}"
+        message = f":mag: *Observation*: {observation} \n\n :brain: *Thought*: {thought} \n\n :clipboard: *Plan*: {plan} \n\n :rocket: *Next Step*: {nextstep}"
 
         try:
             await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.TEXT, title=None, is_internal=True)
