@@ -366,13 +366,13 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(traceback.format_exc())
             return
 
-    async def enqueue_message(self, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
+    async def enqueue_message(self, container_name: str, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
         """
         Adds a message to the Azure Blob Storage queue.
         The blob is named using `channel_id`, `thread_id`, and a unique message_id.
         """
         blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
-        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob_name)
+        blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
         try:
             # Log that we are attempting to add a message
@@ -386,12 +386,12 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to enqueue the message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
 
-    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str) -> None:
+    async def dequeue_message(self, container_name: str, channel_id: str, thread_id: str, message_id: str) -> None:
         """
         Removes a message from the Azure Blob Storage queue after it has been processed.
         """
         blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
-        blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob_name)
+        blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
         self.logger.info(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
 
@@ -403,7 +403,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to dequeue message '{message_id}': {str(e)}")
 
-    async def get_next_message(self, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves the next (oldest) message for a `channel_id`, `thread_id` after `current_message_id`.
         Returns a tuple (next_message_id, message_content). If no message is found, returns (None, None).
@@ -412,7 +412,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         try:
             # Get all blobs in the message queue container
-            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            container_client = self.blob_service_client.get_container_client(data_container)
             blobs = list(container_client.list_blobs())
 
             # Filter blobs for the specific `channel_id` and `thread_id`
@@ -446,7 +446,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
                 return None, None
 
             # Read the content of the next message
-            blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=next_blob.name)
+            blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=next_blob.name)
             message_content = blob_client.download_blob().readall().decode('utf-8')
 
             # Extract the next_message_id from the blob name
@@ -465,7 +465,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             return None, None
 
 
-    async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
+    async def get_all_messages(self, data_container: str, channel_id: str, thread_id: str) -> List[str]:
         """
         Retrieves the contents of all messages for a `channel_id` and `thread_id` from the Azure Blob Storage queue.
         Returns a list of message contents.
@@ -474,7 +474,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         try:
             # Get all blobs in the message queue container
-            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            container_client = self.blob_service_client.get_container_client(data_container)
             blobs = list(container_client.list_blobs())
 
             # Filter blobs for the specific `channel_id` and `thread_id`
@@ -488,7 +488,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             # Read the content of each filtered message blob
             messages_content = []
             for blob in filtered_blobs:
-                blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob.name)
+                blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=blob.name)
                 message_content = blob_client.download_blob().readall().decode('utf-8')
                 messages_content.append(message_content)
 
@@ -499,7 +499,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to retrieve all messages for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return []
 
-    async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
+    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the Azure Blob Storage queue for a given channel and thread.
         Removes any messages older than MESSAGE_QUEUING_TTL seconds.
@@ -511,7 +511,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         try:
             # Get all blobs in the message queue container
-            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            container_client = self.blob_service_client.get_container_client(data_container)
             blobs = list(container_client.list_blobs())
 
             # Filter blobs for the specific `channel_id` and `thread_id`
@@ -546,7 +546,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False
 
-    async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
+    async def clear_messages_queue(self, data_container:str, channel_id: str, thread_id: str) -> None:
         """
         Clears all messages in the Azure Blob Storage queue for a given channel and thread.
         """
@@ -554,14 +554,14 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         try:
             # Get all blobs in the message queue container
-            container_client = self.blob_service_client.get_container_client(self.messages_queue_container)
+            container_client = self.blob_service_client.get_container_client(data_container)
             blobs = list(container_client.list_blobs())
 
             # Filter blobs for the specific `channel_id` and `thread_id`
             filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
 
             for blob in filtered_blobs:
-                blob_client = self.blob_service_client.get_blob_client(container=self.messages_queue_container, blob=blob.name)
+                blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=blob.name)
                 blob_client.delete_blob()
                 self.logger.info(f"Message '{blob.name}' successfully deleted from the queue.")
 

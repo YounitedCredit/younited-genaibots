@@ -30,6 +30,9 @@ from core.user_interactions_behaviors.user_interactions_behavior_base import (
 from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
     UserInteractionsBehaviorsDispatcher,
 )
+from core.event_processing.interaction_queue_manager import (
+    InteractionQueueManager, 
+)
 from utils.config_manager.config_manager import ConfigManager
 from utils.config_manager.config_model import BotConfig
 from utils.logging.logger_loader import setup_logger_and_tracer
@@ -61,6 +64,12 @@ class GlobalManager:
         self.genai_vectorsearch_dispatcher = GenaiVectorsearch(self)
         self.user_interactions_dispatcher = UserInteractionsDispatcher(self)
         self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
+                
+        self.interaction_queue_manager = InteractionQueueManager(
+            backend_dispatcher=self.backend_internal_data_processing_dispatcher,
+            user_interaction_dispatcher=self.user_interactions_dispatcher,
+            logger=self.logger
+        )
 
         self.logger.info("Loading plugins...")
         self.plugin_manager.load_plugins()
