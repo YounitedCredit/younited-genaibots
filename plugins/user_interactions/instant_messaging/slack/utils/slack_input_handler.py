@@ -803,13 +803,17 @@ class SlackInputHandler:
         return "\n".join(formatted_messages)
 
     async def download_image_as_byte_array(self, image_url):
-        slack_token = os.environ.get('SLACK_BOT_TOKEN')
-        headers = {'Authorization': f'Bearer {slack_token}'}
-        response = requests.get(image_url, headers=headers, stream=True)
-        if response.status_code == 200:
-            return response.content  # Return bytes object
-        else:
-            print(f"Failed to download image: {response.status_code}, {response.text}")
+        try:
+            slack_token = os.environ.get('SLACK_BOT_TOKEN')
+            headers = {'Authorization': f'Bearer {slack_token}'}
+            response = requests.get(image_url, headers=headers, stream=True)
+            if response.status_code == 200:
+                return response.content  # Return bytes object
+            else:
+                print(f"Failed to download image: {response.status_code}, {response.text}")
+                return None
+        except Exception as e:
+            self.logger.error(f"An error occurred while downloading the image: {e}")
             return None
 
     async def download_file_content(self, file_url):

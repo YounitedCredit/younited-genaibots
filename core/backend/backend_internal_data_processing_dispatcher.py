@@ -21,15 +21,19 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         self.default_plugin_name = self.global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME
         self.default_plugin = self.get_plugin(self.default_plugin_name)
 
-    def get_plugin(self, plugin_name = None):
+    def get_plugin(self, plugin_name=None):
         if plugin_name is None:
-            plugin_name = self.default_plugin_name
+            if self.default_plugin is None:
+                raise ValueError("No default plugin configured")
+            return self.default_plugin
 
         for plugin in self.plugins:
             if plugin.plugin_name == plugin_name:
                 return plugin
 
         self.logger.error(f"BackendInternalDataProcessingDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
+        if self.default_plugin is None:
+            raise ValueError(f"Plugin '{plugin_name}' not found and no default plugin is set")
         return self.default_plugin
 
     @property

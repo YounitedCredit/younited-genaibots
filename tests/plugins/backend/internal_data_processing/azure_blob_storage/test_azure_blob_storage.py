@@ -1,7 +1,7 @@
 import json
 from typing import List, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
-
+import time
 import pytest
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
@@ -427,3 +427,103 @@ async def test_clear_messages_queue(azure_blob_storage_plugin):
             await azure_blob_storage_plugin.clear_messages_queue('channel1', 'thread1')
 
             assert mock_blob_client.delete_blob.call_count == 2
+
+@pytest.mark.asyncio
+async def test_has_older_messages(azure_blob_storage_plugin, mocker):
+    # Get the current time in Unix timestamp format
+    current_time = time.time()
+
+    # Create two timestamps: one older than the TTL and one newer
+    old_timestamp = current_time - 200  # 200 seconds ago (older than the TTL)
+    new_timestamp = current_time - 50   # 50 seconds ago (newer than the TTL)
+
+    # Format the timestamps with full decimal precision
+    old_timestamp_str = f"{old_timestamp:.6f}"
+    new_timestamp_str = f"{new_timestamp:.6f}"
+
+    # Mock current time to be fixed at `current_time`
+    mocker.patch("time.time", return_value=current_time)
+
+    # Mock blob listing with Unix timestamps in the message filenames
+    mock_container_client = mocker.patch.object(azure_blob_storage_plugin.blob_service_client, 'get_container_client', new_callable=MagicMock)
+    mock_blob1 = MagicMock()
+    mock_blob1.name = f"channel_thread_{old_timestamp_str}.txt"  # This blob is older than TTL
+    mock_blob2 = MagicMock()
+    mock_blob2.name = f"channel_thread_{new_timestamp_str}.txt"  # This blob is newer than TTL
+
+    # Simulate list_blobs returning two blobs
+    mock_container_client.return_value.list_blobs.return_value = [mock_blob1, mock_blob2]
+
+    # Mock the dequeue message method (for the older message)
+    mock_dequeue = mocker.patch.object(azure_blob_storage_plugin, 'dequeue_message', new_callable=AsyncMock)
+
+    # Set the message TTL to 100 seconds
+    azure_blob_storage_plugin.global_manager.bot_config.MESSAGE_QUEUING_TTL = 100
+
+    # Call the function to test whether older messages are found and dequeued
+    result = await azure_blob_storage_plugin.has_older_messages('channel', 'thread')
+
+    # Assert that dequeue_message was called for the older message
+    mock_dequeue.assert_any_call('channel', 'thread', old_timestamp_str)
+
+    # Assert that the result is True because there is still one valid message (newer one)
+    assert result is True, f"Expected result to be True, but got {result}"
+
+    # Ensure dequeue_message was NOT called for the newer message
+    calls = [call[0] for call in mock_dequeue.call_args_list]
+    assert ('channel', 'thread', new_timestamp_str) not in calls, f"dequeue_message was called with {new_timestamp_str}, but it should not have been"
+
+
+
+@pytest.mark.asyncio
+async def test_get_next_message(azure_blob_storage_plugin, mocker):
+    mock_container_client = mocker.patch.object(azure_blob_storage_plugin.blob_service_client, 'get_container_client', new_callable=MagicMock)
+    mock_blob1 = MagicMock()
+    mock_blob1.name = "channel1_thread1_1000.1234.txt"  # Ancien message
+    mock_blob2 = MagicMock()
+    mock_blob2.name = "channel1_thread1_2000.5678.txt"  # Prochain message
+
+    # Simulez list_blobs renvoyant deux blobs
+    mock_container_client.return_value.list_blobs.return_value = [mock_blob1, mock_blob2]
+
+    # Mock pour télécharger le contenu du blob
+    mock_blob_client = mocker.patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client', new_callable=MagicMock)
+    mock_blob_client.return_value.download_blob.return_value.readall.return_value = b'This is the next message content'
+
+    # Appel de la méthode
+    next_message_id, message_content = await azure_blob_storage_plugin.get_next_message('channel1', 'thread1', '1000.1234')
+
+    # Vérifiez que le message suivant après 1000.1234 est bien blob2
+    assert next_message_id == '2000.5678'
+    assert message_content == 'This is the next message content'
+
+@pytest.mark.asyncio
+async def test_clear_messages_queue(azure_blob_storage_plugin, mocker):
+    mock_container_client = mocker.patch.object(azure_blob_storage_plugin.blob_service_client, 'get_container_client', new_callable=MagicMock)
+    mock_blob1 = MagicMock()
+    mock_blob1.name = "channel1_thread1_1001.1234.txt"
+    mock_blob2 = MagicMock()
+    mock_blob2.name = "channel1_thread1_1002.5678.txt"
+
+    # Simulez list_blobs renvoyant des blobs à supprimer
+    mock_container_client.return_value.list_blobs.return_value = [mock_blob1, mock_blob2]
+
+    mock_blob_client = mocker.patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client', new_callable=MagicMock)
+    mock_delete = mock_blob_client.return_value.delete_blob
+
+    # Appel de la méthode
+    await azure_blob_storage_plugin.clear_messages_queue('channel1', 'thread1')
+
+    # Vérifiez que delete_blob est appelé deux fois
+    assert mock_delete.call_count == 2
+
+@pytest.mark.asyncio
+async def test_enqueue_message(azure_blob_storage_plugin, mocker):
+    mock_blob_client = mocker.patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client', new_callable=MagicMock)
+    mock_upload = mock_blob_client.return_value.upload_blob
+
+    # Appel de la méthode avec un message ID au format timestamp
+    await azure_blob_storage_plugin.enqueue_message('channel1', 'thread1', '1000.1234', 'Test message')
+
+    # Vérifiez que le message est correctement enfile
+    mock_upload.assert_called_once_with('Test message', overwrite=True)
