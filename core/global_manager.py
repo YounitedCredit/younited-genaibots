@@ -96,6 +96,10 @@ class GlobalManager:
         self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
         self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
         self.user_interactions_behavior_dispatcher.initialize(user_interactions_behavior_plugins)
+        
+        self.logger.debug("Initializing interaction queue manager...")
+        self.interaction_queue_manager.initialize()
+        self.logger.info("Interaction queue manager initialized.")
 
         self.logger.debug("Initializing plugins...")
         self.plugin_manager.initialize_plugins()
@@ -106,7 +110,6 @@ class GlobalManager:
         self.logger.info("Routes created.")
 
         self.action_interactions_handler = ActionInteractionsHandler(self)
-
 
         self.logger.debug("Prompt manager initialization...")
         self.prompt_manager = PromptManager(self)

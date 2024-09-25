@@ -81,7 +81,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
             self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
             self.abort_container = self.backend_internal_data_processing_dispatcher.abort
-            self.message_container = self.backend_internal_data_processing_dispatcher.messages_queue
+            self.message_container = self.backend_internal_data_processing_dispatcher.messages_queue            
 
             break_keyword = self.global_manager.bot_config.BREAK_KEYWORD
             start_keyword = self.global_manager.bot_config.START_KEYWORD

@@ -108,6 +108,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def messages_queue(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.messages_queue
+    
+    @property
+    def events_queue(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.events_queue
 
     def append_data(self, container_name: str, data_identifier: str, data: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(container_name)

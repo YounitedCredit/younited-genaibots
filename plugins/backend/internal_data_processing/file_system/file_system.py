@@ -28,6 +28,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
     FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
     FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER: str
+    FILE_SYSTEM_EVENTS_QUEUE_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -52,6 +53,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.custom_actions_container = None
         self.subprompts_container = None
         self.message_queue_container = None
+        self.events_queue_container = None
 
     @property
     def plugin_name(self):
@@ -115,6 +117,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def messages_queue(self):
         # Implement the messages_queue property
         return self.message_queue_container
+    
+    @property
+    def events_queue(self):
+        # Implement the events_queue property
+        return self.events_queue_container
 
     def initialize(self):
         try:
@@ -131,6 +138,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
             self.message_queue_container = self.file_system_config.FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER
+            self.events_queue_container = self.file_system_config.FILE_SYSTEM_EVENTS_QUEUE_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
@@ -154,7 +162,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.vectors_container,
             self.custom_actions_container,
             self.subprompts_container,
-            self.message_queue_container
+            self.message_queue_container,
+            self.events_queue_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
