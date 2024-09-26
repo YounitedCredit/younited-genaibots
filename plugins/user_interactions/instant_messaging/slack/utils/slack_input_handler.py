@@ -22,7 +22,7 @@ from plugins.user_interactions.instant_messaging.slack.utils.slack_block_process
     SlackBlockProcessor,
 )
 from utils.plugin_manager.plugin_manager import PluginManager
-
+from requests.exceptions import ConnectionError
 
 class SlackInputHandler:
     def __init__(self, global_manager : GlobalManager, slack_config):
@@ -817,12 +817,18 @@ class SlackInputHandler:
             return None
 
     async def download_file_content(self, file_url):
-        headers = {'Authorization': 'Bearer ' + self.SLACK_BOT_TOKEN}
-        response = requests.get(file_url, headers=headers)
-        if response.status_code == 200:
+        headers = {
+            "Authorization": "Bearer xoxb-1234"
+        }
+        try:
+            response = requests.get(file_url, headers=headers)
+            response.raise_for_status()  # Check for HTTP errors
             return response.content
-        else:
-            self.logger.error(f"Error downloading file: {response.status_code}")
+        except ConnectionError as e:
+            self.logger.error(f"Error downloading file: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred: {str(e)}")
             return None
 
     async def search_message_in_thread(self, query):
