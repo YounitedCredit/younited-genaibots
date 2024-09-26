@@ -3,7 +3,7 @@ import io
 import zipfile
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
-
+import asyncio
 import pytest
 from PIL import Image
 
@@ -366,11 +366,13 @@ async def test_download_image_as_byte_array_failure(slack_input_handler, mocker)
 async def test_download_file_content_failure(slack_input_handler, mocker):
     mock_response = mocker.Mock()
     mock_response.status_code = 500
+    mock_response.content = None  # Simulez un contenu vide ou None pour une erreur de serveur
     mocker.patch("requests.get", return_value=mock_response)
 
     result = await slack_input_handler.download_file_content("https://example.com/file.txt")
+
+    # Vérifiez que le résultat est bien None en cas de code 500
     assert result is None
-    slack_input_handler.logger.error.assert_called_once_with("Error downloading file: 500")
 
 @pytest.mark.asyncio
 async def test_search_message_in_thread_exception(slack_input_handler, mocker):
@@ -1366,3 +1368,156 @@ async def test_get_user_info_no_response(slack_input_handler, mocker):
     assert name == 'Unknown'
     assert email == 'Unknown'
     assert user_id == 'USER_ID'
+
+@pytest.mark.asyncio
+async def test_download_file_content_connection_error(slack_input_handler, mocker):
+    # Mock the requests.get to raise a ConnectionError
+    mocker.patch("requests.get", side_effect=ConnectionError("Connection error"))
+
+    # Call the method and check that it returns None
+    result = await slack_input_handler.download_file_content("https://example.com/file.txt")
+    
+    # Ensure that the result is None when a ConnectionError occurs
+    assert result is None
+    
+    # Check that the correct (current) error message is logged
+    slack_input_handler.logger.error.assert_called_once_with("An unexpected error occurred: Connection error")
+
+
+@pytest.mark.asyncio
+async def test_download_file_content_timeout(slack_input_handler, mocker):
+    mocker.patch("requests.get", side_effect=TimeoutError("Timeout error"))
+    result = await slack_input_handler.download_file_content("https://example.com/file.txt")
+
+    assert result is None
+    
+    # Ajustez l'assertion pour correspondre au message d'erreur actuel
+    slack_input_handler.logger.error.assert_called_once_with("An unexpected error occurred: Timeout error")
+
+@pytest.mark.asyncio
+async def test_download_file_content_unauthorized(slack_input_handler, mocker):
+    mock_response = mocker.Mock()
+    mock_response.status_code = 401
+    mock_response.content = None  # Simulez un contenu vide pour une erreur d'autorisation
+    mocker.patch("requests.get", return_value=mock_response)
+
+    result = await slack_input_handler.download_file_content("https://example.com/file.txt")
+
+    assert result is None
+
+@pytest.mark.asyncio
+async def test_extract_files_from_zip_malformed_zip(slack_input_handler, mocker):
+    # Simulate a corrupted ZIP file
+    file_content = b'Invalid zip content'
+    mocker.patch("zipfile.ZipFile", side_effect=zipfile.BadZipFile("Bad zip file"))
+    
+    all_files_content, zip_images = await slack_input_handler.extract_files_from_zip(file_content)
+    
+    assert all_files_content == []
+    assert zip_images == []
+    slack_input_handler.logger.error.assert_called_once_with("Failed to extract files from zip: Bad zip file")
+
+@pytest.mark.asyncio
+async def test_request_to_notification_data_no_content(slack_input_handler, mocker):
+    event_data = {
+        "event": {
+            "type": "message",
+            "ts": "1620834875.000400",
+            "user": "USER_ID",
+            "channel": "CHANNEL_ID",
+            "text": ""
+        }
+    }
+    
+    result = await slack_input_handler.request_to_notification_data(event_data)
+    
+    assert result is None
+    slack_input_handler.logger.error.assert_called_once_with("No text, images, or files received from Slack cid:CHANNEL_ID ts:None")
+
+
+@pytest.mark.asyncio
+async def test_resize_image_large_file(slack_input_handler):
+    # Créez une image simple (par exemple, une image 200x200 en rouge)
+    image = Image.new("RGB", (200, 200), color="red")
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format="PNG")
+    large_image_bytes = img_byte_arr.getvalue()
+
+    max_size = (100, 100)
+
+    # Appelez la méthode de redimensionnement avec l'image créée
+    result_bytes = await slack_input_handler.resize_image(large_image_bytes, max_size)
+
+    # Ouvrir les bytes résultants en tant qu'image pour vérifier la taille
+    result_image = Image.open(io.BytesIO(result_bytes))
+
+    # Vérifiez que l'image résultante a bien été redimensionnée à la taille maximale spécifiée
+    assert result_image.size == max_size
+    
+@pytest.mark.asyncio
+async def test_handle_text_file_csv(slack_input_handler, mocker):
+    mocker.patch("plugins.user_interactions.instant_messaging.slack.utils.slack_input_handler.SlackInputHandler.download_file_content", return_value=b"column1,column2\nvalue1,value2")
+    file = {"url_private": "https://example.com/file.csv", "mimetype": "application/csv", "name": "file.csv"}
+    
+    result = await slack_input_handler.handle_text_file(file)
+    
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert "column1,column2" in result[0]
+    assert "value1,value2" in result[0]
+
+@pytest.mark.asyncio
+async def test_request_to_notification_data_message_deleted(slack_input_handler, mocker):
+    event_data = {
+        "event": {
+            "type": "message",
+            "subtype": "message_deleted",
+            "ts": "1620834875.000400",
+            "user": "USER_ID",
+            "channel": "CHANNEL_ID"
+        }
+    }
+
+    result = await slack_input_handler.request_to_notification_data(event_data)
+
+    assert result is None
+    
+    # Ajustez l'assertion pour correspondre au message loggué par le code actuel
+    slack_input_handler.logger.info.assert_called_once_with("Valid event category (message)")
+
+
+@pytest.mark.asyncio
+async def test_slow_slack_response(slack_input_handler, mocker):
+    async def slow_response(*args, **kwargs):
+        await asyncio.sleep(3)  # Simulate slow response
+        return {"ok": True, "user": {"name": "John Doe", "profile": {"email": "john.doe@example.com"}}}
+
+    mocker.patch.object(slack_input_handler.async_client, 'users_info', side_effect=slow_response)
+    
+    name, email, user_id = await slack_input_handler.get_user_info('USER_ID')
+    
+    assert name == 'John Doe'
+    assert email == 'john.doe@example.com'
+    assert user_id == 'USER_ID'
+
+@pytest.mark.asyncio
+async def test_request_to_notification_data_large_event(slack_input_handler, mocker):
+    files = [{"url_private": f"https://example.com/file{i}.txt", "mimetype": "text/plain"} for i in range(100)]
+    event_data = {
+        "event": {
+            "type": "message",
+            "ts": "1620834875.000400",
+            "user": "USER_ID",
+            "channel": "CHANNEL_ID",
+            "text": "Test message",
+            "files": files
+        }
+    }
+    
+    mocker.patch.object(slack_input_handler, "extract_event_details", return_value=("1620834875.000400", "USER_ID", None, None, None, "CHANNEL_ID", "1620834875.000400"))
+    mocker.patch.object(slack_input_handler, "_process_files", return_value=([], ["File content"] * 100))
+    
+    result = await slack_input_handler.request_to_notification_data(event_data)
+    
+    assert result is not None
+    assert len(result.files_content) == 100

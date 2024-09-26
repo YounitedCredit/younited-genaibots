@@ -110,3 +110,97 @@ async def test_process_event_data(mock_user_interactions_dispatcher, mock_user_i
     mock_user_interactions_plugin.process_event_data.assert_awaited_with(
         event_data=event, headers=headers, raw_body_str=raw_body_str
     )
+
+def setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    """Helper to set up mock plugins for tests"""
+    mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
+    mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
+    mock_user_interactions_plugin.plugin_name = "test_plugin"
+    mock_user_interactions_plugin.route_path = "/test_route"
+    mock_user_interactions_plugin.route_methods = ["GET", "POST"]
+    mock_user_interactions_plugin.reactions = MagicMock()
+    mock_user_interactions_plugin.validate_request = AsyncMock(return_value=True)
+    mock_user_interactions_plugin.handle_request = AsyncMock(return_value="handled")
+    mock_user_interactions_plugin.get_bot_id = MagicMock(return_value="test_bot_id")
+    mock_user_interactions_plugin.fetch_conversation_history = AsyncMock(return_value=["message1", "message2"])
+    mock_user_interactions_plugin.remove_reaction_from_thread = AsyncMock()
+
+
+def test_plugin_name_property(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    assert mock_user_interactions_dispatcher.plugin_name == "test_plugin"
+
+
+def test_route_path_property(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    assert mock_user_interactions_dispatcher.route_path == "/test_route"
+
+
+def test_route_methods_property(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    assert mock_user_interactions_dispatcher.route_methods == ["GET", "POST"]
+
+
+def test_reactions_property(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    assert mock_user_interactions_dispatcher.reactions is mock_user_interactions_plugin.reactions
+
+
+def test_reactions_setter(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    mock_reaction = MagicMock()
+    mock_user_interactions_dispatcher.reactions = mock_reaction
+    assert mock_user_interactions_plugin.reactions == mock_reaction
+
+
+@pytest.mark.asyncio
+async def test_validate_request(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    mock_request = MagicMock()
+
+    result = await mock_user_interactions_dispatcher.validate_request(mock_request)
+    assert result is True
+    mock_user_interactions_plugin.validate_request.assert_awaited_with(mock_request)
+
+
+@pytest.mark.asyncio
+async def test_handle_request(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    mock_request = MagicMock()
+
+    result = await mock_user_interactions_dispatcher.handle_request(mock_request)
+    assert result == "handled"
+    mock_user_interactions_plugin.handle_request.assert_awaited_with(mock_request)
+
+
+@pytest.mark.asyncio
+async def test_remove_reaction_from_thread(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+
+    await mock_user_interactions_dispatcher.remove_reaction_from_thread("channel_id", "thread_id", "reaction_name")
+    mock_user_interactions_plugin.remove_reaction_from_thread.assert_awaited_with(
+        "channel_id", "thread_id", "reaction_name"
+    )
+
+@pytest.mark.asyncio
+async def test_fetch_conversation_history(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+    mock_event = MagicMock(spec=IncomingNotificationDataBase)
+    mock_event.origin_plugin_name = "test_plugin"
+
+    result = await mock_user_interactions_dispatcher.fetch_conversation_history(mock_event, "channel_id", "thread_id")
+    assert result == ["message1", "message2"]
+    
+    # Correction : utiliser les arguments avec des mots-clés (kwargs) comme dans l'appel réel
+    mock_user_interactions_plugin.fetch_conversation_history.assert_awaited_with(
+        event=mock_event, 
+        channel_id="channel_id", 
+        thread_id="thread_id"
+    )
+
+def test_get_bot_id(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    setup_mock_plugins(mock_user_interactions_dispatcher, mock_user_interactions_plugin)
+
+    bot_id = mock_user_interactions_dispatcher.get_bot_id()
+    assert bot_id == "test_bot_id"
+    mock_user_interactions_plugin.get_bot_id.assert_called_once()

@@ -32,7 +32,7 @@ class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
         Overrides load_actions to fetch actions from the backend using the dispatcher asynchronously.
         """
         loaded_actions = []
-        custom_actions_container = "custom_actions"  # Backend container for custom actions
+        custom_actions_container = self.global_manager.backend_internal_data_processing_dispatcher.custom_actions
 
         self.logger.info(f"Fetching custom actions from backend container: {custom_actions_container}")
 
