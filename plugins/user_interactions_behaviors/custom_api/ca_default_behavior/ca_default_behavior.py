@@ -82,6 +82,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
             self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
             self.abort_container = self.backend_internal_data_processing_dispatcher.abort
+            self.message_container = self.backend_internal_data_processing_dispatcher.messages_queue
 
             break_keyword = self.global_manager.bot_config.BREAK_KEYWORD
             start_keyword = self.global_manager.bot_config.START_KEYWORD
@@ -105,12 +106,12 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     return
                 elif clear_keyword in event.text:
                     self.logger.info(f"IM behavior: Clear keyword detected in thread message, invoking clearing queue for {channel_id} {thread_id}.")
-                    messages_in_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(channel_id=event.channel_id, thread_id=event.thread_id)
+                    messages_in_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id)
 
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=True, show_ref=False)
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=False, show_ref=False)
 
-                    await self.backend_internal_data_processing_dispatcher.clear_messages_queue(channel_id=event.channel_id, thread_id=event.thread_id)
+                    await self.backend_internal_data_processing_dispatcher.clear_messages_queue(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id)
                     for message in messages_in_queue:
                         event_to_process = IncomingNotificationDataBase.from_json(message)
                         await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=event.channel_id,timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
@@ -138,11 +139,12 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"IM behavior: Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
-            if await self.backend_internal_data_processing_dispatcher.has_older_messages(channel_id=event.channel_id, thread_id=event.thread_id):
+            if await self.backend_internal_data_processing_dispatcher.has_older_messages(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id):
                 # check if the activate_message_queuing is enabled
                 if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
                     event_json = event.to_json()
-                    await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                    await self.backend_internal_data_processing_dispatcher.enqueue_message(                        
+                        data_container=self.message_container,
                         channel_id=event.channel_id,
                         thread_id=event.thread_id,
                         message_id=event.timestamp,
@@ -170,6 +172,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.logger.info(f"IM behavior: No pending messages found. Enqueuing current message for processing in channel '{event.channel_id}', thread '{event.thread_id}'")
 
             await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                data_container=self.message_container,
                 channel_id=event.channel_id,
                 thread_id=event.thread_id,
                 message_id=event.timestamp,
@@ -222,6 +225,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.reaction_writing = self.user_interaction_dispatcher.reactions.WRITING
             self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
             self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
+            self.message_container = self.backend_internal_data_processing_dispatcher.messages_queue
 
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
@@ -265,7 +269,8 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
 
             # After processing, check if there are any pending messages in the queue and process them
-            await self.backend_internal_data_processing_dispatcher.dequeue_message(message_id=event.timestamp, channel_id=event.channel_id, thread_id=event.thread_id)
+            
+            await self.backend_internal_data_processing_dispatcher.dequeue_message(data_container=self.message_container, message_id=event.timestamp, channel_id=event.channel_id, thread_id=event.thread_id)
 
             # Remove the "wait" reaction from the thread if message queuing is disabled or the current message is the last message in the queue
             if self.bot_config.ACTIVATE_MESSAGE_QUEUING == False:
@@ -290,7 +295,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.error(f"IM behavior: Next message content: {next_message_content}")
 
                 # Dequeue the message regardless of success or failure
-                await self.backend_internal_data_processing_dispatcher.dequeue_message(message_id=next_message_id, channel_id=event.channel_id, thread_id=event.thread_id)
+                await self.backend_internal_data_processing_dispatcher.dequeue_message(data_container=self.message_container, message_id=next_message_id, channel_id=event.channel_id, thread_id=event.thread_id)
 
                 # Get the next message in the queue
                 next_message_id, next_message_content = await self.backend_internal_data_processing_dispatcher.get_next_message(channel_id=event.channel_id, thread_id=event.thread_id, current_message_id=event.timestamp)

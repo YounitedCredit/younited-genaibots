@@ -28,6 +28,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
     FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
     FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER: str
+    FILE_SYSTEM_EVENTS_QUEUE_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -52,6 +53,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.custom_actions_container = None
         self.subprompts_container = None
         self.message_queue_container = None
+        self.events_queue_container = None
 
     @property
     def plugin_name(self):
@@ -115,6 +117,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def messages_queue(self):
         # Implement the messages_queue property
         return self.message_queue_container
+    
+    @property
+    def events_queue(self):
+        # Implement the events_queue property
+        return self.events_queue_container
 
     def initialize(self):
         try:
@@ -131,6 +138,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
             self.message_queue_container = self.file_system_config.FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER
+            self.events_queue_container = self.file_system_config.FILE_SYSTEM_EVENTS_QUEUE_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
@@ -154,7 +162,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.vectors_container,
             self.custom_actions_container,
             self.subprompts_container,
-            self.message_queue_container
+            self.message_queue_container,
+            self.events_queue_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -332,13 +341,13 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to write to file: {str(e)}")
 
-    async def enqueue_message(self, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
+    async def enqueue_message(self, data_container:str, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
         """
         Adds a message to the queue.
         The file is named using `channel_id`, `thread_id`, and a unique timestamp.
         """
         message_id = f"{channel_id}_{thread_id}_{message_id}.txt"
-        file_path = os.path.join(self.root_directory, self.message_queue_container, message_id)
+        file_path = os.path.join(self.root_directory, data_container, message_id)
 
         try:
             # Log that we are attempting to add a message
@@ -354,12 +363,12 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to enqueue the message for channel '{channel_id}', thread '{thread_id}': {str(e)}")
 
 
-    async def dequeue_message(self, channel_id: str, thread_id: str, message_id: str) -> None:
+    async def dequeue_message(self, data_container:str, channel_id: str, thread_id: str, message_id: str) -> None:
         """
         Removes a message from the queue after it has been processed.
         """
         file_name = f"{channel_id}_{thread_id}_{message_id}.txt"
-        file_path = os.path.join(self.root_directory, self.message_queue_container, file_name)
+        file_path = os.path.join(self.root_directory, data_container, file_name)
 
         self.logger.info(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
 
@@ -372,7 +381,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         else:
             self.logger.warning(f"Message '{message_id}' not found in the queue. No action taken.")
 
-    async def get_next_message(self, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, data_container:str, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves the next (oldest) message for a `channel_id`, `thread_id` after `current_message_id`.
         Returns a tuple (next_message_id, message_content). If no message is found, returns (None, None).
@@ -381,7 +390,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
         try:
             # List all files in the queue directory
-            queue_path = os.path.join(self.root_directory, self.message_queue_container)
+            queue_path = os.path.join(self.root_directory, data_container)
             files = os.listdir(queue_path)
 
             # Filter files for the specific `channel_id` and `thread_id`
@@ -436,7 +445,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
 
 
-    async def get_all_messages(self, channel_id: str, thread_id: str) -> List[str]:
+    async def get_all_messages(self, data_container:str, channel_id: str, thread_id: str) -> List[str]:
         """
         Retrieves the contents of all messages for a `channel_id` and `thread_id`.
         Returns a list of message contents.
@@ -445,7 +454,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
         try:
             # List all files in the queue directory
-            queue_path = os.path.join(self.root_directory, self.message_queue_container)
+            queue_path = os.path.join(self.root_directory, data_container)
             files = os.listdir(queue_path)
 
             # Filter files for the specific `channel_id` and `thread_id`
@@ -471,7 +480,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to retrieve all messages for channel '{channel_id}', thread '{thread_id}': {str(e)}")
             return []
 
-    async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
+    async def has_older_messages(self, data_container:str, channel_id: str, thread_id: str) -> bool:
         """
         Checks if there are any older messages in the queue for a given channel_id and thread_id.
         Removes any messages older than MESSAGE_QUEUING_TTL seconds.
@@ -481,7 +490,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'")
         try:
             current_time = time.time()  # Get the current time with full precision
-            queue_path = os.path.join(self.root_directory, self.message_queue_container)
+            queue_path = os.path.join(self.root_directory, data_container)
             files = os.listdir(queue_path)
 
             # Filter messages for the specific channel_id and thread_id
@@ -517,21 +526,13 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False
 
-    async def clear_messages_queue(self, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> None:
-        """
-        Clears all messages in the queue for a given channel and thread.
-        """
-        plugin = self.get_plugin(plugin_name)
-        self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
-        await plugin.clear_messages_queue(channel_id=channel_id, thread_id=thread_id)
-
-    async def clear_messages_queue(self, channel_id: str, thread_id: str) -> None:
+    async def clear_messages_queue(self, data_container:str, channel_id: str, thread_id: str) -> None:
         """
         Clears all messages in the queue for a given channel and thread.
         """
         self.logger.info(f"Clearing messages queue for channel '{channel_id}', thread '{thread_id}'.")
 
-        queue_path = os.path.join(self.root_directory, self.message_queue_container)
+        queue_path = os.path.join(self.root_directory, data_container)
         if not os.path.exists(queue_path):
             self.logger.warning(f"Queue path '{queue_path}' does not exist.")
             return
