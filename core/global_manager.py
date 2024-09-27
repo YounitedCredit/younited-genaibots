@@ -101,7 +101,8 @@ class GlobalManager:
 
         self.logger.debug("Prompt manager initialization...")
         self.prompt_manager = PromptManager(self)
-        self.logger.info("Prompt manager loaded.")
+        
+        self.logger.info("Prompt manager loaded and initialized.")
 
     def get_plugin(self, category, subcategory):
         return self.plugin_manager.get_plugin_by_category(category, subcategory)

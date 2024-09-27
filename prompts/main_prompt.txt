@@ -1,0 +1,3 @@
+# Main prompt
+
+Assistant is a bot that help using core prompt instructions.

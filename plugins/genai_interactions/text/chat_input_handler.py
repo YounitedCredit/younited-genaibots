@@ -38,6 +38,7 @@ class ChatInputHandler():
         self.genai_client = {}
         self.bot_config : BotConfig = self.global_manager.bot_config
         self.conversion_format = self.bot_config.LLM_CONVERSION_FORMAT
+        
 
     async def handle_event_data(self, event_data: IncomingNotificationDataBase):
         try:
@@ -63,11 +64,16 @@ class ChatInputHandler():
         return formatted_time
 
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
-        try:
+        try:            
             feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
             general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
             await self.global_manager.prompt_manager.initialize()
-            init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
+            
+            # Get the core prompt and main prompt from the prompt manager
+            core_prompt = self.global_manager.prompt_manager.core_prompt
+            main_prompt = self.global_manager.prompt_manager.main_prompt
+            init_prompt = f"{core_prompt}\n{[main_prompt]}"
+
             constructed_message = f"Timestamp: {str(event_data.timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
 
             if general_behavior_content:
