@@ -71,14 +71,21 @@ class BingSearch(ActionBase):
             return None
 
     async def handle_search_error(self, error, event):
-        if isinstance(error, requests.exceptions.HTTPError) and error.response.status_code == 403:
-            message = f"403 Forbidden error for URL: {self.search_url}. Skipping this URL."
+        message = "An unknown error occurred."
+        if isinstance(error, requests.exceptions.HTTPError):
+            if error.response.status_code == 403:
+                message = f"403 Forbidden error for URL: {self.search_url}. Skipping this URL."
+            elif error.response.status_code == 401:
+                message = f"401 Unauthorized error for URL: {self.search_url}. Permission denied."
+            else:
+                message = f"HTTPError for URL: {self.search_url}. Status code: {error.response.status_code}."
         elif isinstance(error, requests.exceptions.ConnectionError):
             message = f"ConnectionError for URL: {self.search_url}. Could not connect to the server."
         elif isinstance(error, requests.exceptions.Timeout):
             raise error
         self.logger.error(message)
         await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.COMMENT, is_internal=True)
+        await self.user_interactions_dispatcher.send_message(event=event, message=f"Oops something goes wrong! {message}", message_type=MessageType.COMMENT, is_internal=False)
 
     async def process_search_results(self, search_results, event, result_number, from_snippet, user_input):
         if 'webPages' in search_results and 'value' in search_results['webPages']:

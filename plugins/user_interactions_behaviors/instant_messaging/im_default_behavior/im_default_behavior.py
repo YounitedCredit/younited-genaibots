@@ -340,17 +340,18 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     thread_id=event.thread_id
                 )
                 self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
-                await self.user_interaction_dispatcher.remove_reaction_from_thread(
-                    channel_id=event.channel_id,
-                    thread_id=event.thread_id,
-                    reaction_name=self.reaction_wait
-                )
-
+                
                 await self.backend_internal_queue_processing_dispatcher.dequeue_message(
                     data_container=self.wait_queue,
                     channel_id=event.channel_id,
                     thread_id=event.thread_id,
                     message_id="0000.0000"
+                )
+
+                await self.user_interaction_dispatcher.remove_reaction_from_thread(
+                    channel_id=event.channel_id,
+                    thread_id=event.thread_id,
+                    reaction_name=self.reaction_wait
                 )
 
         except Exception as e:
