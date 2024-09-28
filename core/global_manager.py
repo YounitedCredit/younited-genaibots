@@ -65,14 +65,15 @@ class GlobalManager:
         self.user_interactions_dispatcher = UserInteractionsDispatcher(self)
         self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
                 
-        self.interaction_queue_manager = InteractionQueueManager(
-            backend_dispatcher=self.backend_internal_data_processing_dispatcher,
-            user_interaction_dispatcher=self.user_interactions_dispatcher,
-            logger=self.logger
-        )
-
+       
         self.logger.info("Loading plugins...")
         self.plugin_manager.load_plugins()
+        
+        if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:            
+            self.logger.info("Interaction Queue Manager is enabled in the config.")
+            self.interaction_queue_manager = InteractionQueueManager(self)            
+        else:
+            self.logger.info("Interaction Queue Manager is disabled in the config.")
 
         backend_internal_data_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_DATA_PROCESSING")
@@ -95,12 +96,13 @@ class GlobalManager:
 
         self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
         self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
+
+        # Initialize the event queue manager only if enabled in the config
+        
+
+            
         self.user_interactions_behavior_dispatcher.initialize(user_interactions_behavior_plugins)
         
-        self.logger.debug("Initializing interaction queue manager...")
-        self.interaction_queue_manager.initialize()
-        self.logger.info("Interaction queue manager initialized.")
-
         self.logger.debug("Initializing plugins...")
         self.plugin_manager.initialize_plugins()
         self.logger.info("Plugins loaded.")
@@ -115,6 +117,11 @@ class GlobalManager:
         self.prompt_manager = PromptManager(self)
         
         self.logger.info("Prompt manager loaded and initialized.")
+
+        if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+            self.logger.debug("Initializing interaction queue manager...")  
+            self.interaction_queue_manager.initialize()
+
 
     def get_plugin(self, category, subcategory):
         return self.plugin_manager.get_plugin_by_category(category, subcategory)

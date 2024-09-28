@@ -232,73 +232,92 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Check if the event label is a message
             if event.event_label == "message":
                 # If the bot requires a mention for a new message and the event is not a mention, log a warning and return
-                if self.bot_config.REQUIRE_MENTION_NEW_MESSAGE and event.is_mention is False:
-                    self.logger.warning("IM behavior: Message is not a mention and the config is set to required direct mention for new message, ignoring")
+                if self.bot_config.REQUIRE_MENTION_NEW_MESSAGE and not event.is_mention:
+                    self.logger.warning("IM behavior: Message is not a mention and the config requires direct mention for new messages, ignoring.")
                     return
 
             # Log the event details
             self.logger.debug('IM behavior:\n' + json.dumps(event.to_dict(), indent=4))
             genai_output = None
 
-            # If there are genai interaction text plugins, handle the request with specified plugin and store the output
+            # If there are genai interaction text plugins, handle the request with the specified plugin and store the output
             genai_output = await self.genai_interactions_text_dispatcher.handle_request(event)
 
-            # If there are user interaction plugins, add the 'done' reaction and remove the 'processing' reaction for each plugin
+            # Remove the 'processing' reaction for each plugin
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_generating)
 
             # If there is genai output, process it to an Action and handle the request with the action interactions handler
             if genai_output and genai_output != "":
                 await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_writing)
                 genai_response = await GenAIResponse.from_json(genai_output)
-                # If the genai response is not None, handle the request with the action interactions handler
                 await self.global_manager.action_interactions_handler.handle_request(genai_response, event)
             else:
-                # If there is no genai output, log a warning
-                self.logger.info("IM behavior: No GenAI completion generated, not processing")
+                self.logger.info("IM behavior: No GenAI completion generated, not processing.")
 
-            # don't ack if the bot config says not to
+            # Don't ack if the bot config says not to
             if genai_output is None:
                 await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
 
             # Remove the 'writing' and 'acknowledge' reactions and add the 'done' reaction
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_writing)
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_acknowledge)
-
-            # Add the "done" reaction and dequeue the processed message
             await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
 
-            # After processing, check if there are any pending messages in the queue and process them
-            await self.backend_internal_data_processing_dispatcher.dequeue_message(data_container=self.message_container, message_id=event.timestamp, channel_id=event.channel_id, thread_id=event.thread_id)
+            # After processing, dequeue the processed message if queuing is enabled
+            if self.bot_config.ACTIVATE_MESSAGE_QUEUING:
+                await self.backend_internal_data_processing_dispatcher.dequeue_message(
+                    data_container=self.message_container,
+                    message_id=event.timestamp,
+                    channel_id=event.channel_id,
+                    thread_id=event.thread_id
+                )
 
-            # Remove the "wait" reaction from the thread if message queuing is disabled or the current message is the last message in the queue
-            if self.bot_config.ACTIVATE_MESSAGE_QUEUING == False:
-                self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
-                await self.user_interaction_dispatcher.remove_reaction_from_thread(channel_id=event.channel_id, thread_id=event.thread_id, reaction_name=self.reaction_wait)
+                # Process the next message in the queue, if any
+                next_message_id, next_message_content = await self.backend_internal_data_processing_dispatcher.get_next_message(
+                    data_container=self.message_container,
+                    channel_id=event.channel_id,
+                    thread_id=event.thread_id,
+                    current_message_id=event.timestamp
+                )
+
+                while next_message_id:
+                    self.logger.info(f"IM behavior: Found next message in the queue: {next_message_id}. Processing next message.")
+                    try:
+                        event_to_process = IncomingNotificationDataBase.from_json(next_message_content)
+                        await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
+                        await self.user_interaction_dispatcher.add_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_acknowledge)
+                        await self.process_incoming_notification_data(event_to_process)
+                    except Exception as e:
+                        self.logger.error(f"IM behavior: Error parsing next message: {str(e)}\n{traceback.format_exc()}")
+                        self.logger.error(f"IM behavior: Next message content: {next_message_content}")
+
+                    # Dequeue the message regardless of success or failure
+                    await self.backend_internal_data_processing_dispatcher.dequeue_message(
+                        data_container=self.message_container,
+                        message_id=next_message_id,
+                        channel_id=event.channel_id,
+                        thread_id=event.thread_id
+                    )
+
+                    # Get the next message in the queue
+                    next_message_id, next_message_content = await self.backend_internal_data_processing_dispatcher.get_next_message(
+                        data_container=self.message_container,
+                        channel_id=event.channel_id,
+                        thread_id=event.thread_id,
+                        current_message_id=event.timestamp
+                    )
             else:
-                self.logger.info(f"IM behavior: Message queuing is enabled, removing wait reaction from singlee message {event.timestamp}")
-                await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=event.channel_id, timestamp=timestamp, reaction_name=self.reaction_wait)
+                # If message queuing is disabled, remove the "wait" reaction from the thread
+                self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
+                await self.user_interaction_dispatcher.remove_reaction_from_thread(
+                    channel_id=event.channel_id,
+                    thread_id=event.thread_id,
+                    reaction_name=self.reaction_wait
+                )
 
-            # Check if there are any pending messages in the queue and process them
-            next_message_id, next_message_content = await self.backend_internal_data_processing_dispatcher.get_next_message(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id, current_message_id=event.timestamp)
-
-            while next_message_id:
-                self.logger.info(f"IM behavior: Found next message in the queue: {next_message_id}. Processing next message.")
-                try:
-                    event_to_process = IncomingNotificationDataBase.from_json(next_message_content)
-                    await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
-                    await self.user_interaction_dispatcher.add_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_acknowledge)
-                    await self.process_incoming_notification_data(event_to_process)
-                except Exception as e:
-                    self.logger.error(f"IM behavior: Error parsing next message: {str(e)}\n{traceback.format_exc()}")
-                    self.logger.error(f"IM behavior: Next message content: {next_message_content}")
-
-                # Dequeue the message regardless of success or failure
-                await self.backend_internal_data_processing_dispatcher.dequeue_message(data_container=self.message_container, message_id=next_message_id, channel_id=event.channel_id, thread_id=event.thread_id)
-
-                # Get the next message in the queue
-                next_message_id, next_message_content = await self.backend_internal_data_processing_dispatcher.get_next_message(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id, current_message_id=event.timestamp)
         except Exception as e:
             self.logger.error(f"IM behavior: Error processing incoming notification data: {str(e)}\n{traceback.format_exc()}")
+
 
     async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when GenAI starts generating a completion.

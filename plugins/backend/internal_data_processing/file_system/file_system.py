@@ -28,7 +28,8 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
     FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
     FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER: str
-    FILE_SYSTEM_EVENTS_QUEUE_CONTAINER: str
+    FILE_SYSTEM_INTERNAL_EVENTS_QUEUE_CONTAINER: str
+    FILE_SYSTEM_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -52,8 +53,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.vectors_container = None
         self.custom_actions_container = None
         self.subprompts_container = None
-        self.message_queue_container = None
-        self.events_queue_container = None
+        self.message_queue_container = None        
+        self.internal_events_queue_container = None
+        self.external_events_queue_container = None
 
     @property
     def plugin_name(self):
@@ -119,9 +121,14 @@ class FileSystemPlugin(InternalDataProcessingBase):
         return self.message_queue_container
     
     @property
-    def events_queue(self):
-        # Implement the events_queue property
-        return self.events_queue_container
+    def internal_events_queue(self):
+        # Implement the messages_queue property
+        return self.internal_events_queue_container
+    
+    @property
+    def external_events_queue(self):
+        # Implement the messages_queue property
+        return self.external_events_queue_container
 
     def initialize(self):
         try:
@@ -138,7 +145,9 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
             self.message_queue_container = self.file_system_config.FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER
-            self.events_queue_container = self.file_system_config.FILE_SYSTEM_EVENTS_QUEUE_CONTAINER
+            self.internal_events_queue_container = self.file_system_config.FILE_SYSTEM_INTERNAL_EVENTS_QUEUE_CONTAINER
+            self.external_events_queue_container = self.file_system_config.FILE_SYSTEM_EXTERNAL_EVENTS_QUEUE_CONTAINER
+
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
         except KeyError as e:
@@ -163,7 +172,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.custom_actions_container,
             self.subprompts_container,
             self.message_queue_container,
-            self.events_queue_container
+            self.internal_events_queue_container,
+            self.external_events_queue_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -351,7 +361,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
         try:
             # Log that we are attempting to add a message
-            self.logger.info(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
+            self.logger.debug(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
 
             # Write the message to a queue file using UTF-8 encoding
             with open(file_path, 'w', encoding='utf-8') as file:
@@ -375,7 +385,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                self.logger.info(f"Message '{message_id}' successfully removed from the queue. File '{file_path}' deleted.")
+                self.logger.info(f"Message '{message_id}' successfully removed from thet queue. File '{file_path}' deleted.")
             except Exception as e:
                 self.logger.error(f"Failed to remove message '{message_id}' from the queue: {str(e)}")
         else:

@@ -78,6 +78,8 @@ class BotConfig(BaseModel):
     # The local path where subprompts are stored if LOAD_PROMPTS_FROM_BACKEND is False.
     LOCAL_SUBPROMPTS_PATH: str
 
+    # Specify if the bot use the user interaction events queue. 
+    ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: bool
 
 class LocalLogging(BaseModel):
     PLUGIN_NAME: str

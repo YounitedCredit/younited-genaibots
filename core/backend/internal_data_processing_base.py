@@ -107,7 +107,15 @@ class InternalDataProcessingBase(InternalDataPluginBase):
     
     @property
     @abstractmethod
-    def events_queue(self):
+    def internal_events_queue(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def external_events_queue(self):
         """
         Property for concatenate data.
         """

@@ -110,9 +110,14 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         return plugin.messages_queue
     
     @property
-    def events_queue(self, plugin_name = None):
+    def external_events_queue(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return plugin.events_queue
+        return plugin.external_events_queue
+    
+    @property
+    def internal_events_queue(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.internal_events_queue
 
     def append_data(self, container_name: str, data_identifier: str, data: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(container_name)
@@ -151,7 +156,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         Adds a message to the queue for a given channel and thread.
         """
         plugin = self.get_plugin(plugin_name)
-        self.logger.info(f"Enqueuing message in {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        self.logger.debug(f"Enqueuing message in {channel_id}_{thread_id} through {plugin.plugin_name}.")
         await plugin.enqueue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id, message=message)
 
     async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, plugin_name: Optional[str] = None) -> None:
@@ -159,8 +164,8 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         Removes a message from the queue after processing.
         """
         plugin = self.get_plugin(plugin_name)
-        self.logger.info(f"Dequeuing message {message_id} from {channel_id}_{thread_id} through {plugin.plugin_name}.")
-        await plugin.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
+        self.logger.debug(f"Dequeuing message {message_id} from {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        await plugin.dequeue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id)
 
     async def get_next_message(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str, plugin_name: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -168,7 +173,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         Returns a tuple (message_id, message_content). If no message is found, returns (None, None).
         """
         plugin = self.get_plugin(plugin_name)
-        self.logger.info(f"Getting next message for channel '{channel_id}', thread '{thread_id}' with current message_id '{current_message_id}' through {plugin.plugin_name}.")
+        self.logger.debug(f"Getting next message for channel '{channel_id}', thread '{thread_id}' with current message_id '{current_message_id}' through {plugin.plugin_name}.")
         return await plugin.get_next_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, current_message_id=current_message_id)
 
     async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> bool:
@@ -176,7 +181,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         Checks if there are any older messages waiting in the queue for the given channel and thread.
         """
         plugin = self.get_plugin(plugin_name)
-        self.logger.info(f"Checking for older messages in {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        self.logger.debug(f"Checking for older messages in {channel_id}_{thread_id} through {plugin.plugin_name}.")
         return await plugin.has_older_messages(data_container=data_container, channel_id=channel_id, thread_id=thread_id)
 
     async def clear_messages_queue(self, data_container: str, channel_id: str, thread_id: str, plugin_name: Optional[str] = None) -> None:

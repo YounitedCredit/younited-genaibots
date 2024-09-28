@@ -33,7 +33,8 @@ class AzureBlobStorageConfig(BaseModel):
     AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER: str
     AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER: str
     AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER: str
-    AZURE_BLOB_STORAGE_EVENTS_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_INTERNAL_EVENTS_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -67,7 +68,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
         self.subprompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER
         self.messages_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
-        self.events_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_EVENTS_QUEUE_CONTAINER
+        self.internal_events_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_INTERNAL_EVENTS_QUEUE_CONTAINER
+        self.external_events_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_EXTERNAL_EVENTS_QUEUE_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
@@ -144,9 +146,14 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         return self.messages_queue_container
     
     @property
-    def events_queue(self):
-        # Implement the events_queue property
-        return self.events_queue_container
+    def external_events_queue(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return self.external_events_queue_container
+    
+    @property
+    def internal_events_queue(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return self.internal_events_queue_container
 
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
@@ -171,7 +178,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.custom_actions_container,
             self.subprompts_container,
             self.messages_queue_container,
-            self.events_queue_container
+            self.internal_events_queue_container,
+            self.external_events_queue_container
         ]
 
         for container in container_names:
@@ -383,7 +391,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         try:
             # Log that we are attempting to add a message
-            self.logger.info(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
+            self.logger.debug(f"Attempting to enqueue message for channel '{channel_id}', thread '{thread_id}'.")
 
             # Upload the message to the blob
             blob_client.upload_blob(message, overwrite=True)
