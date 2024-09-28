@@ -1,6 +1,7 @@
 import logging
 import time
 import traceback
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from azure.servicebus.aio import ServiceBusClient
@@ -21,6 +22,12 @@ class AzureServiceBusConfig(BaseModel):
     SERVICE_BUS_EXTERNAL_EVENTS_QUEUE: str
     SERVICE_BUS_WAIT_QUEUE: str
 
+    # TTL configurations
+    SERVICE_BUS_MESSAGES_QUEUE_TTL: Optional[int] = None  # in seconds
+    SERVICE_BUS_INTERNAL_EVENTS_QUEUE_TTL: Optional[int] = None  # in seconds
+    SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL: Optional[int] = None  # in seconds
+    SERVICE_BUS_WAIT_QUEUE_TTL: Optional[int] = None  # in seconds
+
 
 class AzureServiceBusQueuePlugin(InternalQueueProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -40,28 +47,31 @@ class AzureServiceBusQueuePlugin(InternalQueueProcessingBase):
             self.logger.error(f"Failed to initialize Azure Service Bus: {str(e)}")
             raise
 
-    @property
-    def messages_queue(self):
-        return self.service_bus_config.SERVICE_BUS_MESSAGES_QUEUE
-    
-    @property
-    def internal_events_queue(self):
-        return self.service_bus_config.SERVICE_BUS_INTERNAL_EVENTS_QUEUE
-    
-    @property
-    def external_events_queue(self):
-        return self.service_bus_config.SERVICE_BUS_EXTERNAL_EVENTS_QUEUE
-    
-    @property
-    def wait_queue(self):
-        return self.service_bus_config.SERVICE_BUS_WAIT_QUEUE
+    def apply_message_ttl(self, message: ServiceBusMessage, queue_ttl: Optional[int]):
+        """
+        Apply TTL to a ServiceBus message by setting its `time_to_live` property.
+        """
+        if queue_ttl:
+            message.time_to_live = timedelta(seconds=queue_ttl)
+            self.logger.info(f"Applied TTL of {queue_ttl} seconds to message.")
 
-    async def enqueue_message(self, queue_name: str, message: str) -> None:
+    async def enqueue_message(self, queue_name: str, message_body: str) -> None:
         async with self.service_bus_client.get_queue_sender(queue_name) as sender:
             try:
-                service_bus_message = ServiceBusMessage(message)
-                await sender.send_messages(service_bus_message)
-                self.logger.info(f"Message successfully enqueued to queue '{queue_name}'.")
+                message = ServiceBusMessage(message_body)
+
+                # Apply TTL based on the queue
+                if queue_name == self.service_bus_config.SERVICE_BUS_MESSAGES_QUEUE:
+                    self.apply_message_ttl(message, self.service_bus_config.SERVICE_BUS_MESSAGES_QUEUE_TTL)
+                elif queue_name == self.service_bus_config.SERVICE_BUS_INTERNAL_EVENTS_QUEUE:
+                    self.apply_message_ttl(message, self.service_bus_config.SERVICE_BUS_INTERNAL_EVENTS_QUEUE_TTL)
+                elif queue_name == self.service_bus_config.SERVICE_BUS_EXTERNAL_EVENTS_QUEUE:
+                    self.apply_message_ttl(message, self.service_bus_config.SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL)
+                elif queue_name == self.service_bus_config.SERVICE_BUS_WAIT_QUEUE:
+                    self.apply_message_ttl(message, self.service_bus_config.SERVICE_BUS_WAIT_QUEUE_TTL)
+
+                await sender.send_messages(message)
+                self.logger.info(f"Message successfully enqueued to queue '{queue_name}' with TTL.")
             except (ServiceRequestError, ServiceResponseError) as e:
                 self.logger.error(f"Failed to enqueue message to queue '{queue_name}': {str(e)}")
 
@@ -74,6 +84,12 @@ class AzureServiceBusQueuePlugin(InternalQueueProcessingBase):
                     return None
 
                 for message in received_messages:
+                    # Check if the message exceeds the TTL (manual enforcement)
+                    if message.time_to_live and (datetime.now() - message.enqueued_time_utc).seconds > message.time_to_live.seconds:
+                        self.logger.info(f"Message '{message.message_id}' exceeded TTL, moving to dead-letter queue.")
+                        await receiver.dead_letter_message(message)
+                        continue
+
                     self.logger.info(f"Message dequeued from queue '{queue_name}': {message.body}")
                     await receiver.complete_message(message)
                     return message.body.decode("utf-8")

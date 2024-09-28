@@ -13,11 +13,11 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 class FileSystemQueueConfig(BaseModel):
     PLUGIN_NAME: str
-    FILE_SYSTEM_DIRECTORY: str
-    FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER: str
-    FILE_SYSTEM_INTERNAL_EVENTS_QUEUE_CONTAINER: str
-    FILE_SYSTEM_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
-    FILE_SYSTEM_WAIT_QUEUE_CONTAINER: str
+    FILE_SYSTEM_QUEUE_DIRECTORY: str
+    FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_CONTAINER: str
+    FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER: str
+    FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
+    FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER: str
 
 
 class FileSystemQueuePlugin(InternalQueueProcessingBase):
@@ -62,11 +62,11 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     def initialize(self):
         try:
             self.logger.debug("Initializing file system for queue management")
-            self.root_directory = self.file_system_config.FILE_SYSTEM_DIRECTORY
-            self.message_queue_container = self.file_system_config.FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER
-            self.internal_events_queue_container = self.file_system_config.FILE_SYSTEM_INTERNAL_EVENTS_QUEUE_CONTAINER
-            self.external_events_queue_container = self.file_system_config.FILE_SYSTEM_EXTERNAL_EVENTS_QUEUE_CONTAINER
-            self.wait_queue_container = self.file_system_config.FILE_SYSTEM_WAIT_QUEUE_CONTAINER
+            self.root_directory = self.file_system_config.FILE_SYSTEM_QUEUE_DIRECTORY
+            self.message_queue_container = self.file_system_config.FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_CONTAINER
+            self.internal_events_queue_container = self.file_system_config.FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER
+            self.external_events_queue_container = self.file_system_config.FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER
+            self.wait_queue_container = self.file_system_config.FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_queues()
         except KeyError as e:

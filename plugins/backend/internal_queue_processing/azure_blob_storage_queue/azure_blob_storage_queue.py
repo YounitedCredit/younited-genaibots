@@ -16,11 +16,11 @@ AZURE_BLOB_STORAGE_QUEUE = "AZURE_BLOB_STORAGE_QUEUE"
 
 class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
-    AZURE_BLOB_STORAGE_CONNECTION_STRING: str
-    AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER: str
-    AZURE_BLOB_STORAGE_INTERNAL_EVENTS_QUEUE_CONTAINER: str
-    AZURE_BLOB_STORAGE_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
-    AZURE_BLOB_STORAGE_WAIT_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_QUEUE_CONNECTION_STRING: str
+    AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER: str
 
 class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -61,19 +61,19 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
 
     @property
     def messages_queue(self):
-        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
+        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER
     
     @property
     def internal_events_queue(self):
-        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_INTERNAL_EVENTS_QUEUE_CONTAINER
+        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER
     
     @property
     def external_events_queue(self):
-        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_EXTERNAL_EVENTS_QUEUE_CONTAINER
+        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER
     
     @property
     def wait_queue(self):
-        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_WAIT_QUEUE_CONTAINER
+        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER
 
     def init_containers(self):
         container_names = [
