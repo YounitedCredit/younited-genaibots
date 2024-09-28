@@ -140,37 +140,51 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"IM behavior: Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
             if await self.backend_internal_data_processing_dispatcher.has_older_messages(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id):
-                wait_queue_key = f"{channel_id}_{thread_id}"
-
-                # Check if the "I'm working on a previous query" message has already been sent for this thread
-                messages_in_wait_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(
-                    data_container=self.wait_queue,
-                    channel_id=channel_id,
-                    thread_id=thread_id
-                )
-
-                await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
-
-                if not messages_in_wait_queue:
-
-                    # Send the "I'm working on a previous query" message only if it hasn't been sent before
-                    await self.user_interaction_dispatcher.send_message(
-                        event=event,
-                        message=f"I'm working on a previous query, wait for max {self.bot_config.MESSAGE_QUEUING_TTL} seconds and try again :-)",
-                        message_type=MessageType.COMMENT,
-                        is_internal=False
-                    )
-
-                    # Enqueue the event in the wait_queue to avoid duplicate messages
+                
+                # If message queuing is enabled, just enqueue the message and add reaction wait
+                if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
+                    event_json = event.to_json()
                     await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                        data_container=self.message_container,
+                        channel_id=event.channel_id,
+                        thread_id=event.thread_id,
+                        message_id=event.timestamp,
+                        message=event_json
+                    )
+                    await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+                    self.logger.info(f"IM behavior: Message from channel {event.channel_id} enqueued due to pending messages.")
+                    return
+                else:
+                    wait_queue_key = f"{channel_id}_{thread_id}"
+
+                    # Check if the "I'm working on a previous query" message has already been sent for this thread
+                    messages_in_wait_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(
                         data_container=self.wait_queue,
                         channel_id=channel_id,
-                        thread_id=thread_id,
-                        message_id="0000.0000",
-                        message=json.dumps({"status": "wait_message_sent"})
+                        thread_id=thread_id
                     )
 
-                return  # Don't process further until the previous query is resolved
+                    await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+
+                    if not messages_in_wait_queue:
+                        # Send the "I'm working on a previous query" message only if it hasn't been sent before
+                        await self.user_interaction_dispatcher.send_message(
+                            event=event,
+                            message=f"I'm working on a previous query, wait for max {self.bot_config.MESSAGE_QUEUING_TTL} seconds and try again :-)",
+                            message_type=MessageType.COMMENT,
+                            is_internal=False
+                        )
+
+                        # Enqueue the event in the wait_queue to avoid duplicate messages
+                        await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                            data_container=self.wait_queue,
+                            channel_id=channel_id,
+                            thread_id=thread_id,
+                            message_id="0000.0000",
+                            message=json.dumps({"status": "wait_message_sent"})
+                        )
+
+                    return  # Don't process further until the previous query is resolved
 
             # Enqueue this message for processing
             self.logger.info(f"IM behavior: No pending messages found. Enqueuing current message for processing in channel '{event.channel_id}', thread '{event.thread_id}'")
@@ -211,7 +225,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             end_time = time.time()  # Stop the timer
             elapsed_time = end_time - start_time  # Calculate elapsed time
             self.logger.info(f"IM behavior: process_interaction in instant messaging default behavior took {elapsed_time} seconds.")
-
 
     async def process_incoming_notification_data(self, event: IncomingNotificationDataBase):
         try:
