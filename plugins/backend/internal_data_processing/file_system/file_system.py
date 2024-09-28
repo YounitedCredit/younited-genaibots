@@ -532,7 +532,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                     if time_difference > message_ttl:
                         self.logger.warning(f"Removing message '{file_name}' from queue as it is older than {message_ttl} seconds.")
                         # Dequeue the message properly by passing channel_id, thread_id, and message_id
-                        await self.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
+                        await self.dequeue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id)
                     else:
                         updated_files.append(file_name)
                 except ValueError as e:

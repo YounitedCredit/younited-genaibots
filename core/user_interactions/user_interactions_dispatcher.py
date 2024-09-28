@@ -144,10 +144,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Use FastAPI background tasks if provided
             if background_tasks:
                 background_tasks.add_task(self._remove_reaction_from_thread_background, method_params)
-                self.logger.info(f"Event 'remove_reaction_from_thread' added to background tasks with parameters: {method_params}")
+                self.logger.debug(f"Event 'remove_reaction_from_thread' added to background tasks with parameters: {method_params}")
             else:
                 await self.event_queue_manager.add_to_queue("remove_reaction_from_thread", method_params)
-                self.logger.info(f"Event 'remove_reaction_from_thread' queued with parameters: {method_params}")
+                self.logger.debug(f"Event 'remove_reaction_from_thread' queued with parameters: {method_params}")
         else:
             # Process the event directly
             plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
@@ -189,10 +189,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Use FastAPI background tasks if provided
             if background_tasks:
                 background_tasks.add_task(self._send_message_background, method_params)
-                self.logger.info(f"Event 'send_message' added to background tasks with parameters: {method_params}")
+                self.logger.debug(f"Event 'send_message' added to background tasks with parameters: {method_params}")
             else:
                 await self.event_queue_manager.add_to_queue("send_message", method_params)
-                self.logger.info(f"Event 'send_message' queued with parameters: {method_params}")
+                self.logger.debug(f"Event 'send_message' queued with parameters: {method_params}")
         else:
             # Process the event directly
             plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
@@ -227,10 +227,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Use FastAPI background tasks if provided
             if background_tasks:
                 background_tasks.add_task(self._upload_file_background, method_params)
-                self.logger.info(f"Event 'upload_file' added to background tasks with parameters: {method_params}")
+                self.logger.debug(f"Event 'upload_file' added to background tasks with parameters: {method_params}")
             else:
                 await self.event_queue_manager.add_to_queue("upload_file", method_params)
-                self.logger.info(f"Event 'upload_file' queued with parameters: {method_params}")
+                self.logger.debug(f"Event 'upload_file' queued with parameters: {method_params}")
         else:
             # Process the event directly
             plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
@@ -263,10 +263,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Use FastAPI background tasks if provided
             if background_tasks:
                 background_tasks.add_task(self._add_reaction_background, method_params)
-                self.logger.info(f"Event 'add_reaction' added to background tasks with parameters: {method_params}")
+                self.logger.debug(f"Event 'add_reaction' added to background tasks with parameters: {method_params}")
             else:
                 await self.event_queue_manager.add_to_queue("add_reaction", method_params)
-                self.logger.info(f"Event 'add_reaction' queued with parameters: {method_params}")
+                self.logger.debug(f"Event 'add_reaction' queued with parameters: {method_params}")
         else:
             # Process the event directly
             plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
@@ -298,10 +298,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Use FastAPI background tasks if provided
             if background_tasks:
                 background_tasks.add_task(self._remove_reaction_background, method_params)
-                self.logger.info(f"Event 'remove_reaction' added to background tasks with parameters: {method_params}")
+                self.logger.debug(f"Event 'remove_reaction' added to background tasks with parameters: {method_params}")
             else:
                 await self.event_queue_manager.add_to_queue("remove_reaction", method_params)
-                self.logger.info(f"Event 'remove_reaction' queued with parameters: {method_params}")
+                self.logger.debug(f"Event 'remove_reaction' queued with parameters: {method_params}")
         else:
             # Process the event directly
             plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)

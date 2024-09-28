@@ -556,7 +556,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
                     if time_difference > message_ttl:
                         self.logger.warning(f"Removing message '{blob.name}' as it is older than {message_ttl} seconds.")
-                        await self.dequeue_message(channel_id, thread_id, message_id)
+                        await self.dequeue_message(data_container=data_container, channel_id= channel_id, thread_id= thread_id, message_id= message_id)
                     else:
                         updated_blobs.append(blob.name)
                 except ValueError as e:
