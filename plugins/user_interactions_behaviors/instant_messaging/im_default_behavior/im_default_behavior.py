@@ -108,12 +108,13 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     return
                 elif clear_keyword in event.text:
                     self.logger.info(f"IM behavior: Clear keyword detected in thread message, invoking clearing queue for {channel_id} {thread_id}.")
-                    messages_in_queue = await self.backend_internal_queue_processing_dispatcher.get_all_messages(channel_id=channel_id, thread_id=thread_id)  # Use the new dispatcher
+                    messages_in_queue = await self.backend_internal_queue_processing_dispatcher.get_all_messages(data_container=self.message_container, channel_id=channel_id, thread_id=thread_id)  # Use the new dispatcher
 
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=True, show_ref=False)
                     await self.user_interaction_dispatcher.send_message(event=event, message="Clear keyword detected, clearing queue.", message_type=MessageType.COMMENT, is_internal=False, show_ref=False)
 
-                    await self.backend_internal_queue_processing_dispatcher.clear_messages_queue(channel_id=channel_id, thread_id=thread_id)  # Use the new dispatcher
+                    await self.backend_internal_queue_processing_dispatcher.clear_messages_queue(data_container=self.message_container, channel_id=channel_id, thread_id=thread_id)  # Use the new dispatcher
+                    await self.backend_internal_queue_processing_dispatcher.clear_messages_queue(data_container=self.wait_queue, channel_id=channel_id, thread_id=thread_id)  #
                     for message in messages_in_queue:
                         event_to_process = IncomingNotificationDataBase.from_json(message)
                         await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=channel_id, timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
