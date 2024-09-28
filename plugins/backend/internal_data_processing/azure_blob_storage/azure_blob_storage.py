@@ -395,7 +395,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
             # Upload the message to the blob
             blob_client.upload_blob(message, overwrite=True)
-            self.logger.info(f"Message successfully enqueued with ID '{message_id}' in blob '{blob_name}'.")
+            self.logger.debug(f"Message successfully enqueued with ID '{message_id}' in blob '{blob_name}'.")
         except ResourceExistsError:
             self.logger.warning(f"Message with ID '{message_id}' already exists in the queue.")
         except Exception as e:
@@ -408,7 +408,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
         blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
-        self.logger.info(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
+        self.logger.debug(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
 
         try:
             blob_client.delete_blob()

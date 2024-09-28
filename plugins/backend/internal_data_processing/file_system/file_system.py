@@ -380,7 +380,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         file_name = f"{channel_id}_{thread_id}_{message_id}.txt"
         file_path = os.path.join(self.root_directory, data_container, file_name)
 
-        self.logger.info(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
+        self.logger.debug(f"Attempting to dequeue message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
 
         if os.path.exists(file_path):
             try:
