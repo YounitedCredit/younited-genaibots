@@ -1,7 +1,7 @@
 import logging
 import time
 import traceback
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from azure.servicebus.aio import ServiceBusClient
 from azure.servicebus import ServiceBusMessage
@@ -24,9 +24,8 @@ class AzureServiceBusConfig(BaseModel):
 
 class AzureServiceBusQueuePlugin(InternalQueueProcessingBase):
     def __init__(self, global_manager: GlobalManager):
-        self.logger = global_manager.logger
-
         super().__init__(global_manager)
+        self.logger = global_manager.logger
         self.plugin_manager: PluginManager = global_manager.plugin_manager
         config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING["AZURE_SERVICE_BUS"]
         self.service_bus_config = AzureServiceBusConfig(**config_dict)
@@ -120,8 +119,21 @@ class AzureServiceBusQueuePlugin(InternalQueueProcessingBase):
             except (ServiceRequestError, ServiceResponseError) as e:
                 self.logger.error(f"Failed to clear messages from queue '{queue_name}': {str(e)}")
 
-    async def has_older_messages(self, queue_name: str) -> bool:
-        messages = await self.get_all_messages(queue_name)
-        if len(messages) > 0:
-            return True
-        return False
+    async def has_older_messages(self, queue_name: str, current_message_id: str) -> bool:
+        """
+        Checks if there are older messages in the queue, excluding the current message.
+        """
+        self.logger.info(f"Checking for older messages in queue '{queue_name}', excluding message_id '{current_message_id}'.")
+        try:
+            messages = await self.get_all_messages(queue_name)
+            
+            # Filter out the current message by comparing IDs
+            filtered_messages = [msg for msg in messages if current_message_id not in msg]
+            
+            # Log filtered messages for debugging
+            self.logger.debug(f"Filtered messages (excluding current): {filtered_messages}")
+
+            return len(filtered_messages) > 0
+        except (ServiceRequestError, ServiceResponseError) as e:
+            self.logger.error(f"Failed to check for older messages in queue '{queue_name}': {str(e)}")
+            return False

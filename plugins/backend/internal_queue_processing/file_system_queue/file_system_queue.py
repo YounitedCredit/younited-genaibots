@@ -184,28 +184,27 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             self.logger.error(f"Failed to retrieve messages: {str(e)}")
             return []
 
-    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str) -> bool:
+    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> bool:
         """
-        Checks if there are any older messages in the queue.
+        Checks if there are any older messages in the queue, excluding the current message.
         """
-        self.logger.info(f"Checking for older messages in queue for channel '{channel_id}', thread '{thread_id}'.")
-
+        self.logger.info(f"Checking for older messages in queue for channel '{channel_id}', thread '{thread_id}', excluding message_id '{current_message_id}'.")
+        
         try:
-            current_time = time.time()
             queue_path = os.path.join(self.root_directory, data_container)
             files = os.listdir(queue_path)
+            
+            # Filter files for the given channel_id and thread_id
             filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}")]
-
-            for file_name in filtered_files:
-                message_id = file_name.split('_')[-1].split('.')[0]
-                timestamp = float(message_id)
-                time_difference = current_time - timestamp
-
-                if time_difference > self.global_manager.bot_config.MESSAGE_QUEUING_TTL:
-                    await self.dequeue_message(data_container, channel_id, thread_id, message_id)
-
+            
+            # Exclude the current message file
+            filtered_files = [f for f in filtered_files if current_message_id not in f]
+            
+            # Log the filtered files for debugging
+            self.logger.debug(f"Filtered files excluding current message: {filtered_files}")
+            
             return len(filtered_files) > 0
-
+        
         except Exception as e:
             self.logger.error(f"Failed to check older messages: {str(e)}")
             return False

@@ -149,30 +149,44 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
             self.logger.error(f"Failed to retrieve next message: {str(e)}")
             return None, None
 
-    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str) -> bool:
+    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> bool:
+        """
+        Checks if there are any older messages in the Azure Blob storage, excluding the current message.
+        """
         message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
         current_time = time.time()
 
-        self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'.")
+        self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}', excluding message_id '{current_message_id}'.")
 
         try:
             container_client = self.blob_service_client.get_container_client(data_container)
             blobs = list(container_client.list_blobs())
 
+            # Filter blobs for the given channel_id and thread_id
             filtered_blobs = [blob for blob in blobs if blob.name.startswith(f"{channel_id}_{thread_id}_")]
+
+            # Exclude the current message blob
+            filtered_blobs = [blob for blob in filtered_blobs if current_message_id not in blob.name]
+
+            # Log the filtered blobs for debugging purposes
+            self.logger.debug(f"Filtered blobs excluding current message: {[blob.name for blob in filtered_blobs]}")
 
             for blob in filtered_blobs:
                 message_id = blob.name.split('_')[-1].replace('.txt', '')
                 timestamp = float(message_id)
                 time_difference = current_time - timestamp
 
+                # Remove the message if its time-to-live has expired
                 if time_difference > message_ttl:
                     await self.dequeue_message(data_container, channel_id, thread_id, message_id)
 
+            # Return whether there are any blobs left after filtering
             return len(filtered_blobs) > 0
+
         except Exception as e:
             self.logger.error(f"Failed to check for older messages: {str(e)}")
             return False
+
 
     async def get_all_messages(self, data_container: str, channel_id: str, thread_id: str) -> List[str]:
         self.logger.info(f"Retrieving all messages in queue for channel '{channel_id}', thread '{thread_id}'.")

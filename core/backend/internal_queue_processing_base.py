@@ -63,7 +63,7 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         raise NotImplementedError
 
     @abstractmethod
-    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str) -> bool:
+    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> bool:
         """
         Checks if there are any older messages waiting in the queue for a given channel and thread.
         """
