@@ -38,6 +38,9 @@ class BotConfig(BaseModel):
     # The default plugin for backend data processing (e.g., file system, Azure Blob Storage).
     INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: str
 
+    # The default plugin for internal queue processing (e.g., file system, Azure Service Bus, Azure Blob Storage).
+    INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME: str 
+
     # The default plugin for instant messaging behavior, which defines how the bot behaves in IM platforms (e.g., Slack or Teams).
     USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: str
 
@@ -78,9 +81,8 @@ class BotConfig(BaseModel):
     # The local path where subprompts are stored if LOAD_PROMPTS_FROM_BACKEND is False.
     LOCAL_SUBPROMPTS_PATH: str
 
-    # Specify if the bot use the user interaction events queue. 
+    # Specify if the bot uses the user interaction events queue.
     ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: bool
-
 class LocalLogging(BaseModel):
     PLUGIN_NAME: str
     LOCAL_LOGGING_FILE_PATH: str
@@ -108,6 +110,7 @@ class ActionInteractions(BaseModel):
 
 class Backend(BaseModel):
     INTERNAL_DATA_PROCESSING: Dict[str, Any]
+    INTERNAL_QUEUE_PROCESSING: Dict[str, Any]
 
 class UserInteractions(BaseModel):
     INSTANT_MESSAGING: Dict[str, Any]

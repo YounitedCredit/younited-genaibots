@@ -31,6 +31,9 @@ azure.monitor.opentelemetry.exporter
 azure-storage-blob
 azure-monitor-opentelemetry
 
+## BACKEND plugins
+# Azure Servicebus
+azure.servicebus
 
 ## User Interactions plugins
 # Slack plugin dependencies

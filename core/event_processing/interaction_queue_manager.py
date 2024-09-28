@@ -1,8 +1,8 @@
 import asyncio
 import json
 import uuid
-from core.backend.backend_internal_data_processing_dispatcher import (
-    BackendInternalDataProcessingDispatcher,
+from core.backend.backend_internal_queue_processing_dispatcher import (
+    BackendInternalQueueProcessingDispatcher,
 )
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
@@ -35,8 +35,8 @@ class InteractionQueueManager:
         """
         Initializes the event containers and starts the event queue processing tasks.
         """
-        # Set the event containers for internal and external events from the backend dispatcher        
-        self.backend_dispatcher: BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        # Set the event containers for internal and external events from the backend dispatcher
+        self.backend_dispatcher: BackendInternalQueueProcessingDispatcher = self.global_manager.backend_internal_queue_processing_dispatcher
         self.user_interaction_dispatcher: UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
         self.internal_event_container = self.backend_dispatcher.internal_events_queue
         self.external_event_container = self.backend_dispatcher.external_events_queue
@@ -90,7 +90,7 @@ class InteractionQueueManager:
         try:
             # Extract method_params (method parameters) from event_data
             method_params = event_data.get('method_params', {})
-            
+
             # Extract event object from method_params if present
             event = method_params.get('event', {})
 
@@ -111,20 +111,20 @@ class InteractionQueueManager:
 
             # Use the dispatcher to enqueue the message in the backend with a unique event_id
             await self.backend_dispatcher.enqueue_message(
-                data_container=container,  # Use the correct container
+                data_container=container,  
                 channel_id=channel_id, 
                 thread_id=thread_id, 
                 message_id=f"{message_id}_{event_id}",  # Append event_id to ensure uniqueness
                 message=message_json
             )
             self.logger.debug(f"Event saved to backend: {channel_id}/{thread_id} - {message_id}_{event_id}")
-        
+
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to encode event data to JSON: {e}")
-        
+
         except AttributeError as e:
             self.logger.error(f"Attribute error: {e}")
-        
+
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {e}")
 
@@ -277,6 +277,6 @@ class InteractionQueueManager:
                 message_id=f"{message_id}_{event_id}"  # Ensure we dequeue the exact unique message
             )
             self.logger.debug(f"Event dequeued from backend: {channel_id}/{thread_id} - {message_id}_{event_id}")
-        
+
         except Exception as e:
             self.logger.error(f"Error marking event as processed: {e}")

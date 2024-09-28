@@ -5,8 +5,12 @@ from core.action_interactions.action_interactions_handler import (
     ActionInteractionsHandler,
 )
 from core.backend.backend_internal_data_processing_dispatcher import (
-    BackendInternalDataProcessingDispatcher,
+    BackendInternalDataProcessingDispatcher
 )
+from core.backend.backend_internal_queue_processing_dispatcher import (
+    BackendInternalQueueProcessingDispatcher,  
+)
+
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
 from core.genai_interactions.genai_interactions_image_generator_dispatcher import (
     GenaiInteractionsImageGeneratorDispatcher,
@@ -55,37 +59,39 @@ class GlobalManager:
         self.logger.info("Plugin manager and main handlers initialized.")
 
         bot_config_dict = self.config_manager.config_model.BOT_CONFIG
-        self.bot_config : BotConfig = bot_config_dict
+        self.bot_config: BotConfig = bot_config_dict
 
         self.logger.info("Dispatchers creation...")
         self.backend_internal_data_processing_dispatcher = BackendInternalDataProcessingDispatcher(self)
+        self.backend_internal_queue_processing_dispatcher = BackendInternalQueueProcessingDispatcher(self) 
         self.genai_interactions_text_dispatcher = GenaiInteractionsTextDispatcher(self)
         self.genai_image_generator_dispatcher = GenaiInteractionsImageGeneratorDispatcher(self)
         self.genai_vectorsearch_dispatcher = GenaiVectorsearch(self)
         self.user_interactions_dispatcher = UserInteractionsDispatcher(self)
         self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
-                
-       
+
         self.logger.info("Loading plugins...")
         self.plugin_manager.load_plugins()
-        
+
         if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:            
             self.logger.info("Interaction Queue Manager is enabled in the config.")
-            self.interaction_queue_manager = InteractionQueueManager(self)            
+            self.interaction_queue_manager = InteractionQueueManager(self)
         else:
             self.logger.info("Interaction Queue Manager is disabled in the config.")
 
         backend_internal_data_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_DATA_PROCESSING")
+        backend_internal_queue_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
+            "BACKEND", "INTERNAL_QUEUE_PROCESSING")  
         user_interactions_plugins: List[UserInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "USER_INTERACTIONS")
         genai_interactions_text_plugins: List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "GENAI_INTERACTIONS", "TEXT")
-        genai_image_generator_plugins : List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
+        genai_image_generator_plugins: List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "GENAI_INTERACTIONS", "IMAGE")
-        vector_search_plugins : List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
+        vector_search_plugins: List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "GENAI_INTERACTIONS", "VECTOR_SEARCH")
-        user_interactions_behavior_plugins : List[UserInteractionsBehaviorBase] = self.plugin_manager.get_plugin_by_category(
+        user_interactions_behavior_plugins: List[UserInteractionsBehaviorBase] = self.plugin_manager.get_plugin_by_category(
             "USER_INTERACTIONS_BEHAVIORS")
 
         # Initialize dispatchers
@@ -93,19 +99,21 @@ class GlobalManager:
         self.user_interactions_dispatcher.initialize(user_interactions_plugins)
         self.genai_interactions_text_dispatcher.initialize(genai_interactions_text_plugins)
         self.backend_internal_data_processing_dispatcher.initialize(backend_internal_data_processing_plugins)
+        self.backend_internal_queue_processing_dispatcher.initialize(backend_internal_queue_processing_plugins)
 
         self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
         self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
 
-        # Initialize the event queue manager only if enabled in the config
-        
-
-            
         self.user_interactions_behavior_dispatcher.initialize(user_interactions_behavior_plugins)
-        
+
         self.logger.debug("Initializing plugins...")
         self.plugin_manager.initialize_plugins()
         self.logger.info("Plugins loaded.")
+
+         # Initialize the event queue manager only if enabled in the config
+        if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+            self.logger.debug("Initializing interaction queue manager...")
+            self.interaction_queue_manager.initialize()
 
         self.logger.debug("Creating routes...")
         self.plugin_manager.intialize_routes(app)
@@ -115,13 +123,8 @@ class GlobalManager:
 
         self.logger.debug("Prompt manager initialization...")
         self.prompt_manager = PromptManager(self)
-        
+
         self.logger.info("Prompt manager loaded and initialized.")
-
-        if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-            self.logger.debug("Initializing interaction queue manager...")  
-            self.interaction_queue_manager.initialize()
-
 
     def get_plugin(self, category, subcategory):
         return self.plugin_manager.get_plugin_by_category(category, subcategory)
