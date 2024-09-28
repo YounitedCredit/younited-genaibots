@@ -12,7 +12,7 @@ from core.backend.internal_queue_processing_base import InternalQueueProcessingB
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
 
-AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
+AZURE_BLOB_STORAGE_QUEUE = "AZURE_BLOB_STORAGE_QUEUE"
 
 class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
@@ -28,14 +28,14 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
 
         super().__init__(global_manager)
         self.plugin_manager: PluginManager = global_manager.plugin_manager
-        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
+        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING[AZURE_BLOB_STORAGE_QUEUE]
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
         self.plugin_name = None
 
     def initialize(self):
         # Configure logging and initialize Azure Blob Service Client
-        logging.getLogger("azure").setLevel(self.logger.level)
-        logging.getLogger("azure.storage.blob").setLevel(self.logger.level)
+        logging.getLogger("azure").setLevel(logging.WARNING)  # Set Azure SDK logging level to WARNING
+        logging.getLogger("azure.storage.blob").setLevel(logging.WARNING)  # Set Azure Blob Storage logging level to WARNING
 
         self.logger.debug("Initializing Azure Blob Storage connection")
         try:
@@ -94,9 +94,9 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
             except Exception as e:
                 self.logger.error(f"Failed to create container {container}: {str(e)}")
 
-    async def enqueue_message(self, container_name: str, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
+    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str) -> None:
         blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
-        blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+        blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=blob_name)
 
         try:
             self.logger.debug(f"Enqueuing message for channel '{channel_id}', thread '{thread_id}'.")
@@ -107,9 +107,9 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to enqueue the message: {str(e)}")
 
-    async def dequeue_message(self, container_name: str, channel_id: str, thread_id: str, message_id: str) -> None:
+    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str) -> None:
         blob_name = f"{channel_id}_{thread_id}_{message_id}.txt"
-        blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+        blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=blob_name)
 
         self.logger.debug(f"Dequeueing message '{message_id}' from channel '{channel_id}', thread '{thread_id}'.")
         try:
