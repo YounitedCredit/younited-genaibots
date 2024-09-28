@@ -120,6 +120,14 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for concatenate data.
         """
         raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def wait_queue(self):
+        """
+        Property for concatenate data.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def append_data(self, container_name: str, data_identifier: str, data: str) -> None:

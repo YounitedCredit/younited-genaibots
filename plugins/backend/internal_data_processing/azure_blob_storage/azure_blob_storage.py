@@ -35,6 +35,7 @@ class AzureBlobStorageConfig(BaseModel):
     AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER: str
     AZURE_BLOB_STORAGE_INTERNAL_EVENTS_QUEUE_CONTAINER: str
     AZURE_BLOB_STORAGE_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
+    AZURE_BLOB_STORAGE_WAIT_QUEUE_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -70,6 +71,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.messages_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
         self.internal_events_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_INTERNAL_EVENTS_QUEUE_CONTAINER
         self.external_events_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_EXTERNAL_EVENTS_QUEUE_CONTAINER
+        self.wait_queue_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_WAIT_QUEUE_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
@@ -154,6 +156,11 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def internal_events_queue(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return self.internal_events_queue_container
+    
+    @property
+    def wait_queue(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return self.wait_queue_container
 
     def validate_request(self, request):
         raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
@@ -179,7 +186,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.subprompts_container,
             self.messages_queue_container,
             self.internal_events_queue_container,
-            self.external_events_queue_container
+            self.external_events_queue_container,
+            self.wait_queue_container
         ]
 
         for container in container_names:

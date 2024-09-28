@@ -30,6 +30,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER: str
     FILE_SYSTEM_INTERNAL_EVENTS_QUEUE_CONTAINER: str
     FILE_SYSTEM_EXTERNAL_EVENTS_QUEUE_CONTAINER: str
+    FILE_SYSTEM_WAIT_QUEUE_CONTAINER: str
 
 class FileSystemPlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -56,6 +57,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.message_queue_container = None        
         self.internal_events_queue_container = None
         self.external_events_queue_container = None
+        self.wait_queue_container = None
 
     @property
     def plugin_name(self):
@@ -129,6 +131,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def external_events_queue(self):
         # Implement the messages_queue property
         return self.external_events_queue_container
+    
+    @property
+    def wait_queue(self):
+        # Implement the messages_queue property
+        return self.wait_queue_container
 
     def initialize(self):
         try:
@@ -147,6 +154,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.message_queue_container = self.file_system_config.FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER
             self.internal_events_queue_container = self.file_system_config.FILE_SYSTEM_INTERNAL_EVENTS_QUEUE_CONTAINER
             self.external_events_queue_container = self.file_system_config.FILE_SYSTEM_EXTERNAL_EVENTS_QUEUE_CONTAINER
+            self.wait_queue_container = self.file_system_config.FILE_SYSTEM_WAIT_QUEUE_CONTAINER
 
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
@@ -173,7 +181,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.subprompts_container,
             self.message_queue_container,
             self.internal_events_queue_container,
-            self.external_events_queue_container
+            self.external_events_queue_container,
+            self.wait_queue
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -385,7 +394,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                self.logger.info(f"Message '{message_id}' successfully removed from thet queue. File '{file_path}' deleted.")
+                self.logger.debug(f"Message '{message_id}' successfully removed from thet queue. File '{file_path}' deleted.")
             except Exception as e:
                 self.logger.error(f"Failed to remove message '{message_id}' from the queue: {str(e)}")
         else:

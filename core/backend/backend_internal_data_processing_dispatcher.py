@@ -115,6 +115,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         return plugin.external_events_queue
     
     @property
+    def wait_queue(self, plugin_name = None):
+        plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.wait_queue
+    
+    @property
     def internal_events_queue(self, plugin_name = None):
         plugin : InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.internal_events_queue

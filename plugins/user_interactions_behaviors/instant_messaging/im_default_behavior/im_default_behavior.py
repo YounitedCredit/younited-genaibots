@@ -81,7 +81,8 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
             self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
             self.abort_container = self.backend_internal_data_processing_dispatcher.abort
-            self.message_container = self.backend_internal_data_processing_dispatcher.messages_queue            
+            self.message_container = self.backend_internal_data_processing_dispatcher.messages_queue
+            self.wait_queue = self.backend_internal_data_processing_dispatcher.wait_queue
 
             break_keyword = self.global_manager.bot_config.BREAK_KEYWORD
             start_keyword = self.global_manager.bot_config.START_KEYWORD
@@ -113,7 +114,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     await self.backend_internal_data_processing_dispatcher.clear_messages_queue(channel_id=event.channel_id, thread_id=event.thread_id)
                     for message in messages_in_queue:
                         event_to_process = IncomingNotificationDataBase.from_json(message)
-                        await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=event.channel_id,timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
+                        await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=event.channel_id, timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
                     return
 
             # Check if the event should be processed based on the configuration
@@ -139,33 +140,37 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"IM behavior: Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
             if await self.backend_internal_data_processing_dispatcher.has_older_messages(data_container=self.message_container, channel_id=event.channel_id, thread_id=event.thread_id):
-                # check if the activate_message_queuing is enabled
-                if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
-                    event_json = event.to_json()
-                    await self.backend_internal_data_processing_dispatcher.enqueue_message(
-                        data_container=self.message_container,
-                        channel_id=event.channel_id,
-                        thread_id=event.thread_id,
-                        message_id=event.timestamp,
-                        message=event_json
-                    )
-                    self.logger.info(f"IM behavior: Message from channel {event.channel_id} enqueued due to pending messages.")
-                    if event.event_label == "message":
-                        self.logger.warning(f"IM behavior: Message from channel {event.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False but this is the main thread message.")
-                    else:
-                        await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+                wait_queue_key = f"{channel_id}_{thread_id}"
 
-                    return
-                else:
-                    self.logger.info(f"IM behavior: Message from channel {event.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False.")
-                    await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+                # Check if the "I'm working on a previous query" message has already been sent for this thread
+                messages_in_wait_queue = await self.backend_internal_data_processing_dispatcher.get_all_messages(
+                    data_container=self.wait_queue,
+                    channel_id=channel_id,
+                    thread_id=thread_id
+                )
+
+                await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+
+                if not messages_in_wait_queue:
+
+                    # Send the "I'm working on a previous query" message only if it hasn't been sent before
                     await self.user_interaction_dispatcher.send_message(
                         event=event,
                         message=f"I'm working on a previous query, wait for max {self.bot_config.MESSAGE_QUEUING_TTL} seconds and try again :-)",
                         message_type=MessageType.COMMENT,
                         is_internal=False
                     )
-                    return
+
+                    # Enqueue the event in the wait_queue to avoid duplicate messages
+                    await self.backend_internal_data_processing_dispatcher.enqueue_message(
+                        data_container=self.wait_queue,
+                        channel_id=channel_id,
+                        thread_id=thread_id,
+                        message_id="0000.0000",
+                        message=json.dumps({"status": "wait_message_sent"})
+                    )
+
+                return  # Don't process further until the previous query is resolved
 
             # Enqueue this message for processing
             self.logger.info(f"IM behavior: No pending messages found. Enqueuing current message for processing in channel '{event.channel_id}', thread '{event.thread_id}'")
@@ -195,7 +200,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Process the incoming notification data
             await self.process_incoming_notification_data(event)
 
-
         except Exception as e:
             self.logger.error(f"IM behavior: Error processing incoming request: {str(e)}")
             self.logger.error(traceback.format_exc())
@@ -204,10 +208,10 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             raise
 
         finally:
-
             end_time = time.time()  # Stop the timer
             elapsed_time = end_time - start_time  # Calculate elapsed time
             self.logger.info(f"IM behavior: process_interaction in instant messaging default behavior took {elapsed_time} seconds.")
+
 
     async def process_incoming_notification_data(self, event: IncomingNotificationDataBase):
         try:
@@ -313,6 +317,13 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     channel_id=event.channel_id,
                     thread_id=event.thread_id,
                     reaction_name=self.reaction_wait
+                )
+
+                await self.backend_internal_data_processing_dispatcher.dequeue_message(
+                    data_container=self.wait_queue,
+                    channel_id=event.channel_id,
+                    thread_id=event.thread_id,
+                    message_id="0000.0000"
                 )
 
         except Exception as e:
