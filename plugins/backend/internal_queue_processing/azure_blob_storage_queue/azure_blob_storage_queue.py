@@ -41,7 +41,7 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
         try:
             credential = DefaultAzureCredential()
             self.blob_service_client = BlobServiceClient(
-                account_url=self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING,
+                account_url=self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_CONNECTION_STRING,
                 credential=credential
             )
             self.logger.info("Azure Blob Storage Backend: BlobServiceClient successfully created")
