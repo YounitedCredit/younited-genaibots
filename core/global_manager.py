@@ -37,6 +37,8 @@ from core.user_interactions_behaviors.user_interactions_behavior_dispatcher impo
 from core.event_processing.interaction_queue_manager import (
     InteractionQueueManager, 
 )
+from core.sessions.session_manager import SessionManager
+
 from utils.config_manager.config_manager import ConfigManager
 from utils.config_manager.config_model import BotConfig
 from utils.logging.logger_loader import setup_logger_and_tracer
@@ -57,6 +59,8 @@ class GlobalManager:
         self.available_actions = {}
 
         self.logger.info("Plugin manager and main handlers initialized.")
+
+        self.session_manager = SessionManager(self)
 
         bot_config_dict = self.config_manager.config_model.BOT_CONFIG
         self.bot_config: BotConfig = bot_config_dict
@@ -112,8 +116,9 @@ class GlobalManager:
 
          # Initialize the event queue manager only if enabled in the config
         if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-            self.logger.debug("Initializing interaction queue manager...")
+            self.logger.debug("Initializing interaction queue manager and Session manager...")
             self.interaction_queue_manager.initialize()
+            self.session_manager.initialize()
 
         self.logger.debug("Creating routes...")
         self.plugin_manager.intialize_routes(app)

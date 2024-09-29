@@ -357,7 +357,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         except Exception as e:
             self.logger.error(f"IM behavior: Error processing incoming notification data: {str(e)}\n{traceback.format_exc()}")
 
-
     async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when GenAI starts generating a completion.
         # It updates the reaction on the message in the specified channel and timestamp.
