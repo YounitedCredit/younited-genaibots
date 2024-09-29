@@ -69,7 +69,7 @@ class ChatInputHandler():
             # Récupérer les messages de la session
             messages = session.messages
 
-            # Si la session n'a pas de messages, l'initialiser
+            # Si la session n'a pas de messages, l'initialiser avec un message système enrichi
             if not messages:
                 # Obtenir le core prompt et le main prompt du prompt manager
                 feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
@@ -78,15 +78,36 @@ class ChatInputHandler():
                 )
                 await self.global_manager.prompt_manager.initialize()
 
+                # Récupérer les noms et contenus des prompts
+                core_prompt_name = self.global_manager.bot_config.CORE_PROMPT
                 core_prompt = self.global_manager.prompt_manager.core_prompt
+                main_prompt_name = self.global_manager.bot_config.MAIN_PROMPT
                 main_prompt = self.global_manager.prompt_manager.main_prompt
-                init_prompt = f"{core_prompt}\n{main_prompt}"
+
+                # Extraire les versions des prompts
+                core_prompt_version = self.extract_version(core_prompt)
+                main_prompt_version = self.extract_version(main_prompt)
+
+                # Construire le contenu du message système avec les prompts dans l'ordre souhaité
+                system_content = f"{core_prompt}\n{main_prompt}"
 
                 if general_behavior_content:
-                    init_prompt += f"\nAlso take into account these previous general behavior feedbacks: {str(general_behavior_content)}"
+                    system_content += f"\nAlso take into account these previous general behavior feedbacks: {str(general_behavior_content)}"
 
-                # Ajouter le message système aux messages
-                system_message = {"role": "system", "content": init_prompt}
+                # Créer le message système avec les nouvelles données de prompt et les versions
+                system_message = {
+                    "role": "system",
+                    "content": system_content,
+                    "core_prompt_name": core_prompt_name,
+                    "core_prompt": core_prompt,
+                    "core_prompt_version": core_prompt_version,
+                    "main_prompt_name": main_prompt_name,
+                    "main_prompt": main_prompt,
+                    "main_prompt_version": main_prompt_version,
+                    "timestamp": datetime.now().isoformat()  # Ajout d'un timestamp pour le message système
+                }
+
+                # Ajouter le message système aux messages de la session
                 messages.append(system_message)
 
             # Construire le message utilisateur
@@ -101,6 +122,22 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while handling message event: {e}")
             raise
+
+    def extract_version(self, prompt: str) -> str:
+        """
+        Extrait la version d'un prompt à partir de sa première ligne formatée comme '# VERSION 3c7REARE'.
+        Si le format n'est pas respecté, retourne 'Unknown'.
+        """
+        try:
+            first_line = prompt.split('\n')[0].strip()
+            if first_line.startswith("# VERSION"):
+                return first_line.split("# VERSION")[-1].strip()
+            else:
+                return "Unknown"
+        except Exception as e:
+            self.logger.error(f"Error extracting version from prompt: {e}")
+            return "Unknown"
+
 
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:

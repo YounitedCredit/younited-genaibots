@@ -1,3 +1,4 @@
+# VERSION a7b32GGG
 # CORE PROMPT - General interaction behaviors instructions:
 
 ## Core interaction guidelines
