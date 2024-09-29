@@ -286,6 +286,9 @@ class ChatInputHandler():
             for file_content in event_data.files_content:
                 user_content_text.append({"type": "text", "text": file_content})
 
+        # Ajouter le champ is_automated basé sur user_name
+        is_automated = True if event_data.user_id == "AUTOMATED_RESPONSE" else False
+
         # Inclure event_data sous forme de JSON
         event_data_json = event_data.to_dict()
 
@@ -293,8 +296,10 @@ class ChatInputHandler():
             "role": "user",
             "content": user_content_text + user_content_images,
             "timestamp": event_data.timestamp,
-            "event_data": event_data_json
+            "event_data": event_data_json,
+            "is_automated": is_automated  # Nouveau champ ajouté
         }
+
 
     async def generate_response(self, event_data: IncomingNotificationDataBase, session):
         completion = None  # Initialiser à None
@@ -307,14 +312,34 @@ class ChatInputHandler():
             await self.global_manager.user_interactions_behavior_dispatcher.begin_genai_completion(
                 event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
 
+            # Enregistrer le temps de début
+            start_time = datetime.now()
+
             completion = await self.call_completion(
                 event_data.channel_id, original_msg_ts, messages, event_data, session)
+
             await self.global_manager.user_interactions_behavior_dispatcher.end_genai_completion(
                 event=event_data, channel_id=event_data.channel_id, timestamp=event_data.timestamp)
+
+            # Enregistrer le temps de fin
+            end_time = datetime.now()
+
+            # Calculer le temps de génération en millisecondes
+            generation_time_ms = (end_time - start_time).total_seconds() * 1000
+
+            # Ajouter le temps de génération au total de la session
+            if not hasattr(session, 'total_time_ms'):
+                session.total_time_ms = 0.0
+            session.total_time_ms += generation_time_ms
+
+            # Sauvegarder la session après mise à jour du temps total
+            await self.global_manager.session_manager.save_session(session)
+
             return completion
         except Exception as e:
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
             raise
+
 
     async def filter_messages(self, messages):
         filtered_messages = []

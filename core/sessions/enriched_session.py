@@ -32,7 +32,7 @@ class EnrichedSession(SessionBase):
             self.total_time_ms = int((end - start).total_seconds() * 1000)
         except Exception as e:
             print(f"Error calculating total time: {e}")
-
+    
     def accumulate_cost(self, cost: Dict) -> None:
         """
         Accumulates the total cost in terms of tokens and monetary value.
