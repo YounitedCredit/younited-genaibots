@@ -56,11 +56,11 @@ class GenerateText(ActionBase):
                 result = await self.genai_interactions_text_dispatcher.handle_action(action_input, event, plugin_name=model_name)
                 mind_message = f":speaking_head_in_silhouette: *UserInteraction [From {model_name}]:* {result}"
                 await self.user_interaction_dispatcher.send_message(event=event, message=mind_message, message_type=MessageType.TEXT, is_internal=True)
-                await self.user_interaction_dispatcher.send_message(result, event)
+                await self.user_interaction_dispatcher.send_message(result, event, action_ref="generate_text")
             else:
                 # If the model_name does not exist, log an error message and return
                 self.logger.error(f"The model {model_name} does not exist.")
-                await self.user_interaction_dispatcher.send_message(f"Invalid GenAI model called [{model_name}] contact the bot owner if the problem persists.]", event, "comment")
+                await self.user_interaction_dispatcher.send_message(f"Invalid GenAI model called [{model_name}] contact the bot owner if the problem persists.]", event, "comment", action_ref="generate_image")
                 return
 
 

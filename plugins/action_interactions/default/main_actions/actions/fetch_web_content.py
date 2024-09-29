@@ -45,7 +45,7 @@ class FetchWebContent(ActionBase):
             if not urls:
                 self.logger.error("No URL provided")
                 await self.user_interaction_dispatcher.send_message(event=event, message="No URL provided", message_type=MessageType.COMMENT, is_internal=True)
-                await self.user_interaction_dispatcher.send_message(event=event, message="Sorry, something went wrong, I didn't receive any url. Try again or contact the bot owner", message_type=MessageType.COMMENT)
+                await self.user_interaction_dispatcher.send_message(event=event, message="Sorry, something went wrong, I didn't receive any url. Try again or contact the bot owner", message_type=MessageType.COMMENT, action_ref="fetch_web_content")
                 return
 
             urls = urls.split(',')  # split the urls by comma

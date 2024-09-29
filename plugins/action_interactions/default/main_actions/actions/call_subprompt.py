@@ -40,7 +40,7 @@ class CallSubprompt(ActionBase):
 
             if not message_type:
                 self.logger.error("Error: 'Value' of Callsuprompt action is empty or None")
-                await self.user_interactions_dispatcher.send_message(event=event, message="I didn't find the specific instruction sorry about that :-/, this is certainly an issue with my instructions, contact my administrator.", message_type=MessageType.TEXT, is_internal=False)
+                await self.user_interactions_dispatcher.send_message(event=event, message="I didn't find the specific instruction sorry about that :-/, this is certainly an issue with my instructions, contact my administrator.", message_type=MessageType.TEXT, is_internal=False, action_ref="call_subprompt")
                 return None
             else:
                 await self.user_interactions_dispatcher.send_message(event=event, message=f"Invoking subprompt: [{message_type}]...", message_type=MessageType.COMMENT, is_internal=True)
@@ -58,11 +58,11 @@ class CallSubprompt(ActionBase):
             # save prompt
             if subprompt is not None:
                 if feedbacks:
-                    await self.user_interactions_dispatcher.send_message(event=event, message=f"Trigger subprompt [{message_type}] with feedback [{category}-{sub_category}]", message_type=MessageType.COMMENT, is_internal=False)
+                    await self.user_interactions_dispatcher.send_message(event=event, message=f"Trigger subprompt [{message_type}] with feedback [{category}-{sub_category}]", message_type=MessageType.COMMENT, is_internal=False, action_ref="call_subprompt")
                     self.logger.info(f"launching completion on updated system prompt {message_type}")
                     event_copy.text = f"Here's updated instruction that you must consider as system instruction: {subprompt}. take also into account the previous feedback on this: {feedbacks}."
                 else:
-                    await self.user_interactions_dispatcher.send_message(event=event, message=f"Trigger subprompt [{message_type}]", message_type=MessageType.COMMENT, is_internal=False)
+                    await self.user_interactions_dispatcher.send_message(event=event, message=f"Trigger subprompt [{message_type}]", message_type=MessageType.COMMENT, is_internal=False, action_ref="call_subprompt")
                     self.logger.info(f"launching completion on updated system prompt {message_type}")
                     event_copy.text = f"Here's updated instruction that you must consider as system instruction: {subprompt}."
 

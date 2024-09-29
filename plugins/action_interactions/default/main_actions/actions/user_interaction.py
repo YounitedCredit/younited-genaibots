@@ -27,5 +27,5 @@ class UserInteraction(ActionBase):
             raise ValueError("Empty message")
         else:
             #mind_message = f":speaking_head_in_silhouette: *UserInteraction:* {message}"
-            await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.TEXT)
+            await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.TEXT, action_ref="user_interaction")
             #await self.user_interactions_dispatcher.send_message(event=event, message=mind_message, message_type=MessageType.TEXT, is_internal=True)

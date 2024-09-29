@@ -51,17 +51,17 @@ class GetPreviousFeedback(ActionBase):
         except Exception as e:
             self.logger.info(f"No previous feedback found for: {category}_{sub_category}. error: {e}")
             await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=":warningSorry there was an issue gathering previous feedback, ignoring this (but contact my administrator!)", message_type=MessageType.TEXT)
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Error gathering previous feedback found for: {category}_{sub_category}. error: {e}", message_type=MessageType.COMMENT)
+            await self.user_interaction_dispatcher.send_message(event=event_copy, message=":warningSorry there was an issue gathering previous feedback, ignoring this (but contact my administrator!)", message_type=MessageType.TEXT, action_ref="get_previous_feedback")
+            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Error gathering previous feedback found for: {category}_{sub_category}. error: {e}", message_type=MessageType.COMMENT, is_internal=True)
 
         if not existing_content:  # Changed condition
             event_copy.text = NO_FEEDBACK_FOUND_MESSAGE
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE, message_type=MessageType.COMMENT)
+            await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE, message_type=MessageType.COMMENT, action_ref="get_previous_feedback")
             await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE, message_type=MessageType.COMMENT,is_internal=True)
             await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
         else:
             feedbackprompt = f"Don't create another feedback from this as this is an automated message containing our insights from past interactions in the context of {category} {sub_category} :[{existing_content}]. Based on these informations follow next step of your current workflow."
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Processing Previous feedback for [{blob_name}]...", message_type=MessageType.COMMENT)
+            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Processing Previous feedback for [{blob_name}]...", message_type=MessageType.COMMENT, action_ref="get_previous_feedback")
             await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Processing Previous feedback for [{blob_name}]: {existing_content}", message_type=MessageType.COMMENT, is_internal=True)
             event_copy.text = feedbackprompt
             await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)

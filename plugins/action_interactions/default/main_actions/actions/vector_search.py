@@ -32,7 +32,7 @@ class VectorSearch(ActionBase):
         try:
             # Notify user that search is starting
             await self.user_interactions_dispatcher.send_message(
-                event=event_copy, message="Looking at existing documentation...", message_type=MessageType.COMMENT
+                event=event_copy, message="Looking at existing documentation...", message_type=MessageType.COMMENT, action_ref="vector_search"
             )
 
            # Call the vector search
@@ -63,12 +63,12 @@ class VectorSearch(ActionBase):
                 await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
             else:
                 await self.user_interactions_dispatcher.send_message(
-                    event=event_copy, message="Vector search failed, sorry about that :/ see logs for more details", message_type=MessageType.COMMENT
+                    event=event_copy, message="Vector search failed, sorry about that :/ see logs for more details", message_type=MessageType.COMMENT, action_ref="vector_search"
                 )
 
         except Exception as e:
             # Log the error and notify the user of the failure
             self.logger.error(f"An error occurred: {e}")
             await self.user_interactions_dispatcher.send_message(
-                event=event_copy, message="Vector search failed, sorry about that :/ see logs for more details", message_type=MessageType.COMMENT
+                event=event_copy, message="Vector search failed, sorry about that :/ see logs for more details", message_type=MessageType.COMMENT, action_ref="vector_search"
             )
