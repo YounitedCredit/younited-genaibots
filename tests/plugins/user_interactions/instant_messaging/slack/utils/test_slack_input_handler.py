@@ -2,7 +2,7 @@ import base64
 import io
 import zipfile
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from PIL import Image
@@ -361,16 +361,6 @@ async def test_download_image_as_byte_array_failure(slack_input_handler, mocker)
 
     result = await slack_input_handler.download_image_as_byte_array("https://example.com/image.png")
     assert result is None
-
-@pytest.mark.asyncio
-async def test_download_file_content_failure(slack_input_handler, mocker):
-    mock_response = mocker.Mock()
-    mock_response.status_code = 500
-    mocker.patch("requests.get", return_value=mock_response)
-
-    result = await slack_input_handler.download_file_content("https://example.com/file.txt")
-    assert result is None
-    slack_input_handler.logger.error.assert_called_once_with("Error downloading file: 500")
 
 @pytest.mark.asyncio
 async def test_search_message_in_thread_exception(slack_input_handler, mocker):

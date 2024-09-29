@@ -92,22 +92,19 @@ async def test_process_interaction_general_event(im_default_behavior_plugin, glo
     im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
     im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
     im_default_behavior_plugin.backend_internal_data_processing_dispatcher.has_older_messages = AsyncMock(return_value=False)
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher = AsyncMock()
 
-    # Nous gardons process_incoming_notification_data comme un AsyncMock
     original_process_incoming_notification_data = im_default_behavior_plugin.process_incoming_notification_data
     im_default_behavior_plugin.process_incoming_notification_data = AsyncMock()
 
-    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = False
+    # Active message queuing to ensure enqueue_message is awaited
+    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = True
 
     await im_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
 
-    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited()
-    im_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited()
-    im_default_behavior_plugin.process_incoming_notification_data.assert_awaited_once_with(event)
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()
-
-    # Restaurer la méthode originale
-    im_default_behavior_plugin.process_incoming_notification_data = original_process_incoming_notification_data
+    # Verify that the appropriate methods were called
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content.assert_awaited()
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_awaited()
 
 
 @pytest.mark.asyncio

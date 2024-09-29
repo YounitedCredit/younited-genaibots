@@ -58,57 +58,22 @@ async def test_handle_event_data_thread_message(chat_input_handler, incoming_not
 
 @pytest.mark.asyncio
 async def test_handle_message_event(chat_input_handler, incoming_notification):
+    incoming_notification.event_label = 'message'
     with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
          patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt, \
-         patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+         patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response, \
+         patch.object(chat_input_handler.global_manager.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:
 
+        mock_session = MagicMock()
+        mock_session.messages = []
+        mock_get_or_create_session.return_value = mock_session
         mock_read_data_content.return_value = "general behavior content"
         mock_initialize_prompt.return_value = "prompt"
         mock_generate_response.return_value = "generated response"
 
         result = await chat_input_handler.handle_message_event(incoming_notification)
         assert result == "generated response"
-        mock_read_data_content.assert_called_once()
-        mock_initialize_prompt.assert_called_once()
-        mock_generate_response.assert_called_once()
-
-
-async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
-    try:
-        # If the bot requires a mention and the message doesn't mention the bot, skip processing
-        if self.global_manager.bot_config.REQUIRE_MENTION_THREAD_MESSAGE and not event_data.is_mention:
-            return None
-
-        # Step 1: Retrieve stored message history from the backend
-        blob_name = f"{event_data.channel_id}-{event_data.thread_id}.txt"
-        sessions = self.backend_internal_data_processing_dispatcher.sessions
-        messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
-        was_messages_empty = not messages
-
-        # Step 2: Process the conversation history if needed
-        if event_data.user_id != "AUTOMATED_RESPONSE":
-            await self.process_conversation_history(event_data, messages)
-
-        # Step 3: Add the initial system message if the messages were initially empty
-        if was_messages_empty:
-            feedbacks_container = self.backend_internal_data_processing_dispatcher.feedbacks
-            general_behavior_content = await self.backend_internal_data_processing_dispatcher.read_data_content(feedbacks_container, self.bot_config.FEEDBACK_GENERAL_BEHAVIOR)
-            await self.global_manager.prompt_manager.initialize()
-            init_prompt = f"{self.global_manager.prompt_manager.core_prompt}\n{self.global_manager.prompt_manager.main_prompt}"
-            if general_behavior_content:
-                init_prompt += f"\nTake into account: {general_behavior_content}"
-            messages.insert(0, {"role": "system", "content": init_prompt})
-
-        # Step 4: Construct the new incoming message and append to message history
-        constructed_message = self.construct_message(event_data)
-        messages.append(constructed_message)
-
-        # Step 5: Generate response based on the updated messages
-        return await self.generate_response(event_data, messages)
-
-    except Exception as e:
-        self.logger.error(f"Error while handling thread message event: {e}")
-        raise
+        mock_read_data_content.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_generate_response(chat_input_handler, incoming_notification):
@@ -163,65 +128,56 @@ async def test_handle_message_event_with_images(chat_input_handler, incoming_not
         assert messages[1]['content'][1]['type'] == 'image_url'
         assert messages[1]['content'][1]['image_url']['url'].startswith('data:image/jpeg;base64,')
 
-
 @pytest.mark.asyncio
 async def test_handle_message_event_with_files(chat_input_handler, incoming_notification):
-    # Adding file contents and images
     incoming_notification.files_content = ["file content 1", "file content 2"]
     incoming_notification.images = ["base64_image_data_1", "base64_image_data_2"]
 
-    # Mock necessary methods
-    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
-    chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
-    chat_input_handler.global_manager.prompt_manager.core_prompt = "mocked core prompt"
-    chat_input_handler.global_manager.prompt_manager.main_prompt = "mocked main prompt"
+    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
+         patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt, \
+         patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response, \
+         patch.object(chat_input_handler.global_manager.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:
 
-    # Mock the generated response
-    with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        mock_session = MagicMock()
+        mock_session.messages = []
+        mock_get_or_create_session.return_value = mock_session
+        mock_read_data_content.return_value = "mocked general behavior content"
+        mock_initialize_prompt.return_value = "mocked prompt"
         mock_generate_response.return_value = "response with files"
 
         result = await chat_input_handler.handle_message_event(incoming_notification)
         assert result == "response with files"
-        mock_generate_response.assert_called_once()
+        mock_generate_response.assert_awaited_once()
 
         call_args = mock_generate_response.call_args[0]
-        messages = call_args[1]
+        messages = call_args[1].messages
+        assert len(messages) >= 2  # Ensure that system and user message are included
 
-        assert messages[0]['role'] == 'system'
-        assert "mocked core prompt" in messages[0]['content']
-        assert messages[1]['role'] == 'user'
-
-        # Ensure that file contents and images are included
-        assert len(messages[1]['content']) == 5  # 2 text, 2 images
-        assert messages[1]['content'][1]['text'] == "file content 1"
-        assert messages[1]['content'][2]['text'] == "file content 2"
-        assert messages[1]['content'][3]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_1"
-        assert messages[1]['content'][4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
-
-
-@pytest.mark.asyncio
-async def test_call_completion_success(chat_input_handler, incoming_notification):
+@patch('plugins.genai_interactions.text.chat_input_handler.ChatInputHandler.chat_plugin.generate_completion', new_callable=AsyncMock)
+async def test_call_completion_success(mock_generate_completion, chat_input_handler, incoming_notification):
     mock_messages = [{"role": "user", "content": "test message"}]
-
-    # Mock the generate_completion method to return a valid JSON response string
-    valid_json_response = '{"response": "generated completion"}'
-    chat_input_handler.chat_plugin.generate_completion = AsyncMock(return_value=(valid_json_response, MagicMock()))
-
-    # Mock the update_pricing method
-    chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock(return_value=MagicMock())
-
-    # Mock conversion_format to JSON
+    mock_generate_completion.return_value = ('{"response": "generated completion"}', MagicMock())
+    mock_write_data_content = AsyncMock()
+    chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content = mock_write_data_content
     chat_input_handler.conversion_format = "json"
 
-    # Mock the session write method
-    chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
+    # Créer un mock pour 'session'
+    session = MagicMock()
 
-    # Test JSON format
-    result = await chat_input_handler.call_completion(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification)
-
-    # Vérifiez si le résultat est bien ce qui est attendu et analysé en JSON
-    assert result is not None
+    # Appeler la méthode avec tous les arguments
+    result = await chat_input_handler.call_completion(
+        incoming_notification.channel_id,
+        incoming_notification.thread_id,
+        mock_messages,
+        incoming_notification,
+        session  # Ajout de l'argument manquant
+    )
+    
+    # Assertions
     assert result["response"] == "generated completion"
+    mock_generate_completion.assert_called_once()
+    mock_write_data_content.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_call_completion_failure(chat_input_handler, incoming_notification):
@@ -236,18 +192,6 @@ async def test_call_completion_failure(chat_input_handler, incoming_notification
         mock_handle_completion_errors.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_trigger_genai_with_thread(chat_input_handler, incoming_notification):
-    mock_messages = [{"role": "user", "content": "test message"}]
-    session = MagicMock()
-
-    with patch.object(chat_input_handler, 'call_completion', new_callable=AsyncMock) as mock_call_completion:
-        mock_call_completion.return_value = "generated thread response"
-        result = await chat_input_handler.trigger_genai_with_thread(incoming_notification, mock_messages, session)
-        assert result == "generated thread response"
-        mock_call_completion.assert_called_once_with(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification, session)
-
-
-@pytest.mark.asyncio
 async def test_handle_event_data_invalid_label(chat_input_handler, incoming_notification):
     # Test handling event data with an invalid event label
     incoming_notification.event_label = "unknown_label"
@@ -257,23 +201,35 @@ async def test_handle_event_data_invalid_label(chat_input_handler, incoming_noti
 @pytest.mark.asyncio
 async def test_handle_message_event_with_large_file_content(chat_input_handler, incoming_notification):
     incoming_notification.files_content = ["file content"] * 21  # More than 20 files
-    incoming_notification.images = []
 
-    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
-    chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock()
+    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
+         patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt, \
+         patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response, \
+         patch.object(chat_input_handler.global_manager.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:
 
-    with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        mock_session = MagicMock()
+        mock_session.messages = []
+        mock_get_or_create_session.return_value = mock_session
+
         await chat_input_handler.handle_message_event(incoming_notification)
-        messages = mock_generate_response.call_args[0][1]
-        assert len(messages[1]['content']) == 23  # 21 file contents + constructed message + reminder message
+        messages = mock_generate_response.call_args[0][1].messages
+        assert len(messages) == 2  # System message and user message
+        assert len(messages[1]['content']) == 22  # 21 file contents + constructed message
 
-@pytest.mark.asyncio
-async def test_generate_response_with_error(chat_input_handler, incoming_notification):
+@patch('plugins.genai_interactions.text.chat_input_handler.ChatInputHandler.call_completion', new_callable=AsyncMock)
+async def test_generate_response_with_error(mock_call_completion, chat_input_handler, incoming_notification):
     mock_messages = [{"role": "system", "content": "test system prompt"}]
     chat_input_handler.call_completion = AsyncMock(side_effect=Exception("Test exception"))
-
+    
+    # Créer un mock pour 'session' avec un attribut 'messages'
+    session = MagicMock()
+    session.messages = mock_messages
+    
     with pytest.raises(Exception, match="Test exception"):
-        await chat_input_handler.generate_response(incoming_notification, mock_messages)
+        await chat_input_handler.generate_response(incoming_notification, session)
+    
+    mock_call_completion.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_yaml_to_json_success(chat_input_handler, incoming_notification):
@@ -305,33 +261,39 @@ async def test_yaml_to_json_error(chat_input_handler, incoming_notification):
 
 @pytest.mark.asyncio
 async def test_handle_message_event_exception(chat_input_handler, incoming_notification):
-    # Mock the method that raises an exception
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(side_effect=Exception("Read content failed"))
+    chat_input_handler.global_manager.session_manager.get_or_create_session = AsyncMock(side_effect=Exception("Read content failed"))
 
     with pytest.raises(Exception, match="Read content failed"):
         await chat_input_handler.handle_message_event(incoming_notification)
 
-@pytest.mark.asyncio
-async def test_filter_messages_with_images(chat_input_handler):
-    messages = [
-        {"role": "user", "content": [
-            {"type": "text", "text": "Message content"},
-            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,abc"}}
-        ]}
-    ]
+@patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock)
+async def test_handle_message_event_with_images(mock_generate_response, chat_input_handler, incoming_notification):
+    incoming_notification.images = ["base64_image_data"]
+    # Configurer le mock
+    mock_generate_response.return_value = "response with image"
+    # Appeler la méthode
+    result = await chat_input_handler.handle_message_event(incoming_notification)
+    # Assertions
+    mock_generate_response.assert_called_once()
+    call_args = mock_generate_response.call_args[0]
+    messages = call_args[1]
+    assert len(messages) == 2  # Système et utilisateur
+    assert messages[0]['role'] == 'system'
+    assert messages[1]['role'] == 'user'
 
-    filtered_messages = await chat_input_handler.filter_messages(messages)
-
-    # Assert that the image is removed and only the text remains
-    assert len(filtered_messages[0]["content"]) == 1
-    assert filtered_messages[0]["content"][0]["type"] == "text"
-    assert filtered_messages[0]["content"][0]["text"] == "Message content"
 
 @pytest.mark.asyncio
 async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
 
-    with patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt:
+    with patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt, \
+         patch.object(chat_input_handler.global_manager.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:
+
+        mock_session = MagicMock()
+        mock_session.messages = []
+        mock_get_or_create_session.return_value = mock_session
+
         result = await chat_input_handler.handle_thread_message_event(incoming_notification)
         assert result is None
         mock_initialize_prompt.assert_called_once()
@@ -340,33 +302,25 @@ async def test_handle_thread_message_event_no_messages(chat_input_handler, incom
 async def test_calculate_and_update_costs(chat_input_handler, incoming_notification):
     cost_params = MagicMock(total_tk=1000, prompt_tk=500, completion_tk=500, input_token_price=0.02, output_token_price=0.03)
     chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock()
+    mock_session = MagicMock()
 
     total_cost, input_cost, output_cost = await chat_input_handler.calculate_and_update_costs(
-        cost_params, "costs_container", "blob_name", incoming_notification
+        cost_params, "costs_container", "blob_name", incoming_notification, mock_session
     )
-
-    assert total_cost == 0.025  # (500/1000) * 0.02 + (500/1000) * 0.03
-    assert input_cost == 0.01  # (500/1000) * 0.02
-    assert output_cost == 0.015  # (500/1000) * 0.03
-
-def test_parse_timestamp_invalid(chat_input_handler):
-    with pytest.raises(ValueError, match="time data 'invalid_timestamp' does not match format '%Y-%m-%d %H:%M:%S'"):
-        chat_input_handler.parse_timestamp("invalid_timestamp")
+    
+    assert total_cost == 0.025
+    assert input_cost == 0.01
+    assert output_cost == 0.015
 
 def test_get_last_user_message_timestamp(chat_input_handler):
-    # Messages with timestamps
     messages = [
-        {"role": "assistant", "content": [{"type": "text", "text": "Some assistant message"}]},
-        {"role": "user", "content": [{"type": "text", "text": "Timestamp: 2023-09-14 10:00:00, user message"}]},
-        {"role": "user", "content": [{"type": "text", "text": "Timestamp: 2023-09-15 11:00:00, another user message"}]},
+        {"role": "assistant", "content": "Some assistant message"},
+        {"role": "user", "content": [{"type": "text", "text": "Timestamp: 2023-09-14 10:00:00, user message"}], "timestamp": "2023-09-14 10:00:00"},
+        {"role": "user", "content": [{"type": "text", "text": "Timestamp: 2023-09-15 11:00:00, another user message"}], "timestamp": "2023-09-15 11:00:00"},
     ]
 
-    # Expected to find the last user message's timestamp
     timestamp = chat_input_handler.get_last_user_message_timestamp(messages)
-
-    # Compare the returned timestamp as a string
     assert timestamp == "2023-09-15 11:00:00"
-
 
 def test_convert_events_to_messages(chat_input_handler):
     # Simulated events

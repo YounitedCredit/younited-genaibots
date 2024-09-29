@@ -286,6 +286,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         try:
             # Try to read existing data from the blob
             if blob_client.exists():
+                self.logger.debug(f"Blob {data_file} exists, downloading content.")
                 blob_data = blob_client.download_blob().readall()
                 data = json.loads(blob_data)
                 self.logger.debug("Blob content successfully parsed into JSON")
@@ -306,6 +307,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         try:
             # Upload the updated data back to the blob, overwriting the existing content
             updated_data = json.dumps(data)
+            self.logger.debug(f"Uploading updated session data: {updated_data}")
             blob_client.upload_blob(updated_data, overwrite=True)
             self.logger.debug(f"Session update completed for {data_file} in container {data_container}")
         except Exception as e:

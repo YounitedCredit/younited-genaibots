@@ -54,8 +54,14 @@ async def test_get_sub_prompt(mock_global_manager_with_dispatcher):
         return_value='sub_prompt_content'
     )
 
+    # Mock bot_config to set load_prompts_from_backend to True
+    mock_global_manager_with_dispatcher.bot_config.LOAD_PROMPTS_FROM_BACKEND = True
+
     # Create an instance of the PromptManager
     prompt_manager = PromptManager(mock_global_manager_with_dispatcher)
+
+    # Call initialize method to set prompt_container
+    await prompt_manager.initialize()
 
     message_type = 'test_message'
 
@@ -81,6 +87,8 @@ async def test_get_core_prompt(mock_global_manager_with_dispatcher):
     mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(
         return_value='core_prompt_content'
     )
+    # Mock bot_config to set load_prompts_from_backend to True
+    mock_global_manager_with_dispatcher.bot_config.LOAD_PROMPTS_FROM_BACKEND = True
 
     prompt_manager = PromptManager(mock_global_manager_with_dispatcher)
 
@@ -109,6 +117,8 @@ async def test_get_main_prompt(mock_global_manager, mock_logger):
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(
         return_value='main_prompt_content'
     )
+    # Mock bot_config to set load_prompts_from_backend to True
+    mock_global_manager.bot_config.LOAD_PROMPTS_FROM_BACKEND = True
 
     prompt_manager = PromptManager(mock_global_manager)
 
@@ -123,3 +133,32 @@ async def test_get_main_prompt(mock_global_manager, mock_logger):
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content.assert_called_with(
         prompt_manager.prompt_container, 'main_prompt_file.txt'
     )
+
+@pytest.mark.asyncio
+async def test_get_sub_prompt_local(mock_global_manager_with_dispatcher, tmp_path):
+    # Set up a temporary directory for local prompts
+    local_subprompts_path = tmp_path / "subprompts"
+    local_subprompts_path.mkdir()
+    test_subprompt = local_subprompts_path / "test_message.txt"
+    test_subprompt.write_text("local sub prompt content")
+
+    # Mock bot_config to set load_prompts_from_backend to False and set local path
+    mock_global_manager_with_dispatcher.bot_config.LOAD_PROMPTS_FROM_BACKEND = False
+    mock_global_manager_with_dispatcher.bot_config.LOCAL_SUBPROMPTS_PATH = str(local_subprompts_path)
+
+    # Create an instance of the PromptManager
+    prompt_manager = PromptManager(mock_global_manager_with_dispatcher)
+
+    # Call initialize method
+    await prompt_manager.initialize()
+
+    message_type = 'test_message'
+
+    # Call the get_sub_prompt method
+    sub_prompt = await prompt_manager.get_sub_prompt(message_type)
+
+    # Assert that the sub-prompt was retrieved correctly from local file
+    assert sub_prompt == "local sub prompt content"
+
+    # Ensure the backend dispatcher was not called
+    mock_global_manager_with_dispatcher.backend_internal_data_processing_dispatcher.read_data_content.assert_not_called()

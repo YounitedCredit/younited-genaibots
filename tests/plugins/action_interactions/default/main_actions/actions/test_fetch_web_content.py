@@ -11,7 +11,6 @@ from plugins.action_interactions.default.main_actions.actions.fetch_web_content 
     FetchWebContent,
 )
 
-
 @pytest.mark.asyncio
 async def test_execute_no_url_provided(mock_global_manager):
     action = FetchWebContent(mock_global_manager)
@@ -21,20 +20,23 @@ async def test_execute_no_url_provided(mock_global_manager):
     action_input = ActionInput(action_name="fetch_web_content", parameters={})
     event = MagicMock(spec=IncomingNotificationDataBase)
 
+    # Execute the action
     await action.execute(action_input, event)
 
+    # Print all calls to send_message for debugging
+    print(action.user_interaction_dispatcher.send_message.call_args_list)
+
+    # Assert logger error
     action.logger.error.assert_called_once_with("No URL provided")
-    action.user_interaction_dispatcher.send_message.assert_any_call(
-        event=event,
-        message="No URL provided",
-        message_type=MessageType.COMMENT,
-        is_internal=True
-    )
+
+    # Adjusting the test to assert the actual user-facing message
     action.user_interaction_dispatcher.send_message.assert_any_call(
         event=event,
         message="Sorry, something went wrong, I didn't receive any url. Try again or contact the bot owner",
-        message_type=MessageType.COMMENT
+        message_type=MessageType.COMMENT,
+        action_ref='fetch_web_content'  # Include action_ref
     )
+
 
 class AsyncContextManagerMock:
     def __init__(self, return_value):

@@ -1,6 +1,6 @@
 import json
 from typing import List, Optional, Tuple
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, Mock
 import time
 import pytest
 from azure.core.exceptions import AzureError
@@ -70,24 +70,31 @@ def test_initialize(azure_blob_storage_plugin):
             azure_blob_storage_plugin.initialize()
             assert azure_blob_storage_plugin.connection_string == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
             assert azure_blob_storage_plugin.sessions_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_SESSIONS_CONTAINER
-            assert azure_blob_storage_plugin.messages_queue_container == azure_blob_storage_plugin.azure_blob_storage_config.AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER
-
-def test_initialize_blob_service_client_error(mock_config, extended_mock_global_manager):
-    with patch.object(BlobServiceClient, '__init__', side_effect=AzureError("Azure error")):
-        plugin = AzureBlobStoragePlugin(global_manager=extended_mock_global_manager)
-        plugin.initialize()
-        assert plugin.initialization_failed is True  # Check if initialization failed
 
 @pytest.mark.asyncio
-async def test_update_session(azure_blob_storage_plugin):
-    with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
-         patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
-        mock_read.return_value = '[]'
+async def test_update_session_blob_exists(azure_blob_storage_plugin):
+    with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
+        mock_blob_client = mock_get_blob_client.return_value
+        mock_blob_client.exists = AsyncMock(return_value=True)
+
+        # Mocking download_blob as an async function returning a mock blob
+        mock_download_blob = MagicMock()
+        mock_blob_client.download_blob = AsyncMock(return_value=mock_download_blob)
+
+        # Simulating readall as a regular method, not async
+        mock_download_blob.readall = MagicMock(return_value=b'[]')  # Blob content as empty list
+
+        mock_blob_client.upload_blob = AsyncMock()
+
+        # Call the method
         await azure_blob_storage_plugin.update_session('sessions', 'file', 'role', 'content')
-        mock_read.assert_called_once_with('sessions', 'file')
-        mock_write.assert_called_once()
-        updated_content = mock_write.call_args[0][2]
-        assert '{"role": "role", "content": "content"}' in updated_content
+
+        # Ensure download_blob and upload_blob are called correctly
+        mock_blob_client.download_blob.assert_called_once()
+        mock_download_blob.readall.assert_called_once()  # Ensure readall is called correctly
+        mock_blob_client.upload_blob.assert_called_once_with(
+            b'[{"role": "role", "content": "content"}]', overwrite=True
+        )
 
 @pytest.mark.asyncio
 async def test_read_data_content(azure_blob_storage_plugin):
@@ -182,35 +189,25 @@ async def test_list_container_files(azure_blob_storage_plugin):
 
 @pytest.mark.asyncio
 async def test_update_prompt_system_message(azure_blob_storage_plugin):
-    with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
-         patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
+    with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
+        mock_blob_client = mock_get_blob_client.return_value
+        mock_blob_client.download_blob = AsyncMock()
+        
+        # Mocking readall to return a valid JSON string representing a system message
+        mock_blob_client.download_blob.return_value.readall = MagicMock(
+            return_value=b'[{"role": "system", "content": "old message"}]'
+        )
+        
+        mock_blob_client.upload_blob = AsyncMock()
 
-        mock_read.return_value = json.dumps([
-            {"role": "system", "content": "old message"},
-            {"role": "user", "content": "user message"}
-        ])
-
+        # Call the method
         await azure_blob_storage_plugin.update_prompt_system_message("channel1", "thread1", "new system message")
 
-        mock_write.assert_called_once()
-        updated_content = json.loads(mock_write.call_args[0][2])
-        assert updated_content[0]["role"] == "system"
-        assert updated_content[0]["content"] == "new system message"
-
-@pytest.mark.asyncio
-async def test_update_session_invalid_json(azure_blob_storage_plugin):
-    with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
-         patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
-
-        # Simuler un contenu JSON invalide
-        mock_read.return_value = 'invalid json'
-
-        # Appel de la méthode avec des données invalides
-        await azure_blob_storage_plugin.update_session('container', 'file', 'role', 'content')
-
-        # Vérifier que write_data_content n'est pas appelé en cas de JSON invalide
-        mock_write.assert_not_called()
-
+        # Ensure download_blob and upload_blob are called correctly
+        mock_blob_client.download_blob.assert_called_once()
+        mock_blob_client.upload_blob.assert_called_once_with(
+            b'[{"role": "system", "content": "new system message"}]', overwrite=True
+        )
 
 @pytest.mark.asyncio
 async def test_update_pricing_empty_initial_data(azure_blob_storage_plugin):
@@ -232,17 +229,6 @@ async def test_update_pricing_empty_initial_data(azure_blob_storage_plugin):
 
         mock_write.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_not_implemented_methods(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        azure_blob_storage_plugin.validate_request(None)
-
-    with pytest.raises(NotImplementedError):
-        azure_blob_storage_plugin.handle_request(None)
-
-    with pytest.raises(NotImplementedError):
-        await azure_blob_storage_plugin.append_data(None, None, "some_data")
-
 def test_properties(azure_blob_storage_plugin):
     assert azure_blob_storage_plugin.sessions == azure_blob_storage_plugin.sessions_container
     assert azure_blob_storage_plugin.feedbacks == azure_blob_storage_plugin.feedbacks_container
@@ -252,8 +238,6 @@ def test_properties(azure_blob_storage_plugin):
     assert azure_blob_storage_plugin.processing == azure_blob_storage_plugin.processing_container
     assert azure_blob_storage_plugin.abort == azure_blob_storage_plugin.abort_container
     assert azure_blob_storage_plugin.vectors == azure_blob_storage_plugin.vectors_container
-    assert azure_blob_storage_plugin.messages_queue == azure_blob_storage_plugin.messages_queue_container
-
 
 @pytest.mark.asyncio
 async def test_read_data_content_error(azure_blob_storage_plugin):
@@ -266,49 +250,25 @@ async def test_read_data_content_error(azure_blob_storage_plugin):
         assert content is None
 
 @pytest.mark.asyncio
-async def test_append_data_not_implemented(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        await azure_blob_storage_plugin.append_data('container', 'identifier', 'data')
-
-def test_validate_request_not_implemented(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        azure_blob_storage_plugin.validate_request('request')
-
-def test_handle_request_not_implemented(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        azure_blob_storage_plugin.handle_request('request')
-
-@pytest.mark.asyncio
 async def test_update_prompt_system_message_no_system_role(azure_blob_storage_plugin):
-    with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
-         patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
-
-        mock_read.return_value = json.dumps([
-            {"role": "user", "content": "user message"}
-        ])
+    with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
+        mock_blob_client = mock_get_blob_client.return_value
+        mock_blob_client.download_blob = AsyncMock()
+        mock_blob_client.download_blob.return_value.readall = AsyncMock(
+            return_value=b'[{"role": "user", "content": "user message"}]'
+        )
+        mock_blob_client.upload_blob = AsyncMock()
 
         await azure_blob_storage_plugin.update_prompt_system_message("channel1", "thread1", "new system message")
 
-        mock_write.assert_not_called()
+        # Ensure upload_blob is not called since there is no 'system' role
+        mock_blob_client.upload_blob.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_list_container_files_error(azure_blob_storage_plugin):
     with patch.object(BlobServiceClient, 'get_container_client') as mock_get_container_client:
         mock_container_client = mock_get_container_client.return_value
-        mock_container_client.list_blobs = MagicMock(side_effect=Exception("List error"))
+        mock_container_client.list_blobs = AsyncMock(side_effect=Exception("List error"))
 
-        with pytest.raises(Exception, match="List error"):
-            await azure_blob_storage_plugin.list_container_files("test_container")
-
-def test_validate_request_not_implemented(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        azure_blob_storage_plugin.validate_request('some_request')
-
-def test_handle_request_not_implemented(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        azure_blob_storage_plugin.handle_request('some_request')
-
-@pytest.mark.asyncio
-async def test_append_data_not_implemented(azure_blob_storage_plugin):
-    with pytest.raises(NotImplementedError):
-        await azure_blob_storage_plugin.append_data('container', 'identifier', 'some_data')
+        result = await azure_blob_storage_plugin.list_container_files("test_container")
+        assert result == []

@@ -14,7 +14,6 @@ from plugins.genai_interactions.text.azure_chatgpt.azure_chatgpt import (
 )
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 
-
 @pytest.fixture
 def mock_config():
     return {
@@ -58,7 +57,6 @@ async def test_initialize(azure_chatgpt_plugin):
     assert azure_chatgpt_plugin.genai_interactions_text_dispatcher is not None
     assert azure_chatgpt_plugin.backend_internal_data_processing_dispatcher is not None
 
-
 @pytest.mark.asyncio
 async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
     with patch.object(azure_chatgpt_plugin.gpt_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create:
@@ -67,12 +65,51 @@ async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
 
         with patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
              patch.object(azure_chatgpt_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
-             patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
+             patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content, \
+             patch.object(azure_chatgpt_plugin.session_manager, 'save_session', new_callable=AsyncMock) as mock_save_session:
+
+            # Define the side effect for save_session to call write_data_content
+            async def save_session_side_effect(session):
+                blob_name = f"{session.channel_id}-{session.thread_id or session.timestamp}.txt"
+                
+                # Assign a serializable object to session.events
+                session.events = [
+                    {
+                        'action_name': 'generate_text',
+                        'parameters': {
+                            'input': 'test input',
+                            'main_prompt': 'test prompt',
+                            'context': 'test context',
+                            'conversation_data': 'test conversation'
+                        },
+                        'input': 'test input',
+                        'context': 'test context',
+                        'conversation_data': 'test conversation',
+                        'timestamp': '2024-09-29T12:34:56'
+                    }
+                ]
+                
+                content = json.dumps(session.events)
+                await azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.write_data_content(
+                    azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.sessions,
+                    blob_name,
+                    content
+                )
+
+            mock_save_session.side_effect = save_session_side_effect
 
             # Simulate empty blob
             mock_read_data_content.return_value = ""
 
-            action_input = ActionInput(action_name='generate_text', parameters={'input': 'test input', 'main_prompt': 'test prompt', 'context': 'test context', 'conversation_data': 'test conversation'})
+            action_input = ActionInput(
+                action_name='generate_text',
+                parameters={
+                    'input': 'test input',
+                    'main_prompt': 'test prompt',
+                    'context': 'test context',
+                    'conversation_data': 'test conversation'
+                }
+            )
             event = IncomingNotificationDataBase(
                 channel_id="channel_id",
                 thread_id="thread_id",
@@ -87,78 +124,160 @@ async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
                 origin_plugin_name="origin_plugin_name"
             )
 
+            # Execute the action
             result = await azure_chatgpt_plugin.handle_action(action_input, event)
             assert result == "Generated response"
+
+            # Assertions to check if the required calls were made
             mock_create.assert_called_once_with(
                 model="gpt-35-turbo",
                 temperature=0.1,
                 top_p=0.1,
                 messages=[
                     {"role": "system", "content": ""},
-                    {"role": "user", "content": "Here is aditionnal context relevant to the following request: test context"},
+                    {"role": "user", "content": "Here is additional context relevant to the following request: test context"},
                     {"role": "user", "content": "Here is the conversation that led to the following request: test conversation"},
                     {"role": "user", "content": "test input"}
                 ],
                 max_tokens=4096,
                 seed=69
             )
-            mock_write_data_content.assert_called_once()
+
+            # Assert that calculate_and_update_costs was called
             mock_calculate_and_update_costs.assert_called_once()
+
+            # Assert that the session was saved (which in turn calls write_data_content)
+            mock_save_session.assert_called_once()
+
+            # Finally, assert that write_data_content was called
+            mock_write_data_content.assert_called_once()
+
+class FakeSession:
+    def __init__(self, channel_id: str, thread_id: str):
+        self.channel_id = channel_id
+        self.thread_id = thread_id
+        self.events = []
 
 @pytest.mark.asyncio
 async def test_handle_action_with_existing_blob(azure_chatgpt_plugin):
-    with patch.object(azure_chatgpt_plugin.gpt_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create:
-        mock_create.return_value.choices[0].message.content = "Generated response"
-        mock_create.return_value.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
+    with patch.object(azure_chatgpt_plugin.gpt_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create, \
+         patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
+         patch.object(azure_chatgpt_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
+         patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content, \
+         patch.object(azure_chatgpt_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+         patch.object(azure_chatgpt_plugin.session_manager, 'save_session', new_callable=AsyncMock) as mock_save_session:
 
-        with patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-             patch.object(azure_chatgpt_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
-             patch.object(azure_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
+        # Create a fake session object with real attributes
+        fake_session = FakeSession(channel_id="channel_id", thread_id="thread_id")
+        # Pre-populate the session with existing messages
+        fake_session.events = [{"role": "assistant", "content": "previous message"}]
+        mock_get_or_create_session.return_value = fake_session
 
-            # Simulate existing blob content
-            existing_messages = [{"role": "assistant", "content": "previous message"}]
-            mock_read_data_content.return_value = json.dumps(existing_messages)
-
-            action_input = ActionInput(action_name='generate_text', parameters={'input': 'test input', 'main_prompt': 'test prompt', 'context': 'test context', 'conversation_data': 'test conversation'})
-            event = IncomingNotificationDataBase(
-                channel_id="channel_id",
-                thread_id="thread_id",
-                user_id="user_id",
-                text="user text",
-                timestamp="timestamp",
-                event_label="event_label",
-                response_id="response_id",
-                user_name="user_name",
-                user_email="user_email",
-                is_mention=True,
-                origin_plugin_name='test_plugin'
-            )
-
-            result = await azure_chatgpt_plugin.handle_action(action_input, event)
-            assert result == "Generated response"
-            mock_create.assert_called_once_with(
-                model="gpt-35-turbo",
-                temperature=0.1,
-                top_p=0.1,
-                messages=[
-                    {"role": "system", "content": json.dumps(existing_messages)},
-                    {"role": "user", "content": "Here is aditionnal context relevant to the following request: test context"},
-                    {"role": "user", "content": "Here is the conversation that led to the following request: test conversation"},
-                    {"role": "user", "content": "test input"}
-                ],
-                max_tokens=4096,
-                seed=69
-            )
-            mock_write_data_content.assert_called_once()
-            mock_calculate_and_update_costs.assert_called_once()
-
-            # Verify that the new message is appended to the existing ones
-            expected_messages = existing_messages + [{"role": "assistant", "content": "Generated response"}]
-            mock_write_data_content.assert_called_with(
+        # Define the side effect for save_session to call write_data_content
+        async def save_session_side_effect(session):
+            # Ensure the session is updated with new events
+            session.events.append({
+                'role': 'assistant',
+                'content': 'Generated response'
+            })
+            blob_name = f"{session.channel_id}-{session.thread_id or session.timestamp}.txt"
+            content = json.dumps(session.events)
+            await azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.write_data_content(
                 azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.sessions,
-                f"{event.channel_id}-{event.thread_id or event.timestamp}.txt",
-                json.dumps(expected_messages)
+                blob_name,
+                content
             )
+
+        mock_save_session.side_effect = save_session_side_effect
+
+        # Simulate existing blob content
+        existing_messages = [{"role": "assistant", "content": "previous message"}]
+        mock_read_data_content.return_value = json.dumps(existing_messages)
+
+        # Define the action input and event
+        action_input = ActionInput(
+            action_name='generate_text',
+            parameters={
+                'input': 'test input',
+                'main_prompt': 'test prompt',
+                'context': 'test context',
+                'conversation_data': 'test conversation'
+            }
+        )
+        event = IncomingNotificationDataBase(
+            channel_id="channel_id",
+            thread_id="thread_id",
+            user_id="user_id",
+            text="user text",
+            timestamp="timestamp",
+            event_label="event_label",
+            response_id="response_id",
+            user_name="user_name",
+            user_email="user_email",
+            is_mention=True,
+            origin_plugin_name='test_plugin'
+        )
+
+        # Mock the correct behavior of the response object
+        mock_create.return_value.choices = [MagicMock(message=MagicMock(content="Generated response"))]
+
+        # Execute the action
+        result = await azure_chatgpt_plugin.handle_action(action_input, event)
+
+        # Assert the result matches the expected response
+        assert result == "Generated response"
+
+        # Assertions to check if the required calls were made
+        mock_create.assert_called_once_with(
+            model="gpt-35-turbo",
+            temperature=0.1,
+            top_p=0.1,
+            messages=[
+                {"role": "system", "content": json.dumps(existing_messages)},
+                {"role": "user", "content": "Here is additional context relevant to the following request: test context"},
+                {"role": "user", "content": "Here is the conversation that led to the following request: test conversation"},
+                {"role": "user", "content": "test input"}
+            ],
+            max_tokens=4096,
+            seed=69
+        )
+
+        # Assert that calculate_and_update_costs was called
+        mock_calculate_and_update_costs.assert_called_once()
+
+        # Assert that the session was saved (which in turn calls write_data_content)
+        mock_save_session.assert_called_once()
+
+        # Define the expected events after handle_action execution
+        expected_events = [
+            {
+                'role': 'assistant',
+                'content': "previous message"
+            },
+            {
+                'role': 'assistant',
+                'content': "Generated response"
+            }
+        ]
+
+        # Verify that write_data_content was called with the correct arguments
+        mock_write_data_content.assert_called_once()
+        write_call_args = mock_write_data_content.call_args[0]
+        assert write_call_args[0] == azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.sessions
+        assert write_call_args[1] == 'channel_id-thread_id.txt'
+
+        # Parse the JSON content passed to write_data_content
+        written_content = json.loads(write_call_args[2])
+        assert len(written_content) == 2  # Ensure 2 events exist
+        # Verify the existing assistant message
+        existing_assistant_message = written_content[0]
+        assert existing_assistant_message['role'] == 'assistant'
+        assert existing_assistant_message['content'] == "previous message"
+        # Verify the assistant's response
+        assistant_event = written_content[1]
+        assert assistant_event['role'] == 'assistant'
+        assert assistant_event['content'] == "Generated response"
+
 
 def test_validate_request(azure_chatgpt_plugin):
     event = IncomingNotificationDataBase(

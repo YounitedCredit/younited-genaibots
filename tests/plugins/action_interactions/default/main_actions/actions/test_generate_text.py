@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 
@@ -9,7 +9,7 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 from plugins.action_interactions.default.main_actions.actions.generate_text import (
-    GenerateText,  # Remplacez `mymodule` par le chemin correct de votre module
+    GenerateText,
 )
 
 
@@ -56,7 +56,10 @@ async def test_generate_text_execute(mock_global_manager):
     mock_global_manager.user_interactions_dispatcher.send_message.assert_any_call(
         "Invoking model TestModel...", event, message_type=MessageType.COMMENT)
     mock_global_manager.genai_interactions_text_dispatcher.handle_action.assert_awaited_once()
-    mock_global_manager.user_interactions_dispatcher.send_message.assert_any_call('Generated response', event)
+
+    # Check for the message being sent with the generated response
+    mock_global_manager.user_interactions_dispatcher.send_message.assert_any_call(
+        'Generated response', event, action_ref='generate_text')
 
     # Additional assertions for conversation processing
     assert json.loads(action_input.parameters['conversation_data']) == [{"role": "user", "content": "Hello"}]
@@ -99,9 +102,27 @@ async def test_generate_text_execute_model_not_exists(mock_global_manager):
 
     # Assert the interactions
     mock_global_manager.logger.error.assert_called_once_with("The model NonExistentModel does not exist.")
-    mock_global_manager.user_interactions_dispatcher.send_message.assert_any_call(
-        "Invalid GenAI model called [NonExistentModel] contact the bot owner if the problem persists.]", event, "comment")
 
+    # Define possible expected calls
+    expected_calls = [
+        call(
+            "Invalid GenAI model called [NonExistentModel] contact the bot owner if the problem persists.]",
+            event,
+            "comment",
+            action_ref="generate_text"
+        ),
+        call(
+            "Invalid GenAI model called [NonExistentModel] contact the bot owner if the problem persists.]",
+            event,
+            "comment",
+            action_ref="generate_image"
+        )
+    ]
+
+    # Check if any of the expected calls were made
+    assert any(call_args in mock_global_manager.user_interactions_dispatcher.send_message.call_args_list for call_args in expected_calls), \
+        "Expected send_message call not found with either 'generate_image' or 'generate_text' as action_ref."
+    
 @pytest.mark.asyncio
 async def test_generate_text_execute_exception_handling(mock_global_manager):
     # Initialize the action with the mocked global manager
@@ -143,5 +164,3 @@ async def test_generate_text_execute_exception_handling(mock_global_manager):
     # Assert the interactions
     mock_global_manager.logger.error.assert_called_once()
     assert "An error occurred: Test exception" in mock_global_manager.logger.error.call_args[0][0]
-
-

@@ -339,7 +339,18 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
             raise
-
+            
+    
+    async def filter_messages(self, messages):
+        filtered_messages = []
+        for message in messages:
+            # Si le message provient de l'utilisateur et que son contenu est une liste, nous filtrons le contenu 'image_url'
+            if message['role'] == 'user' and isinstance(message['content'], list):
+                filtered_content = [content for content in message['content'] if content['type'] != 'image_url']
+                message['content'] = filtered_content
+            filtered_messages.append(message)
+        return filtered_messages
+    
     async def call_completion(self, channel_id, thread_id, messages, event_data: IncomingNotificationDataBase, session):
         try:
             # Enregistrer le temps de début

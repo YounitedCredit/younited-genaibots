@@ -4,7 +4,7 @@ import inspect
 import json
 import traceback
 from typing import Any
-
+from datetime import datetime
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -43,6 +43,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.openai_chatgpt_config = OpenAIChatGptConfig(**openai_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
+        self.session_manager = self.global_manager.session_manager
 
         # Dispatchers
         self.user_interaction_dispatcher = None
@@ -126,12 +127,39 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
 
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
+            # Extract parameters from the action input
             parameters = action_input.parameters
             input_param: str = parameters.get('input', '')
             main_prompt = parameters.get('main_prompt', '')
             context = parameters.get('context', '')
             conversation_data = parameters.get('conversation_data', '')
 
+            # Always retrieve the session for this thread (since we're in a thread context)
+            session = await self.session_manager.get_or_create_session(
+                event.origin_plugin_name,
+                event.channel_id,
+                event.thread_id,
+                "",  # core_prompt not needed since the session already exists
+                "",  # main_prompt not needed since the session already exists
+                datetime.now().isoformat(),
+                enriched=True  # Ensure we're working with an enriched session
+            )
+
+            # Capture the action invocation time
+            action_start_time = datetime.now()
+
+            # Add action input details to the session
+            action_event_data = {
+                'action_name': action_input.action_name,
+                'parameters': parameters,
+                'input': input_param,
+                'context': context,
+                'conversation_data': conversation_data,
+                'timestamp': action_start_time.isoformat()  # Add the timestamp when the action started
+            }
+            await self.session_manager.add_event_to_session(session, 'action_invocation', action_event_data)
+
+            # Build the messages for the model call
             messages = [{"role": "system", "content": main_prompt or "No specific instruction provided."}]
 
             if context:
@@ -142,8 +170,18 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             messages.append({"role": "user", "content": input_param})
 
+            # Call the model to generate the completion
             self.logger.info(f"Calling OpenAI API for model {self.plugin_name}..")
+            
+            # Record the time before completion generation
+            generation_start_time = datetime.now()
+
+            # Generate the completion
             completion, genai_cost_base = await self.generate_completion(messages, event)
+
+            # Calculate the generation time
+            generation_end_time = datetime.now()
+            generation_duration = (generation_end_time - generation_start_time).total_seconds()
 
             # Update the costs
             costs = self.backend_internal_data_processing_dispatcher.costs
@@ -151,15 +189,35 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             blob_name = f"{event.channel_id}-{original_msg_ts}.txt"
             await self.input_handler.calculate_and_update_costs(genai_cost_base, costs, blob_name, event)
 
-            # Update session with the completion
+            # Update the session with the model's completion and costs
+            assistant_response_event = {
+                'role': 'assistant',
+                'content': completion,
+                'generation_time': generation_duration,  # Add the generation time
+                'cost': {
+                    'total_tokens': genai_cost_base.total_tk,
+                    'prompt_tokens': genai_cost_base.prompt_tk,
+                    'completion_tokens': genai_cost_base.completion_tk,
+                    'input_cost': genai_cost_base.input_token_price,
+                    'output_cost': genai_cost_base.output_token_price
+                }
+            }
+            await self.session_manager.add_event_to_session(session, 'assistant_completion', assistant_response_event)
+
+            # Save the enriched session after the action and model invocation
+            await self.session_manager.save_session(session)
+
+            # Update session with the completion (keeping the original OpenAI implementation)
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
             messages.append({"role": "assistant", "content": completion})
             await self.backend_internal_data_processing_dispatcher.write_data_content(sessions, blob_name, json.dumps(messages))
+
             return completion
 
         except Exception as e:
             self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
+            raise
 
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         try:

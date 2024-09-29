@@ -22,7 +22,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
-
+from datetime import datetime
 
 class VertexaiGeminiConfig(BaseModel):
     PLUGIN_NAME: str
@@ -48,6 +48,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         self.vertexai_gemini_config = VertexaiGeminiConfig(**vertexai_gemini_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
+        self.session_manager = self.global_manager.session_manager
 
         # Dispatchers
         self.user_interaction_dispatcher = None
@@ -117,22 +118,50 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
+            # Extract parameters from the action input
             parameters = action_input.parameters
             input_param: str = parameters.get('input', '')
             main_prompt = parameters.get('main_prompt', '')
             context = parameters.get('context', '')
             conversation_data = parameters.get('conversation_data', '')
 
+            # Always retrieve the session for this thread (since we're in a thread context)
+            session = await self.session_manager.get_or_create_session(
+                event.origin_plugin_name,
+                event.channel_id,
+                event.thread_id,
+                "",  # core_prompt not needed since the session already exists
+                "",  # main_prompt not needed since the session already exists
+                datetime.now().isoformat(),
+                enriched=True  # Ensure we're working with an enriched session
+            )
+
+            # Capture the action invocation time
+            action_start_time = datetime.now()
+
+            # Add action input details to the session
+            action_event_data = {
+                'action_name': action_input.action_name,
+                'parameters': parameters,
+                'input': input_param,
+                'context': context,
+                'conversation_data': conversation_data,
+                'timestamp': action_start_time.isoformat()  # Add the timestamp when the action started
+            }
+            await self.session_manager.add_event_to_session(session, 'action_invocation', action_event_data)
+
+            # Build the messages for the model call
             if main_prompt:
                 self.logger.debug(f"Main prompt: {main_prompt}")
                 init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(
                     data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
                 if init_prompt is None:
-                    self.logger.warning("No specific instructions")
-
-                messages = [{"role": "system", "content": init_prompt}]
+                    self.logger.warning("No specific instructions found, using default.")
+                    init_prompt = "No specific instruction provided."
             else:
-                messages = [{"role": "system", "content": "No specific instruction provided."}]
+                init_prompt = "No specific instruction provided."
+
+            messages = [{"role": "system", "content": init_prompt}]
 
             if context:
                 context_content = f"Here is additional context relevant to the following request: {context}"
@@ -142,11 +171,20 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
                 conversation_content = f"Here is the conversation that led to the following request: {conversation_data}"
                 messages.append({"role": "user", "content": conversation_content})
 
-            user_content = input_param
-            messages.append({"role": "user", "content": user_content})
+            messages.append({"role": "user", "content": input_param})
 
+            # Call the model to generate the completion
             self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
+            
+            # Record the time before completion generation
+            generation_start_time = datetime.now()
+
+            # Generate the completion
             completion, genai_cost_base = await self.generate_completion(messages, event)
+
+            # Calculate the generation time
+            generation_end_time = datetime.now()
+            generation_duration = (generation_end_time - generation_start_time).total_seconds()
 
             # Update the costs
             costs = self.backend_internal_data_processing_dispatcher.costs
@@ -154,12 +192,31 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             blob_name = f"{event.channel_id}-{original_msg_ts}.txt"
             await self.input_handler.calculate_and_update_costs(genai_cost_base, costs, blob_name, event)
 
-            # Update the session with the completion
+            # Update the session with the model's completion and costs
+            assistant_response_event = {
+                'role': 'assistant',
+                'content': completion,
+                'generation_time': generation_duration,  # Add the generation time
+                'cost': {
+                    'total_tokens': genai_cost_base.total_tk,
+                    'prompt_tokens': genai_cost_base.prompt_tk,
+                    'completion_tokens': genai_cost_base.completion_tk,
+                    'input_cost': genai_cost_base.input_token_price,
+                    'output_cost': genai_cost_base.output_token_price
+                }
+            }
+            await self.session_manager.add_event_to_session(session, 'assistant_completion', assistant_response_event)
+
+            # Save the enriched session after the action and model invocation
+            await self.session_manager.save_session(session)
+
+            # Update the session with the completion (keeping the original Vertex AI implementation)
             sessions = self.backend_internal_data_processing_dispatcher.sessions
             messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
             messages.append({"role": "assistant", "content": completion})
             completion_json = json.dumps(messages)
             await self.backend_internal_data_processing_dispatcher.write_data_content(sessions, blob_name, completion_json)
+
             return completion
 
         except ValueError as ve:
@@ -167,8 +224,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             return "Error: The JSON text does not seem to be valid."
         except Exception as e:
             self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
-            return None
-
+            raise  # Re-raise the exception instead of returning None
 
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
 
@@ -227,29 +283,31 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
     def process_response_text(self, response_text):
         """Function to clean and format the response text by preserving newlines and Unicode characters."""
-        if response_text:
-            try:
-                # Step 1: Remove the tags [BEGINIMDETECT], [ENDIMDETECT], ```json and ```.
-                cleaned_text = re.sub(r'\[BEGINIMDETECT\]|\[ENDIMDETECT\]|```json|```', '', response_text).strip()
+        if not response_text:
+            self.logger.error("Empty response received")
+            return None
 
-                # Step 2: Replace the \n characters in the JSON structure, but keep those inside string values.
-                # To do this, we need to isolate valid JSON parts and process them separately.
-                try:
-                    # Extract the JSON block from the cleaned text
-                    json_text = re.search(r'{.*}', cleaned_text, re.DOTALL).group(0)
+        try:
+            # Step 1: Remove the tags [BEGINIMDETECT], [ENDIMDETECT], ```json and ```.
+            cleaned_text = re.sub(r'\[BEGINIMDETECT\]|\[ENDIMDETECT\]|```json|```', '', response_text).strip()
 
-                    # Remove newlines inside the JSON except for those inside strings
-                    json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n', lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '', json_text)
-                    formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
-                    return formatted_response
-                except (json.JSONDecodeError, AttributeError):
-                    self.logger.error(f"Invalid JSON response: {e}")
-                    return "Error: The JSON text does not seem to be valid."
+            # Step 2: Try to find a JSON object in the cleaned text
+            json_match = re.search(r'{.*}', cleaned_text, re.DOTALL)
+            if json_match:
+                json_text = json_match.group(0)
+                # Remove newlines inside the JSON except for those inside strings
+                json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n', 
+                                               lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '', 
+                                               json_text)
+                formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
+                return formatted_response
+            else:
+                self.logger.warning(f"No JSON object found in response: {cleaned_text}")
+                return cleaned_text  # Return the cleaned text if no JSON is found
 
-            except json.JSONDecodeError as e:
-                # If JSON parsing fails, return the raw response text
-                raise ValueError(f"JSON parsing failed: {e}")
-        return response_text
+        except Exception as e:
+            self.logger.error(f"Error processing response text: {str(e)}")
+            return None
 
     async def trigger_genai(self, event: IncomingNotificationDataBase):
         """Triggers an automated response for Generative AI."""
