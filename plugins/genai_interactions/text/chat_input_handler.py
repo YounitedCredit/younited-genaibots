@@ -271,7 +271,7 @@ class ChatInputHandler():
         # Formater le contenu avec des images et des fichiers supplémentaires si applicable
         user_content_text = [{"type": "text", "text": constructed_message_content}]
         user_content_images = []
-
+        
         if event_data.images:
             for base64_image in event_data.images:
                 user_content_images.append({
@@ -340,27 +340,13 @@ class ChatInputHandler():
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
             raise
 
-
-    async def filter_messages(self, messages):
-        filtered_messages = []
-        for message in messages:
-            # Si le message provient de l'utilisateur et que son contenu est une liste, nous filtrons le contenu 'image_url'
-            if message['role'] == 'user' and isinstance(message['content'], list):
-                filtered_content = [content for content in message['content'] if content['type'] != 'image_url']
-                message['content'] = filtered_content
-            filtered_messages.append(message)
-        return filtered_messages
-
     async def call_completion(self, channel_id, thread_id, messages, event_data: IncomingNotificationDataBase, session):
         try:
-            # Filtrer les messages si nécessaire
-            filtered_messages = await self.filter_messages(messages)
-
             # Enregistrer le temps de début
             start_time = datetime.now()
 
             # Appeler le modèle génératif AI pour obtenir la complétion
-            completion, genai_cost_base = await self.chat_plugin.generate_completion(filtered_messages, event_data)
+            completion, genai_cost_base = await self.chat_plugin.generate_completion(messages, event_data)
 
             # Enregistrer le temps de fin
             end_time = datetime.now()

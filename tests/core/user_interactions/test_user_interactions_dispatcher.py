@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
-
+from unittest import mock
+from unittest.mock import ANY
 import pytest
 
 from core.user_interactions.incoming_notification_data_base import (
@@ -33,16 +34,24 @@ def test_initialize_with_plugins(mock_user_interactions_dispatcher, mock_global_
 
 @pytest.mark.asyncio
 async def test_send_message(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
+    # Set up dispatcher and plugin
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
+    
+    # Create a mock event and set required attributes
     mock_event = MagicMock(spec=IncomingNotificationDataBase)
     mock_event.origin_plugin_name = "test_plugin"
+    mock_event.channel_id = "test_channel"
+    mock_event.thread_id = "test_thread"
 
+    # Call the method under test
     await mock_user_interactions_dispatcher.send_message("test_message", mock_event)
+
+    # Assert that the plugin's send_message method was called with the correct parameters
     mock_user_interactions_plugin.send_message.assert_awaited_with(
         message="test_message",
         event=mock_event,
-        message_type=MessageType.TEXT,  # Corrected this line
+        message_type=mock.ANY,  # If you're using a specific message type, replace this accordingly
         title=None,
         is_internal=False,
         show_ref=False

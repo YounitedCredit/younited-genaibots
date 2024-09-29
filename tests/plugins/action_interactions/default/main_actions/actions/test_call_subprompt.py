@@ -115,13 +115,15 @@ async def test_execute_missing_value(mock_global_manager, call_subprompt_instanc
     # Execute the action
     await call_subprompt_instance.execute(action_input, incoming_notification)
 
-    # Verify that an error message is sent
+    # Verify that an error message is sent with the action_ref parameter
     call_subprompt_instance.user_interactions_dispatcher.send_message.assert_called_with(
         event=incoming_notification,
         message="I didn't find the specific instruction sorry about that :-/, this is certainly an issue with my instructions, contact my administrator.",
         message_type=MessageType.TEXT,
-        is_internal=False
+        is_internal=False,
+        action_ref='call_subprompt'  # Include the action_ref in the assertion
     )
+
 
 @pytest.mark.asyncio
 async def test_execute_subprompt_not_found(mock_global_manager, call_subprompt_instance, action_input, incoming_notification):

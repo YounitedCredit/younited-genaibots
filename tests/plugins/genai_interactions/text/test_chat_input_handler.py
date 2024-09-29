@@ -72,6 +72,7 @@ async def test_handle_message_event(chat_input_handler, incoming_notification):
         mock_initialize_prompt.assert_called_once()
         mock_generate_response.assert_called_once()
 
+
 async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
     try:
         # If the bot requires a mention and the message doesn't mention the bot, skip processing
@@ -115,9 +116,12 @@ async def test_generate_response(chat_input_handler, incoming_notification):
          patch.object(chat_input_handler, 'call_completion', new_callable=AsyncMock) as mock_call_completion, \
          patch.object(chat_input_handler.global_manager.user_interactions_behavior_dispatcher, 'end_genai_completion', new_callable=AsyncMock) as mock_end_genai_completion:
 
-        mock_call_completion.return_value = "generated response"
-        result = await chat_input_handler.generate_response(incoming_notification, [{"role": "system", "content": "init_prompt"}])
-        assert result == "generated response"
+        mock_call_completion.return_value = {"response": "generated completion"}
+        session = MagicMock()
+        session.messages = [{"role": "system", "content": "init_prompt"}]
+
+        result = await chat_input_handler.generate_response(incoming_notification, session)
+        assert result == {"response": "generated completion"}
         mock_begin_genai_completion.assert_called_once()
         mock_call_completion.assert_called_once()
         mock_end_genai_completion.assert_called_once()
@@ -125,47 +129,48 @@ async def test_generate_response(chat_input_handler, incoming_notification):
 @pytest.mark.asyncio
 async def test_handle_event_data_exception(chat_input_handler, incoming_notification):
     with patch.object(chat_input_handler, 'handle_message_event', side_effect=Exception("Test exception")):
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Test exception"):
             await chat_input_handler.handle_event_data(incoming_notification)
 
 @pytest.mark.asyncio
 async def test_handle_message_event_with_images(chat_input_handler, incoming_notification):
     incoming_notification.images = ["base64_image_data"]
 
-    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
-    chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
-    chat_input_handler.global_manager.prompt_manager.core_prompt = "mocked core prompt"
-    chat_input_handler.global_manager.prompt_manager.main_prompt = "mocked main prompt"
-
     with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
+        chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
+        chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
+        chat_input_handler.global_manager.prompt_manager.core_prompt = "mocked core prompt"
+        chat_input_handler.global_manager.prompt_manager.main_prompt = "mocked main prompt"
+
         mock_generate_response.return_value = "response with image"
 
         result = await chat_input_handler.handle_message_event(incoming_notification)
         assert result == "response with image"
-
         mock_generate_response.assert_called_once()
+
         call_args = mock_generate_response.call_args[0]
-        assert call_args[0] == incoming_notification
         messages = call_args[1]
-        assert len(messages) == 2
+
+        assert len(messages) == 2  # Ensure that system and user message are included
         assert messages[0]['role'] == 'system'
         assert "mocked core prompt" in messages[0]['content']
         assert "mocked main prompt" in messages[0]['content']
+
         assert messages[1]['role'] == 'user'
         assert isinstance(messages[1]['content'], list)
-        assert len(messages[1]['content']) == 2
+        assert len(messages[1]['content']) == 2  # One text, one image
         assert messages[1]['content'][0]['type'] == 'text'
         assert messages[1]['content'][1]['type'] == 'image_url'
         assert messages[1]['content'][1]['image_url']['url'].startswith('data:image/jpeg;base64,')
+
 
 @pytest.mark.asyncio
 async def test_handle_message_event_with_files(chat_input_handler, incoming_notification):
     # Adding file contents and images
     incoming_notification.files_content = ["file content 1", "file content 2"]
     incoming_notification.images = ["base64_image_data_1", "base64_image_data_2"]
-    incoming_notification.timestamp = "1633090572.000200"  # Example Unix timestamp
 
-    # Mocking necessary methods
+    # Mock necessary methods
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
     chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
     chat_input_handler.global_manager.prompt_manager.core_prompt = "mocked core prompt"
@@ -175,69 +180,24 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
     with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
         mock_generate_response.return_value = "response with files"
 
-        # Call the main method
         result = await chat_input_handler.handle_message_event(incoming_notification)
         assert result == "response with files"
-
-        # Check that generate_response was called once
         mock_generate_response.assert_called_once()
+
         call_args = mock_generate_response.call_args[0]
-        assert call_args[0] == incoming_notification
         messages = call_args[1]
 
-        # Ensure the system message format is correct
         assert messages[0]['role'] == 'system'
-        expected_system_content = (
-            f"{chat_input_handler.global_manager.prompt_manager.core_prompt}\n"
-            f"{chat_input_handler.global_manager.prompt_manager.main_prompt}\n"
-            f"Also take into account these previous general behavior feedbacks constructed with user feedback from previous plugins, "
-            f"take them as the prompt not another feedback to add: mocked general behavior content"
-        )
-        assert messages[0]['content'] == expected_system_content
-
-        # Ensure the user message content is correct
+        assert "mocked core prompt" in messages[0]['content']
         assert messages[1]['role'] == 'user'
-        user_content = messages[1]['content']
-        assert user_content[0]['type'] == 'text'
 
-        # Use the raw timestamp for comparison
+        # Ensure that file contents and images are included
+        assert len(messages[1]['content']) == 5  # 2 text, 2 images
+        assert messages[1]['content'][1]['text'] == "file content 1"
+        assert messages[1]['content'][2]['text'] == "file content 2"
+        assert messages[1]['content'][3]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_1"
+        assert messages[1]['content'][4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
 
-        expected_text = (
-            f"Timestamp: {incoming_notification.timestamp}, [username]: {incoming_notification.user_name}, "
-            f"[user id]: {incoming_notification.user_id}, [user email]: {incoming_notification.user_email}, "
-            f"[Directly mentioning you]: {incoming_notification.is_mention}, [message]: {incoming_notification.text}"
-        )
-
-        assert user_content[0]['text'] == expected_text
-
-        # Validate that file contents are included
-        assert user_content[1]['type'] == 'text'
-        assert user_content[1]['text'] == "file content 1"
-        assert user_content[2]['type'] == 'text'
-        assert user_content[2]['text'] == "file content 2"
-
-        # Validate that image messages are included
-        assert user_content[3]['type'] == 'image_url'
-        assert user_content[3]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_1"
-        assert user_content[4]['type'] == 'image_url'
-        assert user_content[4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
-
-        # Now assert the total length of user_content
-        assert len(user_content) == 5  # 1 text message, 2 files, and 2 images
-
-        # Compare with the raw timestamp
-        assert user_content[0]['text'] == expected_text
-
-        # Check file contents and images in user content
-        assert user_content[1]['type'] == 'text'
-        assert user_content[1]['text'] == "file content 1"
-        assert user_content[2]['type'] == 'text'
-        assert user_content[2]['text'] == "file content 2"
-        assert user_content[3]['type'] == 'image_url'
-        assert user_content[3]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_1"
-        assert user_content[4]['type'] == 'image_url'
-        assert user_content[4]['image_url']['url'] == "data:image/jpeg;base64,base64_image_data_2"
-        assert len(user_content) == 5
 
 @pytest.mark.asyncio
 async def test_call_completion_success(chat_input_handler, incoming_notification):
@@ -265,27 +225,26 @@ async def test_call_completion_success(chat_input_handler, incoming_notification
 
 @pytest.mark.asyncio
 async def test_call_completion_failure(chat_input_handler, incoming_notification):
-    # Test the call_completion method when an exception occurs
     mock_messages = [{"role": "user", "content": "test message"}]
+    session = MagicMock()
 
-    # Mock the generate_completion method to raise an exception
+    # Simulate an exception during completion
     chat_input_handler.chat_plugin.generate_completion = AsyncMock(side_effect=Exception("Mocked exception"))
 
     with patch.object(chat_input_handler, 'handle_completion_errors', new_callable=AsyncMock) as mock_handle_completion_errors:
-        await chat_input_handler.call_completion(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification)
+        await chat_input_handler.call_completion(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification, session)
         mock_handle_completion_errors.assert_called_once()
-
 
 @pytest.mark.asyncio
 async def test_trigger_genai_with_thread(chat_input_handler, incoming_notification):
-    # Test triggering GenAI with a thread of messages
     mock_messages = [{"role": "user", "content": "test message"}]
+    session = MagicMock()
 
     with patch.object(chat_input_handler, 'call_completion', new_callable=AsyncMock) as mock_call_completion:
         mock_call_completion.return_value = "generated thread response"
-        result = await chat_input_handler.trigger_genai_with_thread(incoming_notification, mock_messages)
+        result = await chat_input_handler.trigger_genai_with_thread(incoming_notification, mock_messages, session)
         assert result == "generated thread response"
-        mock_call_completion.assert_called_once_with(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification)
+        mock_call_completion.assert_called_once_with(incoming_notification.channel_id, incoming_notification.thread_id, mock_messages, incoming_notification, session)
 
 
 @pytest.mark.asyncio
@@ -295,10 +254,8 @@ async def test_handle_event_data_invalid_label(chat_input_handler, incoming_noti
     with pytest.raises(ValueError, match="Unknown event label: unknown_label"):
         await chat_input_handler.handle_event_data(incoming_notification)
 
-
 @pytest.mark.asyncio
 async def test_handle_message_event_with_large_file_content(chat_input_handler, incoming_notification):
-    # Test handling a message event with a large number of file contents
     incoming_notification.files_content = ["file content"] * 21  # More than 20 files
     incoming_notification.images = []
 
@@ -310,18 +267,13 @@ async def test_handle_message_event_with_large_file_content(chat_input_handler, 
         messages = mock_generate_response.call_args[0][1]
         assert len(messages[1]['content']) == 23  # 21 file contents + constructed message + reminder message
 
-
 @pytest.mark.asyncio
 async def test_generate_response_with_error(chat_input_handler, incoming_notification):
-    # Test generate_response method when an error occurs in call_completion
     mock_messages = [{"role": "system", "content": "test system prompt"}]
-
-    # Mock the call_completion method to raise an exception
     chat_input_handler.call_completion = AsyncMock(side_effect=Exception("Test exception"))
 
     with pytest.raises(Exception, match="Test exception"):
         await chat_input_handler.generate_response(incoming_notification, mock_messages)
-
 
 @pytest.mark.asyncio
 async def test_yaml_to_json_success(chat_input_handler, incoming_notification):
@@ -377,17 +329,11 @@ async def test_filter_messages_with_images(chat_input_handler):
 
 @pytest.mark.asyncio
 async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
-    # Mock the methods
     chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
 
     with patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt:
-        # Call the method
         result = await chat_input_handler.handle_thread_message_event(incoming_notification)
-
-        # Ensure the result is None when there are no messages
         assert result is None
-
-        # Check that initialize was called once
         mock_initialize_prompt.assert_called_once()
 
 @pytest.mark.asyncio

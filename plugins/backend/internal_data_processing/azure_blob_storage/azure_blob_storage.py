@@ -239,3 +239,74 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Error listing files in container {container_name}: {e}")
             return []
+
+    async def update_prompt_system_message(self, channel_id: str, thread_id: str, message: str):
+        self.logger.debug(f"Updating prompt system message for channel {channel_id}, thread {thread_id}")
+        blob_name = f"{channel_id}-{thread_id}.json"
+        blob_client = self.blob_service_client.get_blob_client(container=self.sessions_container, blob=blob_name)
+
+        try:
+            # Check if the blob exists and download the session data
+            blob_data = blob_client.download_blob().readall()
+            session = json.loads(blob_data)
+            self.logger.debug("Session blob content parsed into JSON")
+        except ResourceNotFoundError:
+            self.logger.error(f"Session data not found in blob storage: {blob_name}")
+            return
+        except Exception as e:
+            self.logger.error(f"Failed to read blob: {str(e)}")
+            return
+
+        # Update the 'system' role content in the session
+        updated = False
+        for obj in session:
+            if obj.get('role') == 'system':
+                self.logger.info("Found system role, updating content")
+                obj['content'] = message
+                updated = True
+                break
+
+        if not updated:
+            self.logger.warning("System role not found in session JSON")
+            return
+
+        try:
+            # Convert updated session to JSON and upload it back to the blob
+            updated_session_data = json.dumps(session)
+            blob_client.upload_blob(updated_session_data, overwrite=True)
+            self.logger.info("Prompt system message update completed successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to upload updated blob: {str(e)}")
+
+    async def update_session(self, data_container: str, data_file: str, role: str, content: str):
+        self.logger.debug(f"Updating session for file {data_file} in container {data_container}")
+        
+        blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=data_file)
+        
+        try:
+            # Try to read existing data from the blob
+            if blob_client.exists():
+                blob_data = blob_client.download_blob().readall()
+                data = json.loads(blob_data)
+                self.logger.debug("Blob content successfully parsed into JSON")
+            else:
+                self.logger.debug(f"Blob {data_file} not found, initializing new session data")
+                data = []  # Initialize as an empty list if blob does not exist
+        except ResourceNotFoundError:
+            self.logger.debug(f"Blob {data_file} not found in container {data_container}, initializing new session data")
+            data = []  # Initialize as an empty list if the blob does not exist
+        except Exception as e:
+            self.logger.error(f"Failed to read blob: {str(e)}")
+            return
+
+        # Append new role and content to the data
+        data.append({"role": role, "content": content})
+        self.logger.debug(f"Appended new role/content: {role}/{content}")
+
+        try:
+            # Upload the updated data back to the blob, overwriting the existing content
+            updated_data = json.dumps(data)
+            blob_client.upload_blob(updated_data, overwrite=True)
+            self.logger.debug(f"Session update completed for {data_file} in container {data_container}")
+        except Exception as e:
+            self.logger.error(f"Failed to write updated session to blob: {str(e)}")

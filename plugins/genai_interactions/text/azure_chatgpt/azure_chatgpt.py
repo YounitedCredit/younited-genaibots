@@ -419,8 +419,29 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 message_type=MessageType.COMMENT,
                 is_internal=True
             )
-            raise
-
+            raise   
+    
+    async def filter_messages(self, messages):
+        filtered_messages = []
+        for message in messages:
+            # Si le message provient de l'utilisateur et que son contenu est une liste, nous filtrons le contenu 'image_url'
+            if message['role'] == 'user' and isinstance(message['content'], list):
+                filtered_content = [content for content in message['content'] if content['type'] != 'image_url']
+                message['content'] = filtered_content
+            filtered_messages.append(message)
+        return filtered_messages
+    
+    async def filter_images(self, messages):
+        filtered_messages = []
+        for message in messages:
+            # If the message is from the user and its content is a list, we filter out 'image_url' content.
+            # This is because the GenAI model currently only supports text inputs, not images.
+            if message['role'] == 'user' and isinstance(message['content'], list):
+                filtered_content = [content for content in message['content'] if content['type'] != 'image_url']
+                message['content'] = filtered_content
+            filtered_messages.append(message)
+        return filtered_messages
+    
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         # Check if we should use the assistant
         self.logger.info("Generate completion triggered...")
@@ -430,6 +451,10 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         # If not using an assistant, proceed with the standard completion
         model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
 
+        # Filter out messages content from the metadata
+        
+        messages =  [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
+
         if event_data.images:
             if not self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME:
                 self.logger.error("Image received without AZURE_CHATGPT_VISION_MODEL_NAME in config")
@@ -438,7 +463,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             model_name = self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME
         else:
             model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
-            messages = await self.input_handler.filter_messages(messages)
+            messages = await self.filter_images(messages)
 
         try:
             completion = await self.gpt_client.chat.completions.create(

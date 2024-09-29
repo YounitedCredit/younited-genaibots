@@ -15,6 +15,7 @@ def global_manager(mock_global_manager):
     mock_global_manager.user_interactions_dispatcher = AsyncMock()
     mock_global_manager.genai_interactions_text_dispatcher = AsyncMock()
     mock_global_manager.backend_internal_data_processing_dispatcher = AsyncMock()
+    mock_global_manager.backend_internal_queue_processing_dispatcher = AsyncMock()  # Add this line
     mock_global_manager.bot_config = MagicMock()
     mock_global_manager.bot_config.BREAK_KEYWORD = "break"
     mock_global_manager.bot_config.START_KEYWORD = "start"
