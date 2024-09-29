@@ -2,13 +2,13 @@ import json
 from datetime import datetime
 from core.sessions.enriched_session import EnrichedSession
 from core.sessions.session_base import SessionBase
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Dict
 
 if TYPE_CHECKING:
     from core.global_manager import GlobalManager  # Forward reference to avoid circular import
 
 class SessionManager:
-    def __init__(self, global_manager: 'GlobalManager'):  # Use a forward reference here
+    def __init__(self, global_manager: 'GlobalManager'):
         self.global_manager = global_manager
         self.backend_dispatcher = None
         self.logger = global_manager.logger
@@ -48,9 +48,13 @@ class SessionManager:
         await self.backend_dispatcher.write_data_content(
             self.backend_dispatcher.sessions, session.session_id, session_json
         )
-        
-    async def add_event(self, session: EnrichedSession, event_type: str, data: dict):
-        session.add_event(event_type, data)
+
+    async def add_user_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict):
+        """
+        Adds a user interaction to a specific message in the session.
+        This method now ensures that the interaction is placed within the correct assistant message.
+        """
+        session.add_user_interaction_to_message(message_index, interaction)
         await self.save_session(session)
 
     async def get_or_create_session(self, channel_id: str, thread_id: str, enriched: bool = False):

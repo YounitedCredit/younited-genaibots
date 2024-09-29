@@ -10,6 +10,7 @@ from core.user_interactions.user_interactions_plugin_base import (
 )
 from utils.config_manager.config_model import BotConfig
 from fastapi import BackgroundTasks
+from datetime import datetime
 
 class UserInteractionsDispatcher(UserInteractionsPluginBase):
     def __init__(self, global_manager):
@@ -162,7 +163,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             is_replayed=True
         )
 
-    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None, action_ref=None):
         """
         Send a message using the specified plugin.
         If `is_replayed` is True, process it directly.
@@ -171,6 +172,34 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         """
         if event is not None:
             plugin_name = event.origin_plugin_name
+
+            if is_internal == False and is_replayed == False:
+                # Get the session
+                session = await self.global_manager.session_manager.get_or_create_session(
+                    event.channel_id, event.thread_id, enriched=True
+                )
+
+                # Search for the most recent assistant message
+                message_index = None
+                for idx in range(len(session.messages) - 1, -1, -1):
+                    if session.messages[idx].get("role") == "assistant":
+                        message_index = idx
+                        break
+
+                if message_index is not None:
+                    # Create the interaction data
+                    interaction = {
+                        "message": message,
+                        "message_type": message_type.value,
+                        "timestamp": datetime.now().isoformat(),
+                        "action_ref": action_ref
+                    }
+
+                    # Add interaction to the last assistant message found
+                    session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
+
+                    # Save the session after adding user interaction
+                    await self.global_manager.session_manager.save_session(session)
 
         if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
             # Convert the event to a dictionary before enqueuing
@@ -197,6 +226,19 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Process the event directly
             plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
             return await plugin.send_message(message=message, event=event, message_type=message_type, title=title, is_internal=is_internal, show_ref=show_ref)
+
+    async def _send_message_background(self, method_params):
+        event = IncomingNotificationDataBase.from_dict(method_params['event'])
+        await self.send_message(
+            message=method_params['message'],
+            event=event,
+            message_type=MessageType(method_params['message_type']),
+            title=method_params['title'],
+            is_internal=method_params['is_internal'],
+            show_ref=method_params['show_ref'],
+            is_replayed=True
+        )
+
 
     async def _send_message_background(self, method_params):
         event = IncomingNotificationDataBase.from_dict(method_params['event'])
