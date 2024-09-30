@@ -35,6 +35,12 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.logger = global_manager.logger
+        logging.getLogger("azure").setLevel(logging.WARNING)
+        logging.getLogger("azure.storage.blob").setLevel(logging.WARNING)
+        # If other libraries also cause verbose logs, you can set their log level too
+        logging.getLogger("urllib3").setLevel(logging.WARNING)
+        logging.getLogger("azure.core.pipeline.policies").setLevel(logging.WARNING)
+
         self.global_manager = global_manager
         self.plugin_manager: PluginManager = global_manager.plugin_manager
         config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
@@ -246,37 +252,31 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         blob_client = self.blob_service_client.get_blob_client(container=self.sessions_container, blob=blob_name)
 
         try:
-            # Check if the blob exists and download the session data
-            blob_data = blob_client.download_blob().readall()
+            # Download the session data
+            download_stream = await blob_client.download_blob()
+            blob_data = await download_stream.readall()
             session = json.loads(blob_data)
             self.logger.debug("Session blob content parsed into JSON")
-        except ResourceNotFoundError:
-            self.logger.error(f"Session data not found in blob storage: {blob_name}")
-            return
+
+            # Update the 'system' role content in the session
+            updated = False
+            for obj in session:
+                if obj.get('role') == 'system':
+                    self.logger.info("Found system role, updating content")
+                    obj['content'] = message
+                    updated = True
+                    break
+
+            if updated:
+                # Convert updated session to JSON and upload it back to the blob
+                updated_session_data = json.dumps(session)
+                await blob_client.upload_blob(updated_session_data, overwrite=True)
+                self.logger.info("Prompt system message update completed successfully")
+            else:
+                self.logger.warning("System role not found in session JSON, no changes made")
+
         except Exception as e:
-            self.logger.error(f"Failed to read blob: {str(e)}")
-            return
-
-        # Update the 'system' role content in the session
-        updated = False
-        for obj in session:
-            if obj.get('role') == 'system':
-                self.logger.info("Found system role, updating content")
-                obj['content'] = message
-                updated = True
-                break
-
-        if not updated:
-            self.logger.warning("System role not found in session JSON")
-            return
-
-        try:
-            # Convert updated session to JSON and upload it back to the blob
-            updated_session_data = json.dumps(session)
-            blob_client.upload_blob(updated_session_data, overwrite=True)
-            self.logger.info("Prompt system message update completed successfully")
-        except Exception as e:
-            self.logger.error(f"Failed to upload updated blob: {str(e)}")
+            self.logger.error(f"Failed to update prompt system message: {str(e)}")
 
     async def update_session(self, data_container: str, data_file: str, role: str, content: str):
         self.logger.debug(f"Updating session for file {data_file} in container {data_container}")
@@ -285,9 +285,10 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         
         try:
             # Try to read existing data from the blob
-            if blob_client.exists():
+            if await blob_client.exists():
                 self.logger.debug(f"Blob {data_file} exists, downloading content.")
-                blob_data = blob_client.download_blob().readall()
+                download_stream = await blob_client.download_blob()
+                blob_data = await download_stream.readall()
                 data = json.loads(blob_data)
                 self.logger.debug("Blob content successfully parsed into JSON")
             else:
@@ -308,7 +309,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             # Upload the updated data back to the blob, overwriting the existing content
             updated_data = json.dumps(data)
             self.logger.debug(f"Uploading updated session data: {updated_data}")
-            blob_client.upload_blob(updated_data, overwrite=True)
+            await blob_client.upload_blob(updated_data, overwrite=True)
             self.logger.debug(f"Session update completed for {data_file} in container {data_container}")
         except Exception as e:
             self.logger.error(f"Failed to write updated session to blob: {str(e)}")

@@ -77,23 +77,21 @@ async def test_update_session_blob_exists(azure_blob_storage_plugin):
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.exists = AsyncMock(return_value=True)
 
-        # Mocking download_blob as an async function returning a mock blob
-        mock_download_blob = MagicMock()
-        mock_blob_client.download_blob = AsyncMock(return_value=mock_download_blob)
-
-        # Simulating readall as a regular method, not async
-        mock_download_blob.readall = MagicMock(return_value=b'[]')  # Blob content as empty list
+        mock_download_stream = AsyncMock()
+        mock_download_stream.readall = AsyncMock(return_value=b'[]')
+        mock_blob_client.download_blob = AsyncMock(return_value=mock_download_stream)
 
         mock_blob_client.upload_blob = AsyncMock()
 
         # Call the method
         await azure_blob_storage_plugin.update_session('sessions', 'file', 'role', 'content')
 
-        # Ensure download_blob and upload_blob are called correctly
-        mock_blob_client.download_blob.assert_called_once()
-        mock_download_blob.readall.assert_called_once()  # Ensure readall is called correctly
-        mock_blob_client.upload_blob.assert_called_once_with(
-            b'[{"role": "role", "content": "content"}]', overwrite=True
+        # Ensure all async methods are awaited correctly
+        mock_blob_client.exists.assert_awaited_once()
+        mock_blob_client.download_blob.assert_awaited_once()
+        mock_download_stream.readall.assert_awaited_once()
+        mock_blob_client.upload_blob.assert_awaited_once_with(
+            '[{"role": "role", "content": "content"}]', overwrite=True
         )
 
 @pytest.mark.asyncio
@@ -188,25 +186,21 @@ async def test_list_container_files(azure_blob_storage_plugin):
         mock_get_container_client.assert_called_once_with("test_container")
 
 @pytest.mark.asyncio
-async def test_update_prompt_system_message(azure_blob_storage_plugin):
+async def test_update_prompt_system_message_no_system_role(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.download_blob = AsyncMock()
-        
-        # Mocking readall to return a valid JSON string representing a system message
-        mock_blob_client.download_blob.return_value.readall = MagicMock(
-            return_value=b'[{"role": "system", "content": "old message"}]'
+        mock_blob_client.download_blob.return_value.readall = AsyncMock(
+            return_value=b'[{"role": "user", "content": "user message"}]'
         )
-        
         mock_blob_client.upload_blob = AsyncMock()
 
-        # Call the method
         await azure_blob_storage_plugin.update_prompt_system_message("channel1", "thread1", "new system message")
 
-        # Ensure download_blob and upload_blob are called correctly
-        mock_blob_client.download_blob.assert_called_once()
-        mock_blob_client.upload_blob.assert_called_once_with(
-            b'[{"role": "system", "content": "new system message"}]', overwrite=True
+        # Vérifier que upload_blob est appelé avec le nouveau message système ajouté au début
+        mock_blob_client.upload_blob.assert_awaited_once_with(
+            '[{"role": "system", "content": "new system message"}, {"role": "user", "content": "user message"}]',
+            overwrite=True
         )
 
 @pytest.mark.asyncio

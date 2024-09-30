@@ -134,20 +134,38 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             if not filtered_files:
                 return None, None
 
-            def extract_message_id(file_name: str) -> float:
-                parts = file_name.split('_')
-                return float(parts[2].replace('.txt', ''))
+            # Extraction du timestamp depuis le nom du fichier
+            def extract_message_id(file_name: str) -> Optional[float]:
+                """
+                Extracts the message ID (timestamp) from a file name.
+                The file name is expected to follow the format: <channel_id>_<thread_id>_<message_id>.txt
+                Returns the message ID as a float, or None if the file name is invalid.
+                """
+                try:
+                    parts = file_name.split('_')
+                    if len(parts) < 3 or not parts[2].endswith('.txt'):
+                        return None  # Format du nom de fichier invalide
+                    return float(parts[2].replace('.txt', ''))
+                except (ValueError, IndexError):
+                    return None  # Gérer les erreurs de conversion du nom de fichier en float
 
+            # Conversion du timestamp actuel en float
             current_timestamp = float(current_message_id)
+
+            # Filtrer les fichiers avec un message_id valide (ignorer les fichiers pour lesquels extract_message_id retourne None)
+            filtered_files = [f for f in filtered_files if extract_message_id(f) is not None]
+
+            # Trier les fichiers en fonction du timestamp
             filtered_files.sort(key=extract_message_id)
 
+            # Trouver le fichier suivant après le current_message_id
             next_message_file = next((f for f in filtered_files if extract_message_id(f) > current_timestamp), None)
 
             if not next_message_file:
                 return None, None
 
             file_path = os.path.join(queue_path, next_message_file)
-            with open(file_path, 'r') as file:
+            with open(file_path, 'r', encoding='utf-8') as file:
                 message_content = file.read()
 
             next_message_id = next_message_file.split('_')[-1].replace('.txt', '')
@@ -157,6 +175,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         except Exception as e:
             self.logger.error(f"Failed to retrieve next message: {str(e)}")
             return None, None
+
 
     async def get_all_messages(self, data_container: str, channel_id: str, thread_id: str) -> List[str]:
         """
