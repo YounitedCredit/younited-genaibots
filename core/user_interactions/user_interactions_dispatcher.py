@@ -23,7 +23,9 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
 
     def initialize(self, plugins: List[UserInteractionsPluginBase] = None):
         # Access the event queue manager from the global manager
-        self.event_queue_manager = self.global_manager.interaction_queue_manager
+        if self.global_manager.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+            self.event_queue_manager = self.global_manager.interaction_queue_manager
+            
         self.bot_config: BotConfig = self.global_manager.bot_config
         if not plugins:
             self.logger.error("No plugins provided for UserInteractionsDispatcher")

@@ -118,7 +118,8 @@ class GlobalManager:
         if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
             self.logger.debug("Initializing interaction queue manager and Session manager...")
             self.interaction_queue_manager.initialize()
-            self.session_manager.initialize()
+        
+        self.session_manager.initialize()
 
         self.logger.debug("Creating routes...")
         self.plugin_manager.intialize_routes(app)
