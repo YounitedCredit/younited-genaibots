@@ -116,8 +116,8 @@ def mock_config_manager(mock_utils, mock_plugins):
             ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="action_interactions_default_plugin_name",
             INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="internal_data_processing_default_plugin_name",
             USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="user_interactions_instant_messaging_behavior_default_plugin_name",
-            GENAI_TEXT_DEFAULT_PLUGIN_NAME="genai_text_default_plugin_name",      
-            GENAI_IMAGE_DEFAULT_PLUGIN_NAME="genai_image_default_plugin_name",    
+            GENAI_TEXT_DEFAULT_PLUGIN_NAME="genai_text_default_plugin_name",
+            GENAI_IMAGE_DEFAULT_PLUGIN_NAME="genai_image_default_plugin_name",
             USER_INTERACTIONS_INSTANT_MESSAGING_DEFAULT_PLUGIN_NAME="test_plugin",
             GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="genai_vector_search_default_plugin_name",
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
@@ -161,7 +161,7 @@ def mock_from_connection_string(*args, **kwargs):
 def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_interactions_handler,
                         mock_action_interactions_handler, mock_prompt_manager):
     mock_global_manager = MagicMock(spec=GlobalManager)
-    
+
     # Configuration du config_manager
     mock_global_manager.config_manager = mock_config_manager
     mock_global_manager.bot_config = mock_config_manager.config.BOT_CONFIG
@@ -186,10 +186,10 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.base_directory = Path('')
     mock_global_manager.available_actions = {}
 
-    
+
     # Mock the interaction_queue_manager to resolve missing attribute error
     mock_global_manager.interaction_queue_manager = AsyncMock()
-    
+
     # Logger
     mock_global_manager.logger = MagicMock()
     mock_global_manager.logger.level = logging.INFO

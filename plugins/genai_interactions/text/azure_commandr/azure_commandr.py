@@ -1,9 +1,9 @@
 import asyncio
 import inspect
-import json
 import traceback
-from typing import Any
 from datetime import datetime
+from typing import Any
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -181,7 +181,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
 
             # Call the model to generate the completion
             self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
-            
+
             # Record the time before completion generation
             generation_start_time = datetime.now()
 

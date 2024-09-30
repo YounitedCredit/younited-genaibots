@@ -1,4 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
+
+from fastapi import BackgroundTasks
 
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
@@ -9,8 +12,7 @@ from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
 from utils.config_manager.config_model import BotConfig
-from fastapi import BackgroundTasks
-from datetime import datetime
+
 
 class UserInteractionsDispatcher(UserInteractionsPluginBase):
     def __init__(self, global_manager):
@@ -25,7 +27,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         # Access the event queue manager from the global manager
         if self.global_manager.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
             self.event_queue_manager = self.global_manager.interaction_queue_manager
-            
+
         self.bot_config: BotConfig = self.global_manager.bot_config
         if not plugins:
             self.logger.error("No plugins provided for UserInteractionsDispatcher")
@@ -93,8 +95,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
 
     def handle_request(self, request, plugin_name = None):
         plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
-        return plugin.handle_request(request)    
-        
+        return plugin.handle_request(request)
+
     async def request_to_notification_data(self, event_data, plugin_name = None):
         plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return await plugin.request_to_notification_data(event_data)

@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import traceback
+from datetime import datetime
 from typing import Any
 
 import vertexai
@@ -22,7 +23,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from datetime import datetime
+
 
 class VertexaiGeminiConfig(BaseModel):
     PLUGIN_NAME: str
@@ -175,7 +176,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
             # Call the model to generate the completion
             self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
-            
+
             # Record the time before completion generation
             generation_start_time = datetime.now()
 
@@ -296,8 +297,8 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             if json_match:
                 json_text = json_match.group(0)
                 # Remove newlines inside the JSON except for those inside strings
-                json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n', 
-                                               lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '', 
+                json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n',
+                                               lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '',
                                                json_text)
                 formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
                 return formatted_response

@@ -3,7 +3,6 @@ import datetime
 import json
 import traceback
 from datetime import datetime, timezone
-from typing import List
 
 import yaml
 
@@ -271,7 +270,7 @@ class ChatInputHandler():
         # Formater le contenu avec des images et des fichiers supplémentaires si applicable
         user_content_text = [{"type": "text", "text": constructed_message_content}]
         user_content_images = []
-        
+
         if event_data.images:
             for base64_image in event_data.images:
                 user_content_images.append({
@@ -339,8 +338,8 @@ class ChatInputHandler():
         except Exception as e:
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
             raise
-            
-    
+
+
     async def filter_messages(self, messages):
         filtered_messages = []
         for message in messages:
@@ -350,7 +349,7 @@ class ChatInputHandler():
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-    
+
     async def call_completion(self, channel_id, thread_id, messages, event_data: IncomingNotificationDataBase, session):
         try:
             # Enregistrer le temps de début

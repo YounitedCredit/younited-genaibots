@@ -1,11 +1,9 @@
-import inspect
 import json
 import logging
 import os
 import traceback
-from typing import List, Optional
 
-from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from pydantic import BaseModel
@@ -280,9 +278,9 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
     async def update_session(self, data_container: str, data_file: str, role: str, content: str):
         self.logger.debug(f"Updating session for file {data_file} in container {data_container}")
-        
+
         blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=data_file)
-        
+
         try:
             # Try to read existing data from the blob
             if await blob_client.exists():

@@ -1,4 +1,3 @@
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -172,7 +171,7 @@ async def test_call_completion_success(mock_generate_completion, chat_input_hand
         incoming_notification,
         session  # Ajout de l'argument manquant
     )
-    
+
     # Assertions
     assert result["response"] == "generated completion"
     mock_generate_completion.assert_called_once()
@@ -220,14 +219,14 @@ async def test_handle_message_event_with_large_file_content(chat_input_handler, 
 async def test_generate_response_with_error(mock_call_completion, chat_input_handler, incoming_notification):
     mock_messages = [{"role": "system", "content": "test system prompt"}]
     chat_input_handler.call_completion = AsyncMock(side_effect=Exception("Test exception"))
-    
+
     # Créer un mock pour 'session' avec un attribut 'messages'
     session = MagicMock()
     session.messages = mock_messages
-    
+
     with pytest.raises(Exception, match="Test exception"):
         await chat_input_handler.generate_response(incoming_notification, session)
-    
+
     mock_call_completion.assert_called_once()
 
 
@@ -307,7 +306,7 @@ async def test_calculate_and_update_costs(chat_input_handler, incoming_notificat
     total_cost, input_cost, output_cost = await chat_input_handler.calculate_and_update_costs(
         cost_params, "costs_container", "blob_name", incoming_notification, mock_session
     )
-    
+
     assert total_cost == 0.025
     assert input_cost == 0.01
     assert output_cost == 0.015

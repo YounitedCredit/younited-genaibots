@@ -187,7 +187,7 @@ async def test_execute_no_results(mock_get, mock_env_var, bing_search_instance, 
     mock_response.json.return_value = {}
     mock_get.return_value = mock_response
     await bing_search_instance.execute(action_input, incoming_notification)
-    
+
     # Adjust the assertion to match the actual call
     bing_search_instance.user_interactions_dispatcher.send_message.assert_called_with(
         event=incoming_notification,
@@ -217,7 +217,7 @@ def test_is_valid_url(bing_search_instance, url, expected):
 async def test_execute_http_403_error(mock_get, mock_env_var, bing_search_instance, action_input, incoming_notification):
     mock_get.side_effect = requests.exceptions.HTTPError(response=MagicMock(status_code=403))
     await bing_search_instance.execute(action_input, incoming_notification)
-    
+
     # Adjust the assertion to match the actual call
     bing_search_instance.user_interactions_dispatcher.send_message.assert_called_with(
         event=incoming_notification,
@@ -289,7 +289,7 @@ async def test_get_webpages_content_no_results(mock_get, bing_search_instance, i
 async def test_process_urls_invalid(bing_search_instance, incoming_notification):
     urls = "invalid_url,https://example.com"
     await bing_search_instance.process_urls(urls, incoming_notification)
-    
+
     # Adjust the assertion to match the actual call
     bing_search_instance.user_interactions_dispatcher.send_message.assert_called_with(
         event=incoming_notification,

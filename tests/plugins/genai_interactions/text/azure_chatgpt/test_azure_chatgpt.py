@@ -14,6 +14,7 @@ from plugins.genai_interactions.text.azure_chatgpt.azure_chatgpt import (
 )
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 
+
 @pytest.fixture
 def mock_config():
     return {
@@ -71,7 +72,7 @@ async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
             # Define the side effect for save_session to call write_data_content
             async def save_session_side_effect(session):
                 blob_name = f"{session.channel_id}-{session.thread_id or session.timestamp}.txt"
-                
+
                 # Assign a serializable object to session.events
                 session.events = [
                     {
@@ -88,7 +89,7 @@ async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
                         'timestamp': '2024-09-29T12:34:56'
                     }
                 ]
-                
+
                 content = json.dumps(session.events)
                 await azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.write_data_content(
                     azure_chatgpt_plugin.backend_internal_data_processing_dispatcher.sessions,

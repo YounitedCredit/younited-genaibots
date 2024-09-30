@@ -143,7 +143,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"IM behavior: Checking for pending messages in channel '{channel_id}' and thread '{thread_id}'")
             current_message_id = event.timestamp
-            
+
             if await self.backend_internal_queue_processing_dispatcher.has_older_messages(
                 data_container=self.message_container,
                 channel_id=channel_id,
@@ -340,7 +340,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     thread_id=event.thread_id
                 )
                 self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
-                
+
                 await self.backend_internal_queue_processing_dispatcher.dequeue_message(
                     data_container=self.wait_queue,
                     channel_id=event.channel_id,

@@ -2,6 +2,7 @@ import asyncio
 import inspect
 import json
 import traceback
+from datetime import datetime
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -23,7 +24,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from datetime import datetime
+
 
 class AzureLlama370bConfig(BaseModel):
     PLUGIN_NAME: str
@@ -126,7 +127,7 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
             main_prompt = parameters.get('main_prompt', '')
             context = parameters.get('context', '')
             conversation_data = parameters.get('conversation_data', '')
-            
+
             # Always retrieve the session for this thread (since we're in a thread context)
             session = await self.session_manager.get_or_create_session(
                 event.origin_plugin_name,
@@ -182,7 +183,7 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
 
             # Call the model to generate the completion
             self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
-            
+
             # Record the time before completion generation
             generation_start_time = datetime.now()
 

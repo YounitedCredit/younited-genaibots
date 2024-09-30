@@ -1,9 +1,14 @@
 import os
-import pytest
-from unittest.mock import patch, MagicMock, mock_open
-import tempfile
 import shutil
-from plugins.backend.internal_queue_processing.file_system_queue.file_system_queue import FileSystemQueuePlugin
+import tempfile
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+
+from plugins.backend.internal_queue_processing.file_system_queue.file_system_queue import (
+    FileSystemQueuePlugin,
+)
+
 
 @pytest.fixture
 def file_system_queue_plugin(mock_global_manager, mock_file_system_config):

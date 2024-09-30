@@ -2,16 +2,18 @@ import asyncio
 import json
 import uuid
 from collections import defaultdict
+
 from core.backend.backend_internal_queue_processing_dispatcher import (
     BackendInternalQueueProcessingDispatcher,
-)
-from core.user_interactions.user_interactions_dispatcher import (
-    UserInteractionsDispatcher,
 )
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.message_type import MessageType
+from core.user_interactions.user_interactions_dispatcher import (
+    UserInteractionsDispatcher,
+)
+
 
 class InteractionQueueManager:
     def __init__(self, global_manager):
@@ -140,9 +142,9 @@ class InteractionQueueManager:
 
             # Use the dispatcher to enqueue the message in the backend with a unique event_id
             await self.backend_dispatcher.enqueue_message(
-                data_container=container,  
-                channel_id=channel_id, 
-                thread_id=thread_id, 
+                data_container=container,
+                channel_id=channel_id,
+                thread_id=thread_id,
                 message_id=full_message_id,  # Use full_message_id
                 message=message_json
             )
@@ -282,7 +284,7 @@ class InteractionQueueManager:
 
             # Use the dispatcher to dequeue the message from the backend
             await self.backend_dispatcher.dequeue_message(
-                data_container=container, 
+                data_container=container,
                 channel_id=channel_id,
                 thread_id=thread_id,
                 message_id=full_message_id  # Ensure we dequeue the exact unique message

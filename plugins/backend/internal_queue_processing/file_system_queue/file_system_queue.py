@@ -1,7 +1,4 @@
 import os
-import time
-import json
-import traceback
 from typing import List, Optional, Tuple
 
 from pydantic import BaseModel
@@ -208,22 +205,22 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         Checks if there are any older messages in the queue, excluding the current message.
         """
         self.logger.info(f"Checking for older messages in queue for channel '{channel_id}', thread '{thread_id}', excluding message_id '{current_message_id}'.")
-        
+
         try:
             queue_path = os.path.join(self.root_directory, data_container)
             files = os.listdir(queue_path)
-            
+
             # Filter files for the given channel_id and thread_id
             filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}")]
-            
+
             # Exclude the current message file
             filtered_files = [f for f in filtered_files if current_message_id not in f]
-            
+
             # Log the filtered files for debugging
             self.logger.debug(f"Filtered files excluding current message: {filtered_files}")
-            
+
             return len(filtered_files) > 0
-        
+
         except Exception as e:
             self.logger.error(f"Failed to check older messages: {str(e)}")
             return False

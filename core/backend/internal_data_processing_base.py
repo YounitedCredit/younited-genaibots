@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import List, Optional
 
 from core.backend.internal_data_plugin_base import InternalDataPluginBase
 

@@ -11,6 +11,7 @@ from plugins.action_interactions.default.main_actions.actions.fetch_web_content 
     FetchWebContent,
 )
 
+
 @pytest.mark.asyncio
 async def test_execute_no_url_provided(mock_global_manager):
     action = FetchWebContent(mock_global_manager)

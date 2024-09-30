@@ -75,7 +75,7 @@ async def test_handle_action_with_empty_blob(azure_llama370b_plugin):
 
         result = await azure_llama370b_plugin.handle_action(action_input, event)
         assert result == "Generated response"
-        
+
         mock_create.assert_called_once()
         call_kwargs = mock_create.call_args.kwargs
         assert call_kwargs['model'] == "llama370b-model"
@@ -123,7 +123,7 @@ async def test_handle_action_with_existing_blob(azure_llama370b_plugin):
 
         result = await azure_llama370b_plugin.handle_action(action_input, event)
         assert result == "Generated response"
-        
+
         mock_create.assert_called_once()
         call_kwargs = mock_create.call_args.kwargs
         assert call_kwargs['model'] == "llama370b-model"
@@ -136,7 +136,7 @@ async def test_handle_action_with_existing_blob(azure_llama370b_plugin):
         assert call_kwargs['messages'][2]['role'] == "user"
         assert "Here is the conversation that led to the following request:``` test conversation ```" in call_kwargs['messages'][2]['content']
         assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
-        
+
 @pytest.mark.asyncio
 async def test_trigger_genai_long_text(azure_llama370b_plugin):
     long_text = " ".join(["word" for _ in range(301)])  # 301 mots

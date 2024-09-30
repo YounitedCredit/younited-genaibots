@@ -1,10 +1,8 @@
-import asyncio
-import copy
-import inspect
 import json
 import traceback
-from typing import Any
 from datetime import datetime
+from typing import Any
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -21,6 +19,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
+
 
 class OpenAIChatGptConfig(BaseModel):
     PLUGIN_NAME: str
@@ -172,7 +171,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             # Call the model to generate the completion
             self.logger.info(f"Calling OpenAI API for model {self.plugin_name}..")
-            
+
             # Record the time before completion generation
             generation_start_time = datetime.now()
 

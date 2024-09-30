@@ -51,7 +51,7 @@ async def test_observation_thought_execute(mock_global_manager):
         ":clipboard: *Plan*: Test Plan \n\n "
         ":rocket: *Next Step*: Test Next Step"
     )
-    
+
     actual_message = (
         ":mag: *Observation*: Test Observation \n\n "
         ":brain: *Thought*: Test Thought \n\n "
@@ -75,7 +75,7 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
     # Setup
     observation_thought_action = ObservationThought(global_manager=mock_global_manager)
     action_input = ActionInput(action_name='observation_thought', parameters={})
-    
+
     # Ajout du paramètre 'origin_plugin_name' manquant
     event = IncomingNotificationDataBase(
         timestamp='123456',
@@ -106,7 +106,7 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
         ":clipboard: *Plan*: No Plan \n\n "
         ":rocket: *Next Step*: No Next Step"
     )
-    
+
     actual_message = (
         ":mag: *Observation*: No Observation \n\n "
         ":brain: *Thought*: No Thought \n\n "

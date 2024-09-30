@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional
+
 from pydantic import BaseModel
+
 
 class BotConfig(BaseModel):
     # The name of the core prompt file (e.g., core_prompt.txt).
@@ -39,7 +41,7 @@ class BotConfig(BaseModel):
     INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: str
 
     # The default plugin for internal queue processing (e.g., file system, Azure Service Bus, Azure Blob Storage).
-    INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME: str 
+    INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME: str
 
     # The default plugin for instant messaging behavior, which defines how the bot behaves in IM platforms (e.g., Slack or Teams).
     USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: str

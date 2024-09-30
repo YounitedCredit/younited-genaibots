@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 import pytest
 
 from core.action_interactions.action_input import ActionInput
@@ -9,6 +10,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.action_interactions.default.main_actions.actions.generate_image import (
     GenerateImage,
 )
+
 
 @pytest.mark.asyncio
 async def test_execute_generate_image_success(mock_global_manager):

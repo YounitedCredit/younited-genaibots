@@ -143,7 +143,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 # check if the activate_message_queuing is enabled
                 if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
                     event_json = event.to_json()
-                    await self.backend_internal_data_processing_dispatcher.enqueue_message(                        
+                    await self.backend_internal_data_processing_dispatcher.enqueue_message(
                         data_container=self.message_container,
                         channel_id=event.channel_id,
                         thread_id=event.thread_id,
@@ -269,7 +269,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
 
             # After processing, check if there are any pending messages in the queue and process them
-            
+
             await self.backend_internal_data_processing_dispatcher.dequeue_message(data_container=self.message_container, message_id=event.timestamp, channel_id=event.channel_id, thread_id=event.thread_id)
 
             # Remove the "wait" reaction from the thread if message queuing is disabled or the current message is the last message in the queue

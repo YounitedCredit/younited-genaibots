@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 from PIL import Image
 from pypdf import PdfReader
+from requests.exceptions import ConnectionError
 from slack_sdk import WebClient
 from slack_sdk.web.async_client import AsyncWebClient
 
@@ -22,7 +23,7 @@ from plugins.user_interactions.instant_messaging.slack.utils.slack_block_process
     SlackBlockProcessor,
 )
 from utils.plugin_manager.plugin_manager import PluginManager
-from requests.exceptions import ConnectionError
+
 
 class SlackInputHandler:
     def __init__(self, global_manager : GlobalManager, slack_config):

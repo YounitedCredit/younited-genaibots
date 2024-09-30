@@ -63,7 +63,7 @@ async def test_handle_action_with_empty_blob(azure_mistral_plugin):
 
             result = await azure_mistral_plugin.handle_action(action_input, event)
             assert result == "Generated response"
-            
+
             mock_chat.assert_called_once()
             call_kwargs = mock_chat.call_args.kwargs
             assert call_kwargs['model'] == "mistral-xxl"
@@ -102,7 +102,7 @@ async def test_handle_action_with_existing_blob(azure_mistral_plugin):
 
             result = await azure_mistral_plugin.handle_action(action_input, event)
             assert result == "Generated response"
-            
+
             mock_chat.assert_called_once()
             call_kwargs = mock_chat.call_args.kwargs
             assert call_kwargs['model'] == "mistral-xxl"

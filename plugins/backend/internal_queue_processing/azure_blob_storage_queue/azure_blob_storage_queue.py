@@ -1,6 +1,5 @@
 import logging
 import time
-import traceback
 from typing import List, Optional, Tuple
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
@@ -62,15 +61,15 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
     @property
     def messages_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER
-    
+
     @property
     def internal_events_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER
-    
+
     @property
     def external_events_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER
-    
+
     @property
     def wait_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER

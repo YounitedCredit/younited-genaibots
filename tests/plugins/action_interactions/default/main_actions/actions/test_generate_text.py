@@ -122,7 +122,7 @@ async def test_generate_text_execute_model_not_exists(mock_global_manager):
     # Check if any of the expected calls were made
     assert any(call_args in mock_global_manager.user_interactions_dispatcher.send_message.call_args_list for call_args in expected_calls), \
         "Expected send_message call not found with either 'generate_image' or 'generate_text' as action_ref."
-    
+
 @pytest.mark.asyncio
 async def test_generate_text_execute_exception_handling(mock_global_manager):
     # Initialize the action with the mocked global manager

@@ -6,9 +6,13 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from core.action_interactions.action_input import ActionInput
-from core.genai_interactions.genai_interactions_plugin_base import GenAIInteractionsPluginBase
+from core.genai_interactions.genai_interactions_plugin_base import (
+    GenAIInteractionsPluginBase,
+)
 from core.global_manager import GlobalManager
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 
 
 class OpenaiDalleConfig(BaseModel):

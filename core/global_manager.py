@@ -5,13 +5,15 @@ from core.action_interactions.action_interactions_handler import (
     ActionInteractionsHandler,
 )
 from core.backend.backend_internal_data_processing_dispatcher import (
-    BackendInternalDataProcessingDispatcher
+    BackendInternalDataProcessingDispatcher,
 )
 from core.backend.backend_internal_queue_processing_dispatcher import (
-    BackendInternalQueueProcessingDispatcher,  
+    BackendInternalQueueProcessingDispatcher,
 )
-
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
+from core.event_processing.interaction_queue_manager import (
+    InteractionQueueManager,
+)
 from core.genai_interactions.genai_interactions_image_generator_dispatcher import (
     GenaiInteractionsImageGeneratorDispatcher,
 )
@@ -22,6 +24,7 @@ from core.genai_interactions.genai_interactions_text_dispatcher import (
     GenaiInteractionsTextDispatcher,
 )
 from core.genai_interactions.genai_vectorsearch_dispatcher import GenaiVectorsearch
+from core.sessions.session_manager import SessionManager
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
@@ -34,11 +37,6 @@ from core.user_interactions_behaviors.user_interactions_behavior_base import (
 from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
     UserInteractionsBehaviorsDispatcher,
 )
-from core.event_processing.interaction_queue_manager import (
-    InteractionQueueManager, 
-)
-from core.sessions.session_manager import SessionManager
-
 from utils.config_manager.config_manager import ConfigManager
 from utils.config_manager.config_model import BotConfig
 from utils.logging.logger_loader import setup_logger_and_tracer
@@ -67,7 +65,7 @@ class GlobalManager:
 
         self.logger.info("Dispatchers creation...")
         self.backend_internal_data_processing_dispatcher = BackendInternalDataProcessingDispatcher(self)
-        self.backend_internal_queue_processing_dispatcher = BackendInternalQueueProcessingDispatcher(self) 
+        self.backend_internal_queue_processing_dispatcher = BackendInternalQueueProcessingDispatcher(self)
         self.genai_interactions_text_dispatcher = GenaiInteractionsTextDispatcher(self)
         self.genai_image_generator_dispatcher = GenaiInteractionsImageGeneratorDispatcher(self)
         self.genai_vectorsearch_dispatcher = GenaiVectorsearch(self)
@@ -77,7 +75,7 @@ class GlobalManager:
         self.logger.info("Loading plugins...")
         self.plugin_manager.load_plugins()
 
-        if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:            
+        if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
             self.logger.info("Interaction Queue Manager is enabled in the config.")
             self.interaction_queue_manager = InteractionQueueManager(self)
         else:
@@ -86,7 +84,7 @@ class GlobalManager:
         backend_internal_data_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_DATA_PROCESSING")
         backend_internal_queue_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
-            "BACKEND", "INTERNAL_QUEUE_PROCESSING")  
+            "BACKEND", "INTERNAL_QUEUE_PROCESSING")
         user_interactions_plugins: List[UserInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "USER_INTERACTIONS")
         genai_interactions_text_plugins: List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
@@ -118,7 +116,7 @@ class GlobalManager:
         if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
             self.logger.debug("Initializing interaction queue manager and Session manager...")
             self.interaction_queue_manager.initialize()
-        
+
         self.session_manager.initialize()
 
         self.logger.debug("Creating routes...")

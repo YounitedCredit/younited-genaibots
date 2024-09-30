@@ -1,11 +1,14 @@
 import json
 from datetime import datetime
+from typing import TYPE_CHECKING, Dict, Optional
+
 from core.sessions.enriched_session import EnrichedSession
 from core.sessions.session_base import SessionBase
-from typing import TYPE_CHECKING, Optional, Dict
 
 if TYPE_CHECKING:
-    from core.global_manager import GlobalManager  # Forward reference to avoid circular import
+    from core.global_manager import (
+        GlobalManager,  # Forward reference to avoid circular import
+    )
 
 class SessionManager:
     def __init__(self, global_manager: 'GlobalManager'):
@@ -29,7 +32,7 @@ class SessionManager:
             return EnrichedSession(session_id, start_time)
         else:
             return SessionBase(session_id, start_time)
-        
+
     async def load_session(self, session_id: str) -> Optional[EnrichedSession]:
         session_json = await self.backend_dispatcher.read_data_content(
             self.backend_dispatcher.sessions, session_id

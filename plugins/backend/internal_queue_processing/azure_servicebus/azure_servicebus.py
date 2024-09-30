@@ -1,12 +1,9 @@
-import logging
-import time
-import traceback
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from azure.servicebus.aio import ServiceBusClient
-from azure.servicebus import ServiceBusMessage
 from azure.core.exceptions import ServiceRequestError, ServiceResponseError
+from azure.servicebus import ServiceBusMessage
+from azure.servicebus.aio import ServiceBusClient
 from pydantic import BaseModel
 
 from core.backend.internal_queue_processing_base import InternalQueueProcessingBase
@@ -142,10 +139,10 @@ class AzureServiceBusQueuePlugin(InternalQueueProcessingBase):
         self.logger.info(f"Checking for older messages in queue '{queue_name}', excluding message_id '{current_message_id}'.")
         try:
             messages = await self.get_all_messages(queue_name)
-            
+
             # Filter out the current message by comparing IDs
             filtered_messages = [msg for msg in messages if current_message_id not in msg]
-            
+
             # Log filtered messages for debugging
             self.logger.debug(f"Filtered messages (excluding current): {filtered_messages}")
 

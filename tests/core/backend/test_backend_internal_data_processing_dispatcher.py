@@ -18,7 +18,7 @@ def dispatcher(mock_global_manager):
 def mock_plugin():
     # Crée un plugin fictif avec un nom correct
     plugin = MagicMock(spec=InternalDataProcessingBase)
-    plugin.plugin_name = 'mock_plugin' 
+    plugin.plugin_name = 'mock_plugin'
     return plugin
 
 
@@ -163,7 +163,7 @@ def test_property_custom_actions(dispatcher, mock_plugin):
 
 def test_get_plugin_not_found_returns_default(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
-    
+
     # Manually setting the default plugin
     dispatcher.default_plugin = mock_plugin
 
@@ -172,6 +172,6 @@ def test_get_plugin_not_found_returns_default(dispatcher, mock_plugin):
 
     # Assert that the default plugin is returned
     dispatcher.logger.error.assert_called_with("BackendInternalDataProcessingDispatcher: Plugin 'non_existent_plugin' not found, returning default plugin")
-    
+
     # Assert the default plugin is returned (which is 'mock_plugin' in this case)
     assert plugin == mock_plugin

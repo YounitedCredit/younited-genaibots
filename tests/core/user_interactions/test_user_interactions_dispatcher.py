@@ -1,12 +1,11 @@
-from unittest.mock import AsyncMock, MagicMock
 from unittest import mock
-from unittest.mock import ANY
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.user_interactions.message_type import MessageType
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
@@ -37,7 +36,7 @@ async def test_send_message(mock_user_interactions_dispatcher, mock_user_interac
     # Set up dispatcher and plugin
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
-    
+
     # Create a mock event and set required attributes
     mock_event = MagicMock(spec=IncomingNotificationDataBase)
     mock_event.origin_plugin_name = "test_plugin"

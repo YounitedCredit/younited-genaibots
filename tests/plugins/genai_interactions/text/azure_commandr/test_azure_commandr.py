@@ -12,6 +12,7 @@ from plugins.genai_interactions.text.azure_commandr.azure_commandr import (
     AzureCommandrPlugin,
 )
 
+
 @pytest.fixture
 def mock_config():
     return {
@@ -58,9 +59,9 @@ async def test_handle_action_with_empty_blob(azure_commandr_plugin):
             action_input = ActionInput(
                 action_name='generate_text',
                 parameters={
-                    'input': 'test input', 
-                    'main_prompt': 'test prompt', 
-                    'context': 'test context', 
+                    'input': 'test input',
+                    'main_prompt': 'test prompt',
+                    'context': 'test context',
                     'conversation_data': 'test conversation'
                 }
             )

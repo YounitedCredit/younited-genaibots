@@ -3,6 +3,7 @@ import copy
 import inspect
 import json
 import traceback
+from datetime import datetime
 from typing import Any
 
 from openai import AsyncAzureOpenAI
@@ -21,7 +22,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from datetime import datetime
+
 
 class AzureChatGptConfig(BaseModel):
     PLUGIN_NAME: str
@@ -213,7 +214,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             # Call the model to generate the completion
             self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
-            
+
             # Record the time before completion generation
             generation_start_time = datetime.now()
 
@@ -419,8 +420,8 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 message_type=MessageType.COMMENT,
                 is_internal=True
             )
-            raise   
-    
+            raise
+
     async def filter_messages(self, messages):
         filtered_messages = []
         for message in messages:
@@ -430,7 +431,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-    
+
     async def filter_images(self, messages):
         filtered_messages = []
         for message in messages:
@@ -441,7 +442,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-    
+
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
         # Check if we should use the assistant
         self.logger.info("Generate completion triggered...")
@@ -452,7 +453,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
 
         # Filter out messages content from the metadata
-        
+
         messages =  [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
 
         if event_data.images:

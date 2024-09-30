@@ -142,4 +142,4 @@ async def test_handle_action_with_existing_blob(vertexai_gemini_plugin):
 
             # Test that the result is None when invalid JSON is returned
             result = await vertexai_gemini_plugin.handle_action(action_input, event)
-            assert result == "Invalid JSON response"  
+            assert result == "Invalid JSON response"

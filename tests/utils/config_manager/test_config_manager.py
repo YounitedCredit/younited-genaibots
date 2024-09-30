@@ -6,9 +6,6 @@ import pytest
 from utils.config_manager.config_manager import ConfigManager
 
 
-from unittest.mock import patch, mock_open
-import pytest
-
 def test_config_manager_initialization(mock_global_manager):
     # Setup: Create a ConfigManager instance using the mock_global_manager
     with patch('builtins.open', mock_open(read_data="""

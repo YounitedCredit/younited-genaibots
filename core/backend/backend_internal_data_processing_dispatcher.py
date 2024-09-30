@@ -1,5 +1,7 @@
 from typing import List, Optional
+
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
+
 
 class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     """

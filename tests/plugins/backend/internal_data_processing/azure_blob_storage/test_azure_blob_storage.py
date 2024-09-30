@@ -1,9 +1,7 @@
 import json
-from typing import List, Optional, Tuple
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
-import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 

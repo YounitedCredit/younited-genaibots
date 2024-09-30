@@ -1,7 +1,9 @@
-from core.sessions.session_base import SessionBase
-from datetime import datetime
-from typing import List, Dict, Optional
 import json
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from core.sessions.session_base import SessionBase
+
 
 class EnrichedSession(SessionBase):
     def __init__(self, session_id: str, start_time: Optional[str] = None):
@@ -32,7 +34,7 @@ class EnrichedSession(SessionBase):
             self.total_time_ms = int((end - start).total_seconds() * 1000)
         except Exception as e:
             print(f"Error calculating total time: {e}")
-    
+
     def accumulate_cost(self, cost: Dict) -> None:
         """
         Accumulates the total cost in terms of tokens and monetary value.
@@ -63,7 +65,7 @@ class EnrichedSession(SessionBase):
             if message.get("role") == "assistant":
                 # Sanitize the message content before storing it
                 interaction["message"] = self.sanitize_message(interaction["message"])
-                
+
                 # Add user_interactions key if not present
                 if "user_interactions" not in message:
                     message["user_interactions"] = []
@@ -99,4 +101,3 @@ class EnrichedSession(SessionBase):
         enriched_session.end_time = end_time
 
         return enriched_session
-    

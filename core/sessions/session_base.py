@@ -1,6 +1,7 @@
 import json
-from typing import List, Dict, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
+
 
 class SessionBase:
     def __init__(self, session_id: str, start_time: Optional[str] = None):
