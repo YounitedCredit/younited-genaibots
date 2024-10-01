@@ -116,11 +116,7 @@ class InteractionQueueManager:
         # Set default values if they are still None
         channel_id = channel_id or 'default_channel'
         thread_id = thread_id or 'default_thread'
-        if message_id is None:
-            # Log an error or warning if necessary
-            self.logger.error("message_id is None. The message will not be recorded.")
-            return  # Exit the function without recording the message
-
+        
         # Continue with the rest of the code if message_id is not None
         message_id = message_id 
 

@@ -224,7 +224,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             filtered_files.sort(key=self.extract_message_id)
 
             # Find the next message after current_message_id
-            next_message_file = next((f for f in filtered_files if self.extract_message_id(f) > current_timestamp), None)
+            next_message_file = next((f for f in filtered_files if float(self.extract_message_id(f)) > current_timestamp), None)
 
             if not next_message_file:
                 return None, None
