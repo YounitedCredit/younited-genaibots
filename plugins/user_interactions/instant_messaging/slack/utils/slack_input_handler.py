@@ -60,6 +60,7 @@ class SlackInputHandler:
         self.client = WebClient(token=self.SLACK_BOT_TOKEN)
         self.WORKSPACE_NAME = self.slack_config.SLACK_WORKSPACE_NAME
         self.async_client = AsyncWebClient(token=self.SLACK_BOT_TOKEN)
+        self.async_user_client = AsyncWebClient(token=self.SLACK_BOT_USER_TOKEN)
 
     def is_message_too_old(self, event_ts):
 
@@ -847,10 +848,11 @@ class SlackInputHandler:
             self.logger.error(f"Error searching for message: {e}", exc_info=True)
 
         return None
-
+    
     async def get_message_permalink_and_text(self, channel_id, message_ts):
         try:
-            response = await self.async_client.chat_getPermalink(channel=channel_id, message_ts=message_ts)
+            response = self.async_client.chat_getPermalink(channel=channel_id, message_ts=message_ts)
+
             if response['ok']:
                 permalink = response['permalink']
 

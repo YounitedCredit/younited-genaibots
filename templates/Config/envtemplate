@@ -18,7 +18,6 @@ REQUIRE_MENTION_NEW_MESSAGE=False  # Require bot mention in new messages to trig
 REQUIRE_MENTION_THREAD_MESSAGE=True  # Require bot mention in thread messages to trigger response
 GET_ALL_THREAD_FROM_MESSAGE_LINKS=True  # Fetch all thread messages from message links
 ACTIVATE_MESSAGE_QUEUING = True # Activate message queuing, if False, the bot won't treat message until previous message is processed or TTL time is reached
-MESSAGE_QUEUING_TTL = 120 # Time-to-live for queued messages (in seconds)
 
 # ====================================================
 # BOT DEFAULT PLUGINS

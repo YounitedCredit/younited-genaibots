@@ -23,7 +23,6 @@ def test_config_manager_initialization(mock_global_manager):
       REQUIRE_MENTION_THREAD_MESSAGE: true
       GET_ALL_THREAD_FROM_MESSAGE_LINKS: true
       ACTIVATE_MESSAGE_QUEUING: true
-      MESSAGE_QUEUING_TTL: 120
       ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: true
       BEGIN_MARKER: '[BEGINIMDETECT]'
       END_MARKER: '[ENDIMDETECT]'

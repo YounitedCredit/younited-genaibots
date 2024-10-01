@@ -58,37 +58,67 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
     def messages_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.messages_queue
+    
+    @property
+    def messages_queue_ttl(self, plugin_name=None):
+        plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
+        return plugin.messages_queue_ttl
 
     @property
     def internal_events_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.internal_events_queue
+    
+    @property
+    def internal_events_queue_ttl(self, plugin_name=None):
+        plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
+        return plugin.internal_events_queue_ttl
 
     @property
     def external_events_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.external_events_queue
+    
+    @property
+    def external_events_queue_ttl(self, plugin_name=None):
+        plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
+        return plugin.external_events_queue_ttl
 
     @property
     def wait_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.wait_queue
+    
+    @property
+    def wait_queue_ttl(self, plugin_name=None):
+        plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
+        return plugin.wait_queue_ttl
 
-    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str, plugin_name: Optional[str] = None) -> None:
+    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str, guid: str, plugin_name: Optional[str] = None) -> None:
         """
-        Adds a message to the queue for a given channel and thread.
+        Adds a message to the queue for a given channel and thread, including a GUID for uniqueness.
         """
         plugin = self.get_plugin(plugin_name)
-        self.logger.debug(f"Enqueuing message in {channel_id}_{thread_id} through {plugin.plugin_name}.")
-        await plugin.enqueue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id, message=message)
+        
+        # Logging pour suivi
+        self.logger.debug(f"Enqueuing message in {channel_id}_{thread_id}_{message_id}_{guid} through {plugin.plugin_name}.")
+        
+        # Ajout du GUID dans l'appel à la méthode enqueue du plugin
+        await plugin.enqueue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id, message=message, guid=guid)
 
-    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, plugin_name: Optional[str] = None) -> None:
+
+    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, guid: str, plugin_name: Optional[str] = None) -> None:
         """
-        Removes a message from the queue after processing.
+        Removes a message from the queue after processing, using the GUID for uniqueness.
         """
         plugin = self.get_plugin(plugin_name)
-        self.logger.debug(f"Dequeuing message {message_id} from {channel_id}_{thread_id} through {plugin.plugin_name}.")
-        await plugin.dequeue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id)
+        
+        # Logging pour suivi
+        self.logger.debug(f"Dequeuing message {message_id}_{guid} from {channel_id}_{thread_id} through {plugin.plugin_name}.")
+        
+        # Appel à la méthode dequeue avec le message_id et le guid
+        await plugin.dequeue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id, guid=guid)
+
 
     async def get_next_message(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str, plugin_name: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -123,3 +153,30 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Retrieving all messages for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
         return await plugin.get_all_messages(data_container=data_container, channel_id=channel_id, thread_id=thread_id)
+    
+    async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str, ttl_seconds: int, plugin_name: Optional[str] = None) -> None:
+        """
+        Cleans up expired messages for a given thread/channel in the queue based on TTL.
+        Removes messages whose creation time exceeds the TTL.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Cleaning up expired messages for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
+        await plugin.cleanup_expired_messages(data_container=data_container, channel_id=channel_id, thread_id=thread_id, ttl_seconds=ttl_seconds)
+
+    async def clear_all_queues(self, plugin_name: Optional[str] = None) -> None:
+        """
+        Clears all messages across all queues for the specified plugin.
+        This removes all messages, regardless of TTL.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Clearing all queues through {plugin.plugin_name}.")
+        await plugin.clear_all_queues()
+
+    async def clean_all_queues(self, plugin_name: Optional[str] = None) -> None:
+        """
+        Cleans up expired messages across all queues at startup based on TTL.
+        This ensures no expired messages remain in the system across all channels and threads.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Cleaning all expired messages from queues through {plugin.plugin_name}.")
+        await plugin.clean_all_queues()

@@ -16,12 +16,28 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the messages queue container.
         """
         raise NotImplementedError
+        
+    @property
+    @abstractmethod
+    def messages_queue_ttl(self):
+        """
+        Property for the messages queue TTL.
+        """
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def internal_events_queue(self):
         """
         Property for the internal events queue container.
+        """
+        raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def internal_events_queue_ttl(self):
+        """
+        Property for the internal events queue TTL.
         """
         raise NotImplementedError
 
@@ -32,6 +48,14 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the external events queue container.
         """
         raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def external_events_queue_ttl(self):
+        """
+        Property for the external events queue TTL.
+        """
+        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -40,18 +64,27 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the wait queue container.
         """
         raise NotImplementedError
-
+    
+    @property
     @abstractmethod
-    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message: str) -> None:
+    def wait_queue_ttl(self):
         """
-        Adds a message to the queue for a given channel and thread.
+        Property for the wait queue TTL.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str) -> None:
+    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str, guid: str) -> None:
         """
-        Removes a message from the queue after processing.
+        Adds a message to the queue for a given channel, thread, and message_id, using a GUID for uniqueness.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, guid: str) -> None:
+        """
+        Removes a message from the queue based on channel_id, thread_id, message_id, and guid.
         """
         raise NotImplementedError
 
@@ -81,5 +114,29 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         """
         Retrieves the contents of all messages for a `channel_id` and `thread_id`.
         Returns a list of message contents.
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str, ttl_seconds: int) -> None:
+        """
+        Cleans up expired messages for a given thread/channel in the queue based on TTL.
+        Removes messages whose creation time exceeds the TTL.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def clean_all_queues(self) -> None:
+        """
+        Cleans up expired messages across all queues at startup based on TTL.
+        This ensures no expired messages remain in the system across all channels and threads.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def clear_all_queues(self) -> None:
+        """
+        Clears all messages across all queues, regardless of TTL.
+        This removes all messages in the system across all channels and threads.
         """
         raise NotImplementedError

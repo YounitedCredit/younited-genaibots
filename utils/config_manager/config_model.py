@@ -67,9 +67,6 @@ class BotConfig(BaseModel):
     # The keyword used to clear the message queue (e.g., "!CLEARQUEUE").
     CLEARQUEUE_KEYWORD: str
 
-    # The time-to-live (TTL) in seconds for messages in the queue. After this period, the messages are no longer processed.
-    MESSAGE_QUEUING_TTL: int
-
     # If True, the bot activates message queuing to manage messages asynchronously, preventing overload during heavy usage.
     ACTIVATE_MESSAGE_QUEUING: bool
 
@@ -85,6 +82,7 @@ class BotConfig(BaseModel):
 
     # Specify if the bot uses the user interaction events queue.
     ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: bool
+    
 class LocalLogging(BaseModel):
     PLUGIN_NAME: str
     LOCAL_LOGGING_FILE_PATH: str

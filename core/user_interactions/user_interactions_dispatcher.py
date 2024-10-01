@@ -169,118 +169,65 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
 
     async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None, action_ref=None):
         """
-        Send a message using the specified plugin.
-        If `is_replayed` is True, process it directly.
+        Send a message using the specified plugin. If `is_replayed` is True, process it directly.
         If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event or add it to background tasks.
         Otherwise, process it directly using the plugin.
         """
-        if event is not None:
-            plugin_name = event.origin_plugin_name
+        self.logger.debug("Entering send_message method")
+        try:
+            if event is not None:
+                plugin_name = event.origin_plugin_name
+                self.logger.debug(f"Event provided with origin_plugin_name: {plugin_name}")
 
-            if is_internal == False and is_replayed == False:
-                # Get the session
-                session = await self.global_manager.session_manager.get_or_create_session(
-                    event.channel_id, event.thread_id, enriched=True
-                )
-
-                # Search for the most recent assistant message
-                message_index = None
-                for idx in range(len(session.messages) - 1, -1, -1):
-                    if session.messages[idx].get("role") == "assistant":
-                        message_index = idx
-                        break
-
-                if message_index is not None:
-                    # Create the interaction data
-                    interaction = {
+                if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING and not show_ref:
+                    self.logger.debug("Queuing the send_message event")
+                    # Build method parameters for queuing
+                    method_params = {
                         "message": message,
+                        "event": event.to_dict(),
                         "message_type": message_type.value,
-                        "timestamp": datetime.now().isoformat(),
-                        "action_ref": action_ref
+                        "title": title,
+                        "is_internal": is_internal,
+                        "show_ref": show_ref
                     }
 
-                    # Add interaction to the last assistant message found
-                    session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
-
-                    # Save the session after adding user interaction
-                    await self.global_manager.session_manager.save_session(session)
-
-        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-            # Convert the event to a dictionary before enqueuing
-            event_dict = event.to_dict()
-
-            # Convert message_type Enum to its string value for serialization
-            method_params = {
-                "message": message,
-                "event": event_dict,
-                "message_type": message_type.value,
-                "title": title,
-                "is_internal": is_internal,
-                "show_ref": show_ref
-            }
-
-            # Use FastAPI background tasks if provided
-            if background_tasks:
-                background_tasks.add_task(self._send_message_background, method_params)
-                self.logger.debug(f"Event 'send_message' added to background tasks with parameters: {method_params}")
-            else:
-                await self.event_queue_manager.add_to_queue("send_message", method_params)
-                self.logger.debug(f"Event 'send_message' queued with parameters: {method_params}")
-        else:
-            # Process the event directly
-            plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
-            return await plugin.send_message(message=message, event=event, message_type=message_type, title=title, is_internal=is_internal, show_ref=show_ref)
-
-    async def _send_message_background(self, method_params):
-        event = IncomingNotificationDataBase.from_dict(method_params['event'])
-        await self.send_message(
-            message=method_params['message'],
-            event=event,
-            message_type=MessageType(method_params['message_type']),
-            title=method_params['title'],
-            is_internal=method_params['is_internal'],
-            show_ref=method_params['show_ref'],
-            is_replayed=True
-        )
-
-
-    async def _send_message_background(self, method_params):
-        event = IncomingNotificationDataBase.from_dict(method_params['event'])
-        await self.send_message(
-            message=method_params['message'],
-            event=event,
-            message_type=MessageType(method_params['message_type']),
-            title=method_params['title'],
-            is_internal=method_params['is_internal'],
-            show_ref=method_params['show_ref'],
-            is_replayed=True
-        )
+                    # Enqueue the event in the InteractionQueueManager
+                    await self.event_queue_manager.add_to_queue("send_message", method_params)
+                    self.logger.debug(f"Event 'send_message' enqueued with parameters: {method_params}")
+                else:
+                    self.logger.debug("Processing the send_message event directly")
+                    # Process the event directly if replayed
+                    plugin = self.get_plugin(plugin_name)
+                    result = await plugin.send_message(message=message, event=event, message_type=message_type, title=title, is_internal=is_internal, show_ref=show_ref)
+                    self.logger.debug("send_message event processed directly")
+                    return result
+        except Exception as e:
+            self.logger.error(f"Error in send_message: {e}")
+            raise
+        finally:
+            self.logger.debug("Exiting send_message method")
 
     async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
         if event is not None:
             plugin_name = event.origin_plugin_name
 
-        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-            event_dict = event.to_dict()
-            method_params = {
-                "event": event_dict,
-                "file_content": file_content,
-                "filename": filename,
-                "title": title,
-                "is_internal": is_internal
-            }
+            if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+                method_params = {
+                    "event": event.to_dict(),
+                    "file_content": file_content,
+                    "filename": filename,
+                    "title": title,
+                    "is_internal": is_internal
+                }
 
-            # Use FastAPI background tasks if provided
-            if background_tasks:
-                background_tasks.add_task(self._upload_file_background, method_params)
-                self.logger.debug(f"Event 'upload_file' added to background tasks with parameters: {method_params}")
-            else:
+                # Enqueue the event
                 await self.event_queue_manager.add_to_queue("upload_file", method_params)
-                self.logger.debug(f"Event 'upload_file' queued with parameters: {method_params}")
-        else:
-            # Process the event directly
-            plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
-            return await plugin.upload_file(event=event, file_content=file_content, filename=filename, title=title, is_internal=is_internal)
+                self.logger.debug(f"Event 'upload_file' enqueued with parameters: {method_params}")
+            else:
+                # Process the event directly
+                plugin = self.get_plugin(plugin_name)
+                return await plugin.upload_file(event=event, file_content=file_content, filename=filename, title=title, is_internal=is_internal)
+
 
     async def _upload_file_background(self, method_params):
         event = IncomingNotificationDataBase.from_dict(method_params['event'])
@@ -294,71 +241,52 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         )
 
     async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+        """
+        Add a reaction using the specified plugin. If `is_replayed` is True, process it directly.
+        If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event or add it to background tasks.
+        Otherwise, process it directly using the plugin.
+        """
         if event is not None:
             plugin_name = event.origin_plugin_name
 
-        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-            event_dict = event.to_dict()
-            method_params = {
-                "event": event_dict,
-                "channel_id": channel_id,
-                "timestamp": timestamp,
-                "reaction_name": reaction_name
-            }
+            if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+                method_params = {
+                    "event": event.to_dict(),
+                    "channel_id": channel_id,
+                    "timestamp": timestamp,
+                    "reaction_name": reaction_name
+                }
 
-            # Use FastAPI background tasks if provided
-            if background_tasks:
-                background_tasks.add_task(self._add_reaction_background, method_params)
-                self.logger.debug(f"Event 'add_reaction' added to background tasks with parameters: {method_params}")
-            else:
+                # Enqueue the event
                 await self.event_queue_manager.add_to_queue("add_reaction", method_params)
-                self.logger.debug(f"Event 'add_reaction' queued with parameters: {method_params}")
-        else:
-            # Process the event directly
-            plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
-            return await plugin.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
+                self.logger.debug(f"Event 'add_reaction' enqueued with parameters: {method_params}")
+            else:
+                # Process the event directly
+                plugin = self.get_plugin(plugin_name)
+                return await plugin.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
 
-    async def _add_reaction_background(self, method_params):
-        event = IncomingNotificationDataBase.from_dict(method_params['event'])
-        await self.add_reaction(
-            event=event,
-            channel_id=method_params['channel_id'],
-            timestamp=method_params['timestamp'],
-            reaction_name=method_params['reaction_name'],
-            is_replayed=True
-        )
 
     async def remove_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+        """
+        Remove a reaction using the specified plugin. If `is_replayed` is True, process it directly.
+        If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event or add it to background tasks.
+        Otherwise, process it directly using the plugin.
+        """
         if event is not None:
             plugin_name = event.origin_plugin_name
 
-        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-            event_dict = event.to_dict()
-            method_params = {
-                "event": event_dict,
-                "channel_id": channel_id,
-                "timestamp": timestamp,
-                "reaction_name": reaction_name
-            }
+            if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+                method_params = {
+                    "event": event.to_dict(),
+                    "channel_id": channel_id,
+                    "timestamp": timestamp,
+                    "reaction_name": reaction_name
+                }
 
-            # Use FastAPI background tasks if provided
-            if background_tasks:
-                background_tasks.add_task(self._remove_reaction_background, method_params)
-                self.logger.debug(f"Event 'remove_reaction' added to background tasks with parameters: {method_params}")
-            else:
+                # Enqueue the event
                 await self.event_queue_manager.add_to_queue("remove_reaction", method_params)
-                self.logger.debug(f"Event 'remove_reaction' queued with parameters: {method_params}")
-        else:
-            # Process the event directly
-            plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
-            return await plugin.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
-
-    async def _remove_reaction_background(self, method_params):
-        event = IncomingNotificationDataBase.from_dict(method_params['event'])
-        await self.remove_reaction(
-            event=event,
-            channel_id=method_params['channel_id'],
-            timestamp=method_params['timestamp'],
-            reaction_name=method_params['reaction_name'],
-            is_replayed=True
-        )
+                self.logger.debug(f"Event 'remove_reaction' enqueued with parameters: {method_params}")
+            else:
+                # Process the event directly
+                plugin = self.get_plugin(plugin_name)
+                return await plugin.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)

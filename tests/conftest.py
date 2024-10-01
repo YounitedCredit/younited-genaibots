@@ -126,7 +126,6 @@ def mock_config_manager(mock_utils, mock_plugins):
             LOAD_ACTIONS_FROM_BACKEND=False,  # Champ pour backend actions
             CLEARQUEUE_KEYWORD='!CLEARQUEUE',  # Champ pour vider la queue
             ACTIVATE_MESSAGE_QUEUING=False,  # Champ pour activer la queue des messages
-            MESSAGE_QUEUING_TTL=120,  # Champ pour le TTL des messages
             INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="internal_queue_processing_default_plugin_name",  # Ajouté
             LOAD_PROMPTS_FROM_BACKEND=False,  # Ajouté
             LOCAL_PROMPTS_PATH="local_prompts_path",  # Ajouté
