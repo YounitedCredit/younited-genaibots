@@ -52,7 +52,7 @@ class InteractionQueueManager:
         self.messages_queue_container = self.backend_dispatcher.messages_queue
         self.messages_queue_ttl = self.backend_dispatcher.messages_queue_ttl
         self.wait_queue_container = self.backend_dispatcher.wait_queue
-        self.wait_queu_ttl = self.backend_dispatcher.wait_queue_ttl
+        self.wait_queue_ttl = self.backend_dispatcher.wait_queue_ttl
         self.bot_config: BotConfig = self.global_manager.bot_config
 
         # Log container initialization
@@ -113,7 +113,6 @@ class InteractionQueueManager:
                     message_id = message_id or event.get('timestamp')
                 self.logger.debug(f"Extracted channel_id: {channel_id}, thread_id: {thread_id}, message_id: {message_id}")
 
-
         # Set default values if they are still None
         channel_id = channel_id or 'default_channel'
         thread_id = thread_id or 'default_thread'
@@ -163,7 +162,6 @@ class InteractionQueueManager:
             # Start the processing task if it is not already running
             if queue_key not in self.external_processing_tasks:
                 self.external_processing_tasks[queue_key] = asyncio.create_task(self.process_external_queue(queue_key))
-
 
     async def save_event_to_backend(self, event_data: dict, channel_id, thread_id):
         """
@@ -321,5 +319,3 @@ class InteractionQueueManager:
                     break
         finally:
             del self.external_processing_tasks[queue_key]
-
-    

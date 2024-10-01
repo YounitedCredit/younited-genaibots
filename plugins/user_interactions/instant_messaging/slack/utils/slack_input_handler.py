@@ -851,7 +851,7 @@ class SlackInputHandler:
     
     async def get_message_permalink_and_text(self, channel_id, message_ts):
         try:
-            response = self.async_client.chat_getPermalink(channel=channel_id, message_ts=message_ts)
+            response = await self.async_client.chat_getPermalink(channel=channel_id, message_ts=message_ts)
 
             if response['ok']:
                 permalink = response['permalink']

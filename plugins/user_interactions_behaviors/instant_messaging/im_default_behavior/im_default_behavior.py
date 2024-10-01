@@ -163,6 +163,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 "timestamp": event.timestamp,
                 "event": event.to_dict()
             }
+            
             await self.global_manager.interaction_queue_manager.add_to_queue("send_message", method_params)
 
             # Remove the potential waiting reaction and acknowledge the message
@@ -323,8 +324,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
         except Exception as e:
             self.logger.error(f"IM behavior: Error processing incoming notification data: {str(e)}\n{traceback.format_exc()}")
-
-
 
     async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when GenAI starts generating a completion.
