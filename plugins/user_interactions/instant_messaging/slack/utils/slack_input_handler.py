@@ -848,7 +848,7 @@ class SlackInputHandler:
             self.logger.error(f"Error searching for message: {e}", exc_info=True)
 
         return None
-    
+
     async def get_message_permalink_and_text(self, channel_id, message_ts):
         try:
             response = await self.async_client.chat_getPermalink(channel=channel_id, message_ts=message_ts)

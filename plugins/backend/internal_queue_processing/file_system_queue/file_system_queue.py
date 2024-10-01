@@ -1,11 +1,13 @@
 import os
+import time
+import uuid
 from typing import List, Optional, Tuple
+
 from pydantic import BaseModel
+
 from core.backend.internal_queue_processing_base import InternalQueueProcessingBase
 from core.global_manager import GlobalManager
 from utils.plugin_manager.plugin_manager import PluginManager
-import time
-import uuid
 
 LOG_PREFIX = "[FILE_SYSTEM_QUEUE]"
 
@@ -39,7 +41,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         self._external_events_queue_container = None
         self._external_events_queue_ttl = None
         self._wait_queue_container = None
-        self._wait_queue_ttl = None        
+        self._wait_queue_ttl = None
 
     @property
     def plugin_name(self):
@@ -52,7 +54,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def messages_queue(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_CONTAINER
-    
+
     @messages_queue.setter
     def messages_queue(self, value):
         self._message_queue_container = value
@@ -60,7 +62,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def messages_queue_ttl(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_TTL
-    
+
     @messages_queue_ttl.setter
     def messages_queue_ttl(self, value):
         self._messages_queue_ttl = value
@@ -68,7 +70,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def internal_events_queue(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER
-    
+
     @internal_events_queue.setter
     def internal_events_queue(self, value):
         self._internal_events_queue_container = value
@@ -76,7 +78,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def internal_events_queue_ttl(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_TTL
-    
+
     @internal_events_queue_ttl.setter
     def internal_events_queue_ttl(self, value):
         self._internal_events_queue_ttl = value
@@ -84,7 +86,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def external_events_queue(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER
-    
+
     @external_events_queue.setter
     def external_events_queue(self, value):
         self._external_events_queue_container = value
@@ -92,7 +94,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def external_events_queue_ttl(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL
-    
+
     @external_events_queue_ttl.setter
     def external_events_queue_ttl(self, value):
         self._external_events_queue_ttl = value
@@ -100,7 +102,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def wait_queue(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER
-    
+
     @wait_queue.setter
     def wait_queue(self, value):
         self._wait_queue_container = value
@@ -108,7 +110,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
     @property
     def wait_queue_ttl(self):
         return self.file_system_config.FILE_SYSTEM_QUEUE_WAIT_QUEUE_TTL
-    
+
     @wait_queue_ttl.setter
     def wait_queue_ttl(self, value):
         self._wait_queue_ttl = value
@@ -153,7 +155,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         """
         # Generate a unique GUID for the message
         guid = guid or str(uuid.uuid4())
-        
+
         # Update message_id to include the GUID
         message_file_name = f"{channel_id}_{thread_id}_{message_id}_{guid}.txt"
         file_path = os.path.join(self.root_directory, data_container, message_file_name)
@@ -202,7 +204,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             return parts[2]
         except (ValueError, IndexError):
             return None
-        
+
     async def get_next_message(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Retrieves the next message in the queue for a given channel/thread.
@@ -317,7 +319,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         Check if a message has expired based on the extracted message_id (timestamp) and the TTL.
         """
         message_timestamp = self.extract_message_id(file_name)
-        
+
         if message_timestamp is None:
             return False  # If the timestamp can't be extracted, we assume the message is not expired
 

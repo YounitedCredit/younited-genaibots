@@ -12,6 +12,7 @@ from core.user_interactions_behaviors.user_interactions_behavior_base import (
 )
 from utils.config_manager.config_model import BotConfig
 
+
 class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
@@ -174,7 +175,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         message_id=event.timestamp,
                         message=event_json,  # Serialize the dict to a JSON string
                         guid=guid  # Use the fixed GUID
-                    )     
+                    )
 
                     self.logger.info(f"IM behavior: Message from channel {event.channel_id} enqueued due to pending messages.")
                     if event.event_label == "message":
@@ -191,9 +192,9 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         channel_id=channel_id,
                         thread_id=thread_id
                     )
-                    
+
                     await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
-                    
+
                     if not messages_in_wait_queue:
                         event_json = event.to_json()
                         await self.backend_internal_queue_processing_dispatcher.enqueue_message(
@@ -226,8 +227,8 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 message_id=event.timestamp,
                 message=json.dumps(event.to_dict()),  # Serialize the dict to a JSON string
                 guid=guid  # Use the fixed GUID
-            )            
-            
+            )
+
             # Remove the wait reaction and add the acknowledgment reaction
             await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
             await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_acknowledge)
@@ -238,7 +239,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             else:
                 await self.user_interaction_dispatcher.send_message(event=event, message="", message_type=MessageType.TEXT, is_internal=True, show_ref=True)
 
-            # Process the incoming notification data            
+            # Process the incoming notification data
             await self.process_incoming_notification_data(event)
 
         except Exception as e:
@@ -377,7 +378,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
                 # If message queuing is disabled, remove the "wait" reaction from the thread
                 self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
-                
+
                 await self.backend_internal_queue_processing_dispatcher.dequeue_message(
                     data_container=self.backend_internal_queue_processing_dispatcher.wait_queue,
                     channel_id=event.channel_id,
@@ -389,12 +390,12 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     channel_id=event.channel_id,
                     thread_id=event.thread_id,
                     reaction_name=self.reaction_wait,
-                    
+
                 )
 
         except Exception as e:
             self.logger.error(f"IM behavior: Error processing incoming notification data: {str(e)}\n{traceback.format_exc()}")
-            
+
     async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when GenAI starts generating a completion.
         # It updates the reaction on the message in the specified channel and timestamp.

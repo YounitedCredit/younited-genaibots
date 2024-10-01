@@ -1,7 +1,8 @@
 import logging
 import time
-from typing import List, Optional, Tuple
 import uuid
+from typing import List, Optional, Tuple
+
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
@@ -62,15 +63,15 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
     @property
     def messages_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER
-    
+
     @property
     def messages_queue_ttl(self):
-        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_TTL    
+        return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_TTL
 
     @property
     def internal_events_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER
-    
+
     @property
     def internal_events_queue_ttl(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_TTL
@@ -82,13 +83,13 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
     @property
     def external_events_queue_ttl(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL
-    
+
     @property
     def wait_queue(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER
-    
+
     @property
-    def wait_queue_ttl(self):     
+    def wait_queue_ttl(self):
         return self.azure_blob_storage_config.AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_TTL
 
     def init_containers(self):
@@ -122,7 +123,7 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
         if message_timestamp is None:
             self.logger.warning(f"{LOG_PREFIX} Cannot determine expiration for blob: {blob_name}")
             return False
-        
+
         current_time = time.time()
         expired = (current_time - message_timestamp) > ttl_seconds
         if expired:
@@ -191,7 +192,7 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
         """
         # Generate a unique GUID for the message
         guid = guid or str(uuid.uuid4())
-        
+
         # Update message_id to include the GUID
         blob_name = f"{channel_id}_{thread_id}_{message_id}_{guid}.txt"
         blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=blob_name)

@@ -1,5 +1,5 @@
-import pytest
 from core.event_processing.queued_interaction import QueuedInteraction
+
 
 # Test for the initialization of QueuedInteraction
 def test_queued_interaction_initialization():

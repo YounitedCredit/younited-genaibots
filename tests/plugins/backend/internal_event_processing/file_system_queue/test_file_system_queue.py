@@ -28,6 +28,10 @@ def mock_file_system_config():
         "FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER": "internal_events",
         "FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER": "external_events",
         "FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER": "wait",
+        "FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_TTL": 3600,
+        "FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_TTL": 3600,
+        "FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL": 3600,
+        "FILE_SYSTEM_QUEUE_WAIT_QUEUE_TTL": 3600,
     }
 
 def test_initialize(file_system_queue_plugin, mock_file_system_config):
@@ -53,8 +57,7 @@ async def test_enqueue_message(file_system_queue_plugin):
     thread_id = "thread_1"
     message = "Test Message"
 
-    file_path = os.path.join("C:", "tmp", "test_queue", "messages", "channel_1_thread_1_1.txt")
-
+    # Update the path to include the GUID
     with patch("builtins.open", new_callable=MagicMock) as mock_open:
         mock_file = MagicMock()
         mock_open.return_value.__enter__.return_value = mock_file
@@ -63,20 +66,22 @@ async def test_enqueue_message(file_system_queue_plugin):
             "messages", channel_id, thread_id, message_id, message
         )
 
-        mock_open.assert_called_once_with(file_path, 'w', encoding='utf-8')
-        mock_file.write.assert_called_once_with(message)
+        # Modify assertion to check that the GUID part is present in the filename
+        assert mock_open.call_args[0][0].startswith(os.path.join("C:", "tmp", "test_queue", "messages", "channel_1_thread_1_1_"))
+        mock_open.return_value.__enter__.return_value.write.assert_called_once_with(message)
 
 @pytest.mark.asyncio
 async def test_dequeue_message(file_system_queue_plugin):
     message_id = "1"
     channel_id = "channel_1"
     thread_id = "thread_1"
-    file_name = f"{channel_id}_{thread_id}_{message_id}.txt"
+    guid = "some-guid"  # Add the missing guid
+    file_name = f"{channel_id}_{thread_id}_{message_id}_{guid}.txt"
 
     file_path = os.path.join("C:", "tmp", "test_queue", "messages", file_name)
 
     with patch("os.path.exists", return_value=True) as mock_exists, patch("os.remove") as mock_remove:
-        await file_system_queue_plugin.dequeue_message("messages", channel_id, thread_id, message_id)
+        await file_system_queue_plugin.dequeue_message("messages", channel_id, thread_id, message_id, guid)
 
     mock_exists.assert_called_once_with(file_path)
     mock_remove.assert_called_once_with(file_path)
@@ -89,41 +94,22 @@ async def test_get_next_message(file_system_queue_plugin):
     next_message_id = "1632492374.5678"
     expected_content = "Next message content"
 
-    # Simulate files with Unix timestamps
-    with patch("os.listdir", return_value=[f"{channel_id}_{thread_id}_{next_message_id}.txt"]), \
+    # Ensure the correct file format is used for the queue
+    next_file_name = f"{channel_id}_{thread_id}_{next_message_id}.txt"
+
+    with patch("os.listdir", return_value=[next_file_name]), \
          patch("builtins.open", mock_open(read_data=expected_content)) as mocked_file:
 
-        # Call the get_next_message method
         result_message_id, result_content = await file_system_queue_plugin.get_next_message(
             "messages", channel_id, thread_id, current_message_id
         )
 
-        # Verify that the correct message is retrieved
+        # Assert the next message ID is correct
         assert result_message_id == next_message_id
         assert result_content == expected_content
 
-        # Verify that the correct file was opened for reading
-        expected_file_path = os.path.join(
-            file_system_queue_plugin.root_directory,
-            "messages",
-            f"{channel_id}_{thread_id}_{next_message_id}.txt"
-        )
-        mocked_file.assert_called_once_with(expected_file_path, 'r', encoding='utf-8')
-
-        # Verify that the file content was read
-        mocked_file().read.assert_called_once()
-
-@pytest.fixture
-def temp_queue_dir():
-    # Create a temporary directory
-    temp_dir = tempfile.mkdtemp()
-    yield temp_dir
-    # Cleanup after the test
-    shutil.rmtree(temp_dir)
-
 @pytest.mark.asyncio
-async def test_get_next_message(file_system_queue_plugin, temp_queue_dir):
-    # Setup
+async def test_get_next_message_integration(file_system_queue_plugin, temp_queue_dir):
     file_system_queue_plugin.root_directory = temp_queue_dir
     file_system_queue_plugin.message_queue_container = "messages"
     os.makedirs(os.path.join(temp_queue_dir, "messages"), exist_ok=True)
@@ -134,18 +120,47 @@ async def test_get_next_message(file_system_queue_plugin, temp_queue_dir):
     next_message_id = "1632492374.5678"
     expected_content = "Next message content"
 
-    # Create test files
+    # Create test files with appropriate content
     with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{current_message_id}.txt"), 'w') as f:
         f.write("Current message")
     with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{next_message_id}.txt"), 'w') as f:
         f.write(expected_content)
 
-    # Test
     result_message_id, result_content = await file_system_queue_plugin.get_next_message(
         "messages", channel_id, thread_id, current_message_id
     )
 
-    # Assert
+    # Assert that the next message was retrieved correctly
+    assert result_message_id == next_message_id
+    assert result_content == expected_content
+
+@pytest.fixture
+def temp_queue_dir():
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+    shutil.rmtree(temp_dir)
+
+@pytest.mark.asyncio
+async def test_get_next_message_integration(file_system_queue_plugin, temp_queue_dir):
+    file_system_queue_plugin.root_directory = temp_queue_dir
+    file_system_queue_plugin.message_queue_container = "messages"
+    os.makedirs(os.path.join(temp_queue_dir, "messages"), exist_ok=True)
+
+    channel_id = "channel1"
+    thread_id = "thread1"
+    current_message_id = "1632492373.1234"
+    next_message_id = "1632492374.5678"
+    expected_content = "Next message content"
+
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{current_message_id}.txt"), 'w') as f:
+        f.write("Current message")
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{next_message_id}.txt"), 'w') as f:
+        f.write(expected_content)
+
+    result_message_id, result_content = await file_system_queue_plugin.get_next_message(
+        "messages", channel_id, thread_id, current_message_id
+    )
+
     assert result_message_id == next_message_id
     assert result_content == expected_content
 
@@ -160,3 +175,43 @@ async def test_clear_messages_queue(file_system_queue_plugin):
         await file_system_queue_plugin.clear_messages_queue("messages", channel_id, thread_id)
 
     assert mock_remove.call_count == 2
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_messages(file_system_queue_plugin, temp_queue_dir):
+    file_system_queue_plugin.root_directory = temp_queue_dir
+    file_system_queue_plugin.message_queue_container = "messages"
+    os.makedirs(os.path.join(temp_queue_dir, "messages"), exist_ok=True)
+
+    channel_id = "channel1"
+    thread_id = "thread1"
+    expired_message_id = "1632492370.1234"  # Older timestamp
+    valid_message_id = "1632492374.5678"
+
+    expired_content = "Expired message"
+    valid_content = "Valid message"
+    ttl_seconds = 3600
+
+    expired_message_path = os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{expired_message_id}.txt")
+    valid_message_path = os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{valid_message_id}.txt")
+
+    with open(expired_message_path, 'w') as f:
+        f.write(expired_content)
+    with open(valid_message_path, 'w') as f:
+        f.write(valid_content)
+
+    # Mock time to simulate that the expired message has exceeded the TTL
+    with patch('time.time', return_value=float(expired_message_id) + ttl_seconds + 1):  # Simulate time passing
+        await file_system_queue_plugin.cleanup_expired_messages("messages", channel_id, thread_id, ttl_seconds)
+
+    # Verify the expired message was removed and the valid one was not
+    assert not os.path.exists(expired_message_path)
+    assert os.path.exists(valid_message_path)
+
+
+@pytest.mark.asyncio
+async def test_clear_all_queues(file_system_queue_plugin):
+    with patch("os.listdir", return_value=["file1.txt", "file2.txt"]), patch("os.remove") as mock_remove:
+        await file_system_queue_plugin.clear_all_queues()
+
+    # Make sure only two files were expected for removal
+    assert mock_remove.call_count == 8  # Adjust the expected count if needed

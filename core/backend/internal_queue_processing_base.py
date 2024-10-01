@@ -16,7 +16,7 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the messages queue container.
         """
         raise NotImplementedError
-        
+
     @property
     @abstractmethod
     def messages_queue_ttl(self):
@@ -32,7 +32,7 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the internal events queue container.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def internal_events_queue_ttl(self):
@@ -48,7 +48,7 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the external events queue container.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def external_events_queue_ttl(self):
@@ -64,7 +64,7 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Property for the wait queue container.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def wait_queue_ttl(self):
@@ -116,7 +116,7 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         Returns a list of message contents.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str, ttl_seconds: int) -> None:
         """

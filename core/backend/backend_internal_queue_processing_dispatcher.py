@@ -58,7 +58,7 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
     def messages_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.messages_queue
-    
+
     @property
     def messages_queue_ttl(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
@@ -68,7 +68,7 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
     def internal_events_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.internal_events_queue
-    
+
     @property
     def internal_events_queue_ttl(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
@@ -78,7 +78,7 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
     def external_events_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.external_events_queue
-    
+
     @property
     def external_events_queue_ttl(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
@@ -88,7 +88,7 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
     def wait_queue(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
         return plugin.wait_queue
-    
+
     @property
     def wait_queue_ttl(self, plugin_name=None):
         plugin: InternalQueueProcessingBase = self.get_plugin(plugin_name)
@@ -99,10 +99,10 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
         Adds a message to the queue for a given channel and thread, including a GUID for uniqueness.
         """
         plugin = self.get_plugin(plugin_name)
-        
+
         # Logging pour suivi
         self.logger.debug(f"Enqueuing message in {channel_id}_{thread_id}_{message_id}_{guid} through {plugin.plugin_name}.")
-        
+
         # Ajout du GUID dans l'appel à la méthode enqueue du plugin
         await plugin.enqueue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id, message=message, guid=guid)
 
@@ -112,10 +112,10 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
         Removes a message from the queue after processing, using the GUID for uniqueness.
         """
         plugin = self.get_plugin(plugin_name)
-        
+
         # Logging pour suivi
         self.logger.debug(f"Dequeuing message {message_id}_{guid} from {channel_id}_{thread_id} through {plugin.plugin_name}.")
-        
+
         # Appel à la méthode dequeue avec le message_id et le guid
         await plugin.dequeue_message(data_container=data_container, channel_id=channel_id, thread_id=thread_id, message_id=message_id, guid=guid)
 
@@ -153,7 +153,7 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Retrieving all messages for channel '{channel_id}', thread '{thread_id}' through {plugin.plugin_name}.")
         return await plugin.get_all_messages(data_container=data_container, channel_id=channel_id, thread_id=thread_id)
-    
+
     async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str, ttl_seconds: int, plugin_name: Optional[str] = None) -> None:
         """
         Cleans up expired messages for a given thread/channel in the queue based on TTL.

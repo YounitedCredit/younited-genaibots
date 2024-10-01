@@ -15,6 +15,7 @@ from core.user_interactions.user_interactions_dispatcher import (
 )
 from utils.config_manager.config_model import BotConfig
 
+
 class InteractionQueueManager:
     def __init__(self, global_manager):
         """
@@ -116,9 +117,9 @@ class InteractionQueueManager:
         # Set default values if they are still None
         channel_id = channel_id or 'default_channel'
         thread_id = thread_id or 'default_thread'
-        
+
         # Continue with the rest of the code if message_id is not None
-        message_id = message_id 
+        message_id = message_id
 
         # Construct the full_message_id using the GUID for uniqueness
         full_message_id = f"{channel_id}_{thread_id}_{message_id}_{guid}"

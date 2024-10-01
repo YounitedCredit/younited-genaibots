@@ -82,7 +82,7 @@ class BotConfig(BaseModel):
 
     # Specify if the bot uses the user interaction events queue.
     ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: bool
-    
+
 class LocalLogging(BaseModel):
     PLUGIN_NAME: str
     LOCAL_LOGGING_FILE_PATH: str
