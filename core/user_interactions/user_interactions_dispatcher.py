@@ -175,11 +175,18 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         self.logger.debug("Entering send_message method")
         try:
             if event is not None:
-                if not is_internal and is_replayed is False:
+                if is_replayed == False:
                     # Get the session
                     session = await self.global_manager.session_manager.get_or_create_session(
                         event.channel_id, event.thread_id, enriched=True
                     )
+
+                    interaction = {
+                        "message": message,
+                        "message_type": message_type.value,
+                        "timestamp": datetime.now().isoformat(),
+                        "action_ref": action_ref
+                    }
 
                     # Search for the most recent assistant message
                     message_index = None
@@ -189,23 +196,16 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                             break
 
                     if message_index is not None:
-                        # Create the interaction data
-                        interaction = {
-                            "message": message,
-                            "message_type": message_type.value,
-                            "timestamp": datetime.now().isoformat(),
-                            "action_ref": action_ref
-                        }
+                        if is_internal:
+                            # Add the interaction to mind_interactions in the correct assistant message
+                            session.add_mind_interaction_to_message(message_index=message_index, interaction=interaction)
+                        else:
+                            # Add the interaction to user_interactions in the correct assistant message
+                            session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
 
-                        # Add interaction to the last assistant message found
-                        session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
-
-                        # Save the session after adding user interaction
-                        await self.global_manager.session_manager.save_session(session)
-
-                else:
-                    # Logique pour les messages internes
-                    self.logger.debug(f"Internal message: {message}")
+                    # Save the session after adding the interaction
+                    await self.global_manager.session_manager.save_session(session)
+                
                 plugin_name = event.origin_plugin_name
                 self.logger.debug(f"Event provided with origin_plugin_name: {plugin_name}")
 

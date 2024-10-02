@@ -55,6 +55,22 @@ class EnrichedSession(SessionBase):
             self.logger.error(f"Error sanitizing message: {e}")
             return message  # If there's an issue, return the original message unmodified
 
+    def add_mind_interaction_to_message(self, message_index: int, interaction: Dict) -> None:
+        """
+        Add a mind interaction to a specific assistant message by index.
+        This interaction is stored inside the specific assistant message.
+        """
+        if message_index < len(self.messages):
+            message = self.messages[message_index]
+            if message.get("role") == "assistant":
+                # Sanitize the interaction content before storing it
+                interaction["message"] = self.sanitize_message(interaction["message"])
+
+                # Add mind_interactions key if not present
+                if "mind_interactions" not in message:
+                    message["mind_interactions"] = []
+                message["mind_interactions"].append(interaction)
+                
     def add_user_interaction_to_message(self, message_index: int, interaction: Dict) -> None:
         """
         Add a user interaction to a specific assistant message by index.
