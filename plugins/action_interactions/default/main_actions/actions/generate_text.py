@@ -25,6 +25,29 @@ class GenerateText(ActionBase):
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher: BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
+    def format_llm_session(self, session):
+        # Initialize an empty list to store the formatted interactions
+        formatted_interactions = []
+
+        # Iterate over each message in session.messages
+        for message in session.messages:
+            role = message.get('role')
+            content = message.get('content')
+
+            # Skip 'system' role messages
+            if role == 'system':
+                continue
+
+            # If content is a list (like in user messages), extract text fields
+            if isinstance(content, list):
+                content = " ".join([item.get('text', '') for item in content])
+
+            # Add the interaction to the formatted list
+            formatted_interactions.append(f"{role}: {content}")
+
+        # Join all interactions into a single string, separated by " | "
+        return " | ".join(formatted_interactions)
+
     async def execute(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
             parameters = action_input.parameters
@@ -66,7 +89,7 @@ class GenerateText(ActionBase):
                 
                 if session:
                     # Concaténer le contenu de tous les messages de session.messages
-                    concatenated_content = " ".join(message['content'] for message in session.messages)
+                    concatenated_content = self.format_llm_session(session)
                     
                     # Ajouter le message concaténé à la liste des messages
                     messages.append({"role": "user", "content": concatenated_content})
