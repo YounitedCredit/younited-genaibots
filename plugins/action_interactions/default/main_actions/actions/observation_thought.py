@@ -22,11 +22,14 @@ class ObservationThought(ActionBase):
     async def execute(self, action_input: ActionInput , event: IncomingNotificationDataBase ):
         parameters = action_input.parameters
         observation = parameters.get('observation', 'No Observation')
+        autoeval = parameters.get('autoeval', 'No Autoeval')
+        autoevaljustification = parameters.get('autoevaljustification', 'No Autoeval Justification')
+        user_mood = parameters.get('usermood', 'No User Mood')
         thought = parameters.get('thought', 'No Thought')
         plan = parameters.get('plan', 'No Plan')
         nextstep = parameters.get('nextstep', 'No Next Step')
         # Implement the execution of the OBSERVATION_THOUGHT action
-        message = f":mag: *Observation*: {observation} \n\n :brain: *Thought*: {thought} \n\n :clipboard: *Plan*: {plan} \n\n :rocket: *Next Step*: {nextstep}"
+        message = f":mag: *Observation*: {observation} \n\n :brain: *Thought*: {thought} \n\n :clipboard: *Plan*: {plan} \n\n :rocket: *Next Step*: {nextstep} \n\n :bar_chart: *Autoeval*: {autoeval} \n\n :straight_ruler: *Autoeval Justification*: {autoevaljustification} \n\n :smiley: *User Mood*: {user_mood}"
 
         try:
             await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.TEXT, title=None, is_internal=True)
