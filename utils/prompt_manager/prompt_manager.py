@@ -77,12 +77,15 @@ class PromptManager:
 
         return core_prompt
 
-    async def get_main_prompt(self):
+    async def get_main_prompt(self, main_prompt_file: str = None):
         """
         Load the main prompt either from the backend or local path based on configuration.
         :return: The content of the main prompt file.
         """
-        main_prompt_file = self.config_manager.get_config(['BOT_CONFIG', 'MAIN_PROMPT'])
+
+        if main_prompt_file is None:
+            main_prompt_file = self.config_manager.get_config(['BOT_CONFIG', 'MAIN_PROMPT'])
+            
         self.logger.info("Fetching main prompt from %s...", "backend" if self.load_prompts_from_backend else "local")
 
         if self.load_prompts_from_backend:

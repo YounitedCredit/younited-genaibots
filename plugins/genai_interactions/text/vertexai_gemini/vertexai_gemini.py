@@ -122,112 +122,107 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             # Extract parameters from the action input
             parameters = action_input.parameters
             input_param: str = parameters.get('input', '')
-            main_prompt = parameters.get('main_prompt', '')
+            messages = parameters.get('messages', [])
+            main_prompt = parameters.get('main_prompt', 'No specific instruction provided.')
             context = parameters.get('context', '')
             conversation_data = parameters.get('conversation_data', '')
 
-            # Always retrieve the session for this thread (since we're in a thread context)
-            session = await self.session_manager.get_or_create_session(
-                event.origin_plugin_name,
-                event.channel_id,
-                event.thread_id,
-                "",  # core_prompt not needed since the session already exists
-                "",  # main_prompt not needed since the session already exists
-                datetime.now().isoformat(),
-                enriched=True  # Ensure we're working with an enriched session
+            # Retrieve or create a session for this thread
+            session = await self.global_manager.session_manager.get_or_create_session(
+                channel_id=event.channel_id,
+                thread_id=event.thread_id or event.timestamp,  # Use timestamp if thread_id is None
+                enriched=True
             )
 
             # Capture the action invocation time
             action_start_time = datetime.now()
 
-            # Add action input details to the session
-            action_event_data = {
-                'action_name': action_input.action_name,
-                'parameters': parameters,
-                'input': input_param,
-                'context': context,
-                'conversation_data': conversation_data,
-                'timestamp': action_start_time.isoformat()  # Add the timestamp when the action started
+            # Add the automated user message to the session (with is_automated=True)
+            automated_user_event = {
+                'role': 'user',
+                'content': input_param,
+                'is_automated': True,
+                'timestamp': action_start_time.isoformat()
             }
-            await self.session_manager.add_event_to_session(session, 'action_invocation', action_event_data)
+            session.messages.append(automated_user_event)  # Append the automated message to the session
 
-            # Build the messages for the model call
+            # Prepare the system message for the assistant
             if main_prompt:
-                self.logger.debug(f"Main prompt: {main_prompt}")
                 init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(
-                    data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
-                if init_prompt is None:
-                    self.logger.warning("No specific instructions found, using default.")
-                    init_prompt = "No specific instruction provided."
+                    data_container=self.backend_internal_data_processing_dispatcher.prompts,
+                    data_file=f"{main_prompt}.txt"
+                )
+                if init_prompt:
+                    messages.insert(0, {"role": "system", "content": init_prompt})
+                else:
+                    messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
             else:
-                init_prompt = "No specific instruction provided."
+                messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
 
-            messages = [{"role": "system", "content": init_prompt}]
-
+            # Append context and conversation data
             if context:
-                context_content = f"Here is additional context relevant to the following request: {context}"
-                messages.append({"role": "user", "content": context_content})
-
+                messages.append({"role": "user", "content": f"Here is additional context: {context}"})
             if conversation_data:
-                conversation_content = f"Here is the conversation that led to the following request: {conversation_data}"
-                messages.append({"role": "user", "content": conversation_content})
+                messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
 
+            # Append the user input
             messages.append({"role": "user", "content": input_param})
 
             # Call the model to generate the completion
-            self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
-
-            # Record the time before completion generation
+            self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
             generation_start_time = datetime.now()
 
-            # Generate the completion
-            completion, genai_cost_base = await self.generate_completion(messages, event)
+            # Ensure raw_output is set to True
+            completion, genai_cost_base = await self.generate_completion(messages, event, raw_output=True)
+
+            generation_end_time = datetime.now()
 
             # Calculate the generation time
-            generation_end_time = datetime.now()
-            generation_duration = (generation_end_time - generation_start_time).total_seconds()
+            generation_time_ms = (generation_end_time - generation_start_time).total_seconds() * 1000
 
-            # Update the costs
-            costs = self.backend_internal_data_processing_dispatcher.costs
-            original_msg_ts = event.thread_id if event.thread_id else event.timestamp
-            blob_name = f"{event.channel_id}-{original_msg_ts}.txt"
-            await self.input_handler.calculate_and_update_costs(genai_cost_base, costs, blob_name, event)
+            # Process the completion response and costs
+            input_cost = (genai_cost_base.prompt_tk / 1000) * genai_cost_base.input_token_price
+            output_cost = (genai_cost_base.completion_tk / 1000) * genai_cost_base.output_token_price
+            total_cost = input_cost + output_cost
 
-            # Update the session with the model's completion and costs
-            assistant_response_event = {
-                'role': 'assistant',
-                'content': completion,
-                'generation_time': generation_duration,  # Add the generation time
-                'cost': {
-                    'total_tokens': genai_cost_base.total_tk,
-                    'prompt_tokens': genai_cost_base.prompt_tk,
-                    'completion_tokens': genai_cost_base.completion_tk,
-                    'input_cost': genai_cost_base.input_token_price,
-                    'output_cost': genai_cost_base.output_token_price
-                }
+            # Add the assistant's response to the session
+            assistant_message = {
+                "role": "assistant",
+                "content": completion,  # Strip markers if needed
+                "timestamp": generation_end_time.isoformat(),
+                "cost": {
+                    "total_tokens": genai_cost_base.total_tk,
+                    "prompt_tokens": genai_cost_base.prompt_tk,
+                    "completion_tokens": genai_cost_base.completion_tk,
+                    "input_cost": input_cost,
+                    "output_cost": output_cost,
+                    "total_cost": total_cost
+                },
+                "plugin_name": self.plugin_name,
+                "model_name": self.vertexai_gemini_modelname,
+                "generation_time_ms": generation_time_ms,
+                "from_action": True,  # Indicate that the message comes from an action
+                "action_payload": messages  # Include the messages that were sent to the model
             }
-            await self.session_manager.add_event_to_session(session, 'assistant_completion', assistant_response_event)
 
-            # Save the enriched session after the action and model invocation
-            await self.session_manager.save_session(session)
+            # Add the assistant message to the session
+            session.messages.append(assistant_message)
 
-            # Update the session with the completion (keeping the original Vertex AI implementation)
-            sessions = self.backend_internal_data_processing_dispatcher.sessions
-            messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
-            messages.append({"role": "assistant", "content": completion})
-            completion_json = json.dumps(messages)
-            await self.backend_internal_data_processing_dispatcher.write_data_content(sessions, blob_name, completion_json)
+            # Update the total generation time in the session
+            if not hasattr(session, 'total_time_ms'):
+                session.total_time_ms = 0.0
+            session.total_time_ms += generation_time_ms
+
+            # Save the updated session
+            await self.global_manager.session_manager.save_session(session)
 
             return completion
 
-        except ValueError as ve:
-            self.logger.error(f"JSON parsing failed: {ve}")
-            return "Error: The JSON text does not seem to be valid."
         except Exception as e:
-            self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
-            raise  # Re-raise the exception instead of returning None
+            self.logger.error(f"Error in handle_action: {e}")
+            raise
 
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
+    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output: bool = False):
 
         messages = await self.input_handler.filter_messages(messages)
 
@@ -254,7 +249,36 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
             # Get the first candidate's response text from the 'parts' field
             first_candidate = completion.candidates[0]
-            response_text = first_candidate.content.parts[0].text
+            response = first_candidate.content.parts[0].text
+            
+            if not raw_output:
+                start_marker = "[BEGINIMDETECT]"
+                end_marker = "[ENDIMDETECT]"
+
+                # Assurez-vous que les marqueurs existent dans la réponse
+                if start_marker in response and end_marker in response:
+                    # Extraire le contenu JSON entre les marqueurs
+                    json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
+
+                    try:
+                        response_dict = json.loads(json_content)
+                        normalized_response_dict = self.normalize_keys(response_dict)
+
+                        # Localiser l'action "UserInteraction" et remplacer les séquences d'échappement
+                        for action in normalized_response_dict.get("response", []):
+                            if action["Action"]["ActionName"] == "UserInteraction":
+                                value = action["Action"]["Parameters"]["value"]
+                                formatted_value = value.replace("\\n", "\n")  # Remplacer les séquences d'échappement
+                                action["Action"]["Parameters"]["value"] = formatted_value
+
+                        # Reconstruire le JSON formaté
+                        formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
+                        response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
+
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Error decoding JSON: {e}")
+                else:
+                    self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
 
             # Calculate token usage details before any return statement
             usage_metadata = completion.usage_metadata
@@ -266,7 +290,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             self.genai_cost_base.output_token_price = self.vertexai_gemini_output_token_price
 
             # Process the response text to preserve newlines and Unicode characters
-            formatted_response = self.process_response_text(response_text)
+            formatted_response = self.process_response_text(response)
 
             # Return both the formatted response and genai_cost_base
             return formatted_response, self.genai_cost_base

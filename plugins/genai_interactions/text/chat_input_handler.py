@@ -433,7 +433,8 @@ class ChatInputHandler():
             },
             "plugin_name": self.chat_plugin.plugin_name,
             "model_name": self.chat_plugin.model_name,
-            "generation_time_ms": generation_time_ms  # Temps de génération en millisecondes
+            "generation_time_ms": generation_time_ms,
+            "from_action": False
         }
 
         session.messages.append(assistant_message)
