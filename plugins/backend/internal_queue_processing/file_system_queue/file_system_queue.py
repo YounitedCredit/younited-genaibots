@@ -235,13 +235,15 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             with open(file_path, 'r', encoding='utf-8') as file:
                 message_content = file.read()
 
-            next_message_id = next_message_file.split('_')[-1].replace('.txt', '')
+            # Correctly extract the message_id (third element of the filename)
+            next_message_id = self.extract_message_id(next_message_file)
 
             return next_message_id, message_content
 
         except Exception as e:
             self.logger.error(f"{LOG_PREFIX} Failed to retrieve next message: {str(e)}")
             return None, None
+
 
     async def get_all_messages(self, data_container: str, channel_id: str, thread_id: str) -> List[str]:
         """

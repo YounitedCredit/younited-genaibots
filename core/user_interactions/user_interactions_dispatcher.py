@@ -11,7 +11,7 @@ from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
 from utils.config_manager.config_model import BotConfig
-
+from datetime import datetime
 
 class UserInteractionsDispatcher(UserInteractionsPluginBase):
     def __init__(self, global_manager):
@@ -175,6 +175,37 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         self.logger.debug("Entering send_message method")
         try:
             if event is not None:
+                if not is_internal and is_replayed is False:
+                    # Get the session
+                    session = await self.global_manager.session_manager.get_or_create_session(
+                        event.channel_id, event.thread_id, enriched=True
+                    )
+
+                    # Search for the most recent assistant message
+                    message_index = None
+                    for idx in range(len(session.messages) - 1, -1, -1):
+                        if session.messages[idx].get("role") == "assistant":
+                            message_index = idx
+                            break
+
+                    if message_index is not None:
+                        # Create the interaction data
+                        interaction = {
+                            "message": message,
+                            "message_type": message_type.value,
+                            "timestamp": datetime.now().isoformat(),
+                            "action_ref": action_ref
+                        }
+
+                        # Add interaction to the last assistant message found
+                        session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
+
+                        # Save the session after adding user interaction
+                        await self.global_manager.session_manager.save_session(session)
+
+                else:
+                    # Logique pour les messages internes
+                    self.logger.debug(f"Internal message: {message}")
                 plugin_name = event.origin_plugin_name
                 self.logger.debug(f"Event provided with origin_plugin_name: {plugin_name}")
 

@@ -93,18 +93,25 @@ async def test_get_next_message(file_system_queue_plugin):
     thread_id = "thread1"
     next_message_id = "1632492374.5678"
     expected_content = "Next message content"
+    current_guid = "current-guid"
+    next_guid = "next-guid"
 
-    # Ensure the correct file format is used for the queue
-    next_file_name = f"{channel_id}_{thread_id}_{next_message_id}.txt"
+    # Simulate a directory with multiple message files including GUIDs
+    file_list = [
+        f"{channel_id}_{thread_id}_1632492371.0000_earlier-guid.txt",  # Earlier message
+        f"{channel_id}_{thread_id}_{current_message_id}_{current_guid}.txt",  # Current message
+        f"{channel_id}_{thread_id}_{next_message_id}_{next_guid}.txt"  # Next message
+    ]
 
-    with patch("os.listdir", return_value=[next_file_name]), \
+    # Patch to mock directory listing and file reading
+    with patch("os.listdir", return_value=file_list), \
          patch("builtins.open", mock_open(read_data=expected_content)) as mocked_file:
 
         result_message_id, result_content = await file_system_queue_plugin.get_next_message(
             "messages", channel_id, thread_id, current_message_id
         )
 
-        # Assert the next message ID is correct
+        # Assert that the next message ID and content are returned correctly
         assert result_message_id == next_message_id
         assert result_content == expected_content
 
@@ -119,11 +126,15 @@ async def test_get_next_message_integration(file_system_queue_plugin, temp_queue
     current_message_id = "1632492373.1234"
     next_message_id = "1632492374.5678"
     expected_content = "Next message content"
+    current_guid = "current-guid"
+    next_guid = "next-guid"
 
-    # Create test files with appropriate content
-    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{current_message_id}.txt"), 'w') as f:
+    # Create multiple test files in the directory with GUIDs
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_1632492371.0000_earlier-guid.txt"), 'w') as f:
+        f.write("Earlier message")
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{current_message_id}_{current_guid}.txt"), 'w') as f:
         f.write("Current message")
-    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{next_message_id}.txt"), 'w') as f:
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{next_message_id}_{next_guid}.txt"), 'w') as f:
         f.write(expected_content)
 
     result_message_id, result_content = await file_system_queue_plugin.get_next_message(
@@ -151,18 +162,23 @@ async def test_get_next_message_integration(file_system_queue_plugin, temp_queue
     current_message_id = "1632492373.1234"
     next_message_id = "1632492374.5678"
     expected_content = "Next message content"
+    current_guid = "current-guid"
+    next_guid = "next-guid"
 
-    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{current_message_id}.txt"), 'w') as f:
+    # Create files with both the message_id and guid
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{current_message_id}_{current_guid}.txt"), 'w') as f:
         f.write("Current message")
-    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{next_message_id}.txt"), 'w') as f:
+    with open(os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{next_message_id}_{next_guid}.txt"), 'w') as f:
         f.write(expected_content)
 
     result_message_id, result_content = await file_system_queue_plugin.get_next_message(
         "messages", channel_id, thread_id, current_message_id
     )
 
+    # Assert that the next message ID and content are returned correctly
     assert result_message_id == next_message_id
     assert result_content == expected_content
+
 
 @pytest.mark.asyncio
 async def test_clear_messages_queue(file_system_queue_plugin):
@@ -186,14 +202,18 @@ async def test_cleanup_expired_messages(file_system_queue_plugin, temp_queue_dir
     thread_id = "thread1"
     expired_message_id = "1632492370.1234"  # Older timestamp
     valid_message_id = "1632492374.5678"
+    expired_guid = "expired-guid"
+    valid_guid = "valid-guid"
 
     expired_content = "Expired message"
     valid_content = "Valid message"
     ttl_seconds = 3600
 
-    expired_message_path = os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{expired_message_id}.txt")
-    valid_message_path = os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{valid_message_id}.txt")
+    # Include GUID in the filenames
+    expired_message_path = os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{expired_message_id}_{expired_guid}.txt")
+    valid_message_path = os.path.join(temp_queue_dir, "messages", f"{channel_id}_{thread_id}_{valid_message_id}_{valid_guid}.txt")
 
+    # Create test files for expired and valid messages
     with open(expired_message_path, 'w') as f:
         f.write(expired_content)
     with open(valid_message_path, 'w') as f:
@@ -206,7 +226,6 @@ async def test_cleanup_expired_messages(file_system_queue_plugin, temp_queue_dir
     # Verify the expired message was removed and the valid one was not
     assert not os.path.exists(expired_message_path)
     assert os.path.exists(valid_message_path)
-
 
 @pytest.mark.asyncio
 async def test_clear_all_queues(file_system_queue_plugin):
