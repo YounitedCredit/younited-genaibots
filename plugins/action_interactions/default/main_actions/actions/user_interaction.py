@@ -26,11 +26,11 @@ class UserInteraction(ActionBase):
         thread_id = parameters.get('threadid', None)
         event_copy = copy.deepcopy(event)
         is_custom_target = False
-        if channel_id:
+        if channel_id and channel_id.lower() != "none":
             event_copy.channel_id = channel_id
             is_custom_target = True
         
-        if thread_id:
+        if thread_id and channel_id.lower() != "none":
             is_custom_target = True
             if thread_id.lower() == "none":
                 event_copy.thread_id = ""
