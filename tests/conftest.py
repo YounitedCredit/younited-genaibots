@@ -8,33 +8,14 @@ import pytest
 from azure.storage.blob import BlobServiceClient
 
 from core.global_manager import GlobalManager
-from core.user_interactions.incoming_notification_data_base import (
-    IncomingNotificationDataBase,
-)
+from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
 from core.user_interactions.reaction_base import ReactionBase
-from core.user_interactions.user_interactions_dispatcher import (
-    UserInteractionsDispatcher,
-)
-from core.user_interactions.user_interactions_plugin_base import (
-    UserInteractionsPluginBase,
-)
-from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
-    UserInteractionsBehaviorsDispatcher,
-)
+from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
+from core.user_interactions.user_interactions_plugin_base import UserInteractionsPluginBase
+from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import UserInteractionsBehaviorsDispatcher
 from utils.config_manager.config_model import (
-    ActionInteractions,
-    AzureLogging,
-    Backend,
-    BotConfig,
-    ConfigModel,
-    GenaiInteractions,
-    LocalLogging,
-    Logging,
-    Plugin,
-    Plugins,
-    UserInteractions,
-    UserInteractionsBehaviors,
-    Utils,
+    ActionInteractions, AzureLogging, Backend, BotConfig, ConfigModel, GenaiInteractions,
+    LocalLogging, Logging, Plugin, Plugins, UserInteractions, UserInteractionsBehaviors, Utils
 )
 
 # Utiliser la boucle SelectorEventLoop sur Windows
@@ -62,7 +43,7 @@ def mock_utils():
             LOCAL_LOGGING=LocalLogging(
                 PLUGIN_NAME="local_logging",
                 LEVEL="DEBUG",
-                LOCAL_LOGGING_FILE_PATH="log.txt"  # Ajoutez ce champ requis
+                LOCAL_LOGGING_FILE_PATH="log.txt"
             ),
             AZURE_LOGGING=AzureLogging(
                 PLUGIN_NAME="azure_logging",
@@ -80,7 +61,7 @@ def mock_plugins():
         ),
         BACKEND=Backend(
             INTERNAL_DATA_PROCESSING={"some key": "some value"},
-            INTERNAL_QUEUE_PROCESSING={"some key": "some value"}  # Ajout de la clé manquante
+            INTERNAL_QUEUE_PROCESSING={"some key": "some value"}
         ),
         USER_INTERACTIONS=UserInteractions(
             INSTANT_MESSAGING={"some key": "some value"},
@@ -123,14 +104,14 @@ def mock_config_manager(mock_utils, mock_plugins):
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
-            LOAD_ACTIONS_FROM_BACKEND=False,  # Champ pour backend actions
-            CLEARQUEUE_KEYWORD='!CLEARQUEUE',  # Champ pour vider la queue
-            ACTIVATE_MESSAGE_QUEUING=False,  # Champ pour activer la queue des messages
-            INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="internal_queue_processing_default_plugin_name",  # Ajouté
-            LOAD_PROMPTS_FROM_BACKEND=False,  # Ajouté
-            LOCAL_PROMPTS_PATH="local_prompts_path",  # Ajouté
-            LOCAL_SUBPROMPTS_PATH="local_subprompts_path",  # Ajouté
-            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False  # Ajouté
+            LOAD_ACTIONS_FROM_BACKEND=False,
+            CLEARQUEUE_KEYWORD='!CLEARQUEUE',
+            ACTIVATE_MESSAGE_QUEUING=False,
+            INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="internal_queue_processing_default_plugin_name",
+            LOAD_PROMPTS_FROM_BACKEND=False,
+            LOCAL_PROMPTS_PATH="local_prompts_path",
+            LOCAL_SUBPROMPTS_PATH="local_subprompts_path",
+            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -153,52 +134,32 @@ def mock_action_interactions_handler():
 def mock_prompt_manager():
     return MagicMock()
 
-def mock_from_connection_string(*args, **kwargs):
-    return MagicMock(spec=BlobServiceClient)
-
 @pytest.fixture
 def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_interactions_handler,
                         mock_action_interactions_handler, mock_prompt_manager):
     mock_global_manager = MagicMock(spec=GlobalManager)
-
-    # Configuration du config_manager
     mock_global_manager.config_manager = mock_config_manager
     mock_global_manager.bot_config = mock_config_manager.config.BOT_CONFIG
-
-    # Configuration du plugin manager et des dispatchers
     mock_global_manager.plugin_manager = mock_plugin_manager
     mock_global_manager.user_interactions_dispatcher = AsyncMock()
     mock_global_manager.genai_interactions_text_dispatcher = AsyncMock()
     mock_global_manager.backend_internal_data_processing_dispatcher = AsyncMock()
     mock_global_manager.user_interactions_behavior_dispatcher = AsyncMock()
     mock_global_manager.genai_vectorsearch_dispatcher = AsyncMock()
-
-    # Add session_manager mock for the test
     mock_global_manager.session_manager = AsyncMock()
     mock_global_manager.session_manager.get_or_create_session = AsyncMock(
         return_value=MagicMock(messages=[{"role": "assistant"}])
     )
-
-    # Configuration des autres attributs nécessaires
     mock_global_manager.action_interactions_handler = mock_action_interactions_handler
     mock_global_manager.prompt_manager = mock_prompt_manager
     mock_global_manager.base_directory = Path('')
     mock_global_manager.available_actions = {}
-
-
-    # Mock the interaction_queue_manager to resolve missing attribute error
     mock_global_manager.interaction_queue_manager = AsyncMock()
-
-    # Logger
     mock_global_manager.logger = MagicMock()
     mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
-
-    # Configuration spécifique pour les plugins
-    mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'  # Ajouter le nom du plugin par défaut ici
-
+    mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'
     return mock_global_manager
-
 
 @pytest.fixture
 def mock_user_interactions_plugin():
@@ -252,6 +213,6 @@ def mock_incoming_notification_data_base():
         user_id="user_id",
         is_mention=True,
         text="text",
-        origin_plugin_name="plugin_name"  # Adding the mandatory field
+        origin_plugin_name="plugin_name"
     )
     return event_data

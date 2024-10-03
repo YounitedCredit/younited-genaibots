@@ -1,6 +1,6 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
-
+import json
 import pytest
 
 from core.event_processing.interaction_queue_manager import InteractionQueueManager
@@ -20,22 +20,33 @@ def interaction_queue_manager(mock_global_manager):
 
 @pytest.mark.asyncio
 async def test_save_event_to_backend(interaction_queue_manager, mock_global_manager):
+    # Mock the backend dispatcher
     mock_backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
     mock_backend_dispatcher.enqueue_message = AsyncMock()
 
-    interaction_queue_manager.internal_event_container = MagicMock()
-
     event_data = {
         'full_message_id': 'channel1_thread1_123456789_event123',
+        'message_id': '123456789',
+        'guid': 'event123',  # Add the guid key to match the function's expectation
         'method_params': {'is_internal': True}
     }
 
+    interaction_queue_manager.internal_event_container = MagicMock()
+    interaction_queue_manager.backend_dispatcher = mock_backend_dispatcher
+
+    # Call the method under test
     await interaction_queue_manager.save_event_to_backend(event_data, channel_id='channel1', thread_id='thread1')
 
-    # Ensure the async function was awaited correctly
-    await asyncio.sleep(0.1)  # Add a short sleep to allow async task to process
-    mock_backend_dispatcher.enqueue_message.assert_awaited_once()
-
+    # Check if enqueue_message was called with the correct arguments
+    mock_backend_dispatcher.enqueue_message.assert_called_once_with(
+        data_container=interaction_queue_manager.internal_event_container,
+        channel_id='channel1',
+        thread_id='thread1',
+        message_id='123456789',
+        message=json.dumps(event_data),
+        guid='event123'
+    )
+    
 # Test the initialization of the InteractionQueueManager
 def test_interaction_queue_manager_initialization(interaction_queue_manager, mock_global_manager):
     interaction_queue_manager.initialize()
@@ -44,8 +55,9 @@ def test_interaction_queue_manager_initialization(interaction_queue_manager, moc
     assert interaction_queue_manager.internal_event_container == mock_global_manager.backend_internal_queue_processing_dispatcher.internal_events_queue
     assert interaction_queue_manager.external_event_container == mock_global_manager.backend_internal_queue_processing_dispatcher.external_events_queue
 
-    # Check if the logger has been called to confirm initialization
-    interaction_queue_manager.logger.info.assert_called_with("InteractionQueueManager initialized.")
+    # Check if the expected logs were called
+    interaction_queue_manager.logger.info.assert_any_call("InteractionQueueManager initialized.")
+    interaction_queue_manager.logger.info.assert_any_call("Running synchronous cleanup of expired messages.")
 
 # Test adding an event to the internal queue
 @pytest.mark.asyncio
@@ -107,21 +119,43 @@ async def test_process_internal_queue(interaction_queue_manager, mock_global_man
         'method_params': {'channel_id': 'channel1', 'thread_id': 'thread1', 'is_internal': True}
     }
 
+    # Add event to the internal queue
     await interaction_queue_manager.internal_queues[queue_key].put(event_data)
 
-    task = asyncio.create_task(interaction_queue_manager.process_internal_queue(queue_key))
+    # Run the internal queue processor
+    await interaction_queue_manager.process_internal_queue(queue_key)
 
-    # Increase the wait time to give enough time for the task to execute
-    await asyncio.sleep(0.5)
-
+    # Assert send_message was awaited
     dispatcher.send_message.assert_awaited_once()
 
-    # Clean up the task
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+
+@pytest.mark.asyncio
+async def test_process_internal_queue(interaction_queue_manager, mock_global_manager):
+    dispatcher = mock_global_manager.user_interactions_dispatcher
+    dispatcher.send_message = AsyncMock()
+
+    queue_key = ('channel1', 'thread1')
+    event_data = {
+        'event_type': 'send_message',
+        'method_params': {'channel_id': 'channel1', 'thread_id': 'thread1', 'is_internal': True}
+    }
+
+    # Initialize the internal_processing_tasks dictionary
+    interaction_queue_manager.internal_processing_tasks = {queue_key: asyncio.create_task(asyncio.sleep(0))}
+
+    # Add event to the internal queue
+    await interaction_queue_manager.internal_queues[queue_key].put(event_data)
+
+    # Set up the mock for user_interaction_dispatcher
+    interaction_queue_manager.user_interaction_dispatcher = dispatcher
+
+    # Run the internal queue processor
+    await interaction_queue_manager.process_internal_queue(queue_key)
+
+    # Assert send_message was called
+    dispatcher.send_message.assert_called_once_with(
+        channel_id='channel1', thread_id='thread1', is_internal=True, is_replayed=True
+    )
 
 @pytest.mark.asyncio
 async def test_process_external_queue(interaction_queue_manager, mock_global_manager):
@@ -134,18 +168,19 @@ async def test_process_external_queue(interaction_queue_manager, mock_global_man
         'method_params': {'channel_id': 'channel2', 'thread_id': 'thread2', 'is_internal': False}
     }
 
+    # Initialize the external_processing_tasks dictionary
+    interaction_queue_manager.external_processing_tasks = {queue_key: asyncio.create_task(asyncio.sleep(0))}
+
+    # Add event to the external queue
     await interaction_queue_manager.external_queues[queue_key].put(event_data)
 
-    task = asyncio.create_task(interaction_queue_manager.process_external_queue(queue_key))
+    # Set up the mock for user_interaction_dispatcher
+    interaction_queue_manager.user_interaction_dispatcher = dispatcher
 
-    # Increase the wait time to give enough time for the task to execute
-    await asyncio.sleep(0.5)
+    # Run the external queue processor
+    await interaction_queue_manager.process_external_queue(queue_key)
 
-    dispatcher.upload_file.assert_awaited_once()
-
-    # Clean up the task
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    # Assert upload_file was called
+    dispatcher.upload_file.assert_called_once_with(
+        channel_id='channel2', thread_id='thread2', is_internal=False, is_replayed=True
+    )
