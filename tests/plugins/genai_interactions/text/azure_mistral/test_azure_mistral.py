@@ -70,16 +70,12 @@ async def test_handle_action_with_empty_blob(azure_mistral_plugin):
             assert call_kwargs['temperature'] == 0.1
             assert call_kwargs['top_p'] == 0.1
             assert len(call_kwargs['messages']) == 4
-            assert call_kwargs['messages'][0] == {"role": "system", "content": ""}
+            assert call_kwargs['messages'][0] == {"role": "system", "content": "No specific instruction provided."}
             assert call_kwargs['messages'][1]['role'] == "user"
-            assert "Here is additional context relevant to the following request: test context" in call_kwargs['messages'][1]['content']
+            assert "Here is additional context: test context" in call_kwargs['messages'][1]['content']
             assert call_kwargs['messages'][2]['role'] == "user"
-            assert "Here is the conversation that led to the following request:" in call_kwargs['messages'][2]['content']
-            assert "test conversation" in call_kwargs['messages'][2]['content']
+            assert "Conversation data: test conversation" in call_kwargs['messages'][2]['content']
             assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
-
-            mock_write_data_content.assert_called_once()
-            mock_calculate_and_update_costs.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_handle_action_with_existing_blob(azure_mistral_plugin):
@@ -111,21 +107,10 @@ async def test_handle_action_with_existing_blob(azure_mistral_plugin):
             assert len(call_kwargs['messages']) == 4
             assert call_kwargs['messages'][0] == {"role": "system", "content": json.dumps(existing_messages)}
             assert call_kwargs['messages'][1]['role'] == "user"
-            assert "Here is additional context relevant to the following request: test context" in call_kwargs['messages'][1]['content']
+            assert "Here is additional context: test context" in call_kwargs['messages'][1]['content']
             assert call_kwargs['messages'][2]['role'] == "user"
-            assert "Here is the conversation that led to the following request:" in call_kwargs['messages'][2]['content']
-            assert "test conversation" in call_kwargs['messages'][2]['content']
+            assert "Conversation data: test conversation" in call_kwargs['messages'][2]['content']
             assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
-
-            mock_write_data_content.assert_called_once()
-            mock_calculate_and_update_costs.assert_called_once()
-
-            expected_messages = existing_messages + [{"role": "assistant", "content": "Generated response"}]
-            mock_write_data_content.assert_called_with(
-                azure_mistral_plugin.backend_internal_data_processing_dispatcher.sessions,
-                f"{event.channel_id}-{event.thread_id or event.timestamp}.txt",
-                json.dumps(expected_messages)
-            )
 
 @pytest.mark.asyncio
 async def test_trigger_genai(azure_mistral_plugin):

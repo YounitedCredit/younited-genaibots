@@ -129,7 +129,14 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         is_internal=False,
                         show_ref=False
                     )
-                    await self.global_manager.interaction_queue_manager.clear_expired_messages()
+                    self.global_manager.interaction_queue_manager.clear_expired_messages()
+                    
+                    await self.user_interaction_dispatcher.remove_reaction_from_thread(
+                        channel_id=event.channel_id,
+                        thread_id=event.thread_id,
+                        reaction_name=self.reaction_wait,
+
+                    )
                     return
 
             # Check configuration settings for mention requirement

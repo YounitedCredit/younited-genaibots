@@ -235,9 +235,8 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output=False):
         self.logger.info("Generate completion triggered...")
         
-        # Déterminer si nous devons utiliser un modèle pour les images
-        model_name = self.azure_llama370b_modelname
-        messages = await self.filter_images(messages)  # Filtrer les images si non nécessaires
+        # Filtrer les images si non nécessaires
+        messages = await self.filter_images(messages)
 
         # Préparer les messages avant de les envoyer au modèle
         messages = [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
@@ -312,39 +311,6 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
                 is_internal=True
             )
             raise
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
-
-        messages = await self.input_handler.filter_messages(messages)
-
-        try:
-            completion = await self.commandr_client.chat.completions.create(
-                model=self.azure_llama370b_modelname,
-                messages=messages,
-                temperature=0.1,
-                top_p=0.1,
-            )
-
-            response = completion.choices[0].message.content
-            # Extract the GPT response and token usage details
-            # Create an instance of GenAICostBase without arguments
-            self.genai_cost_base = GenAICostBase()
-            # Set the attributes
-            self.genai_cost_base.total_tk = completion.usage.total_tokens
-            self.genai_cost_base.prompt_tk = completion.usage.prompt_tokens
-            self.genai_cost_base.completion_tk = completion.usage.completion_tokens
-            self.genai_cost_base.input_token_price = self.input_token_price
-            self.genai_cost_base.output_token_price = self.output_token_price
-
-            return response, self.genai_cost_base
-
-        except asyncio.exceptions.CancelledError:
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
-            self.logger.error("Task was cancelled")
-            raise
-        except Exception as e:
-            self.logger.error(f"An unexpected error occurred: {str(e)}")
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.ERROR, is_internal=True)
-            raise  # Re-raise the exception after logging
 
     async def trigger_genai(self, event :IncomingNotificationDataBase):
             event_copy = event

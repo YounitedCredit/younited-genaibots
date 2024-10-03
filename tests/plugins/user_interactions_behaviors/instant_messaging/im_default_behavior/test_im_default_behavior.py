@@ -199,7 +199,7 @@ async def test_mark_error(im_default_behavior_plugin):
 @pytest.mark.asyncio
 async def test_process_interaction_none_event(im_default_behavior_plugin):
     await im_default_behavior_plugin.process_interaction(None)
-    im_default_behavior_plugin.logger.debug.assert_called_with("IM behavior: No event")
+    im_default_behavior_plugin.logger.debug.assert_called_with("IM behavior: No event found")
 
 @pytest.mark.asyncio
 async def test_process_interaction_thread_break_keyword(im_default_behavior_plugin, global_manager):

@@ -12,7 +12,6 @@ from plugins.genai_interactions.text.azure_llama370b.azure_llama370b import (
     AzureLlama370bPlugin,
 )
 
-
 @pytest.fixture
 def mock_config():
     return {
@@ -44,21 +43,30 @@ def test_initialize(azure_llama370b_plugin):
     assert azure_llama370b_plugin.plugin_name == "azure_llama370b"
 
 @pytest.mark.asyncio
-async def test_handle_action_with_empty_blob(azure_llama370b_plugin):
+async def test_handle_action(azure_llama370b_plugin):
     with patch.object(azure_llama370b_plugin.commandr_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create, \
          patch.object(azure_llama370b_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
-         patch.object(azure_llama370b_plugin.session_manager, 'add_event_to_session', new_callable=AsyncMock) as mock_add_event_to_session, \
          patch.object(azure_llama370b_plugin.session_manager, 'save_session', new_callable=AsyncMock) as mock_save_session, \
-         patch.object(azure_llama370b_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-         patch.object(azure_llama370b_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
-         patch.object(azure_llama370b_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
+         patch.object(azure_llama370b_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
 
-        mock_create.return_value.choices[0].message.content = "Generated response"
+        mock_create.return_value.choices = [MagicMock(message=MagicMock(content="Generated response"))]
         mock_create.return_value.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
-        mock_get_or_create_session.return_value = MagicMock()
-        mock_read_data_content.return_value = ""
+        
+        fake_session = MagicMock()
+        fake_session.messages = []
+        mock_get_or_create_session.return_value = fake_session
 
-        action_input = ActionInput(action_name='generate_text', parameters={'input': 'test input', 'main_prompt': 'test prompt', 'context': 'test context', 'conversation_data': 'test conversation'})
+        mock_read_data_content.return_value = "Test prompt content"
+
+        action_input = ActionInput(
+            action_name='generate_text',
+            parameters={
+                'input': 'test input',
+                'main_prompt': 'test prompt',
+                'context': 'test context',
+                'conversation_data': 'test conversation'
+            }
+        )
         event = IncomingNotificationDataBase(
             channel_id="channel_id",
             thread_id="thread_id",
@@ -78,64 +86,108 @@ async def test_handle_action_with_empty_blob(azure_llama370b_plugin):
 
         mock_create.assert_called_once()
         call_kwargs = mock_create.call_args.kwargs
-        assert call_kwargs['model'] == "llama370b-model"
+        assert call_kwargs['model'] == azure_llama370b_plugin.azure_llama370b_modelname
         assert call_kwargs['temperature'] == 0.1
         assert call_kwargs['top_p'] == 0.1
         assert len(call_kwargs['messages']) == 4
-        assert call_kwargs['messages'][0] == {"role": "system", "content": ""}
+        assert call_kwargs['messages'][0]['role'] == "system"
+        assert call_kwargs['messages'][0]['content'] == "Test prompt content"
         assert call_kwargs['messages'][1]['role'] == "user"
-        assert "Here is additional context relevant to the following request: test context" in call_kwargs['messages'][1]['content']
+        assert "Here is additional context: test context" in call_kwargs['messages'][1]['content']
         assert call_kwargs['messages'][2]['role'] == "user"
-        assert "Here is the conversation that led to the following request:``` test conversation ```" in call_kwargs['messages'][2]['content']
+        assert "Conversation data: test conversation" in call_kwargs['messages'][2]['content']
         assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
+
+        mock_save_session.assert_called_once()
+        assert len(fake_session.messages) == 2
+        assert fake_session.messages[0]['role'] == 'user'
+        assert fake_session.messages[0]['content'] == 'test input'
+        assert fake_session.messages[0]['is_automated'] == True
+        assert fake_session.messages[1]['role'] == 'assistant'
+        assert fake_session.messages[1]['content'] == 'Generated response'
 
 @pytest.mark.asyncio
-async def test_handle_action_with_existing_blob(azure_llama370b_plugin):
+async def test_generate_completion(azure_llama370b_plugin):
+    messages = [{"role": "user", "content": "Test message"}]
+    event = IncomingNotificationDataBase(
+        channel_id="channel_id",
+        thread_id="thread_id",
+        user_id="user_id",
+        text="user text",
+        timestamp="timestamp",
+        event_label="event_label",
+        response_id="response_id",
+        user_name="user_name",
+        user_email="user_email",
+        is_mention=True,
+        origin_plugin_name="origin_plugin_name"
+    )
+
     with patch.object(azure_llama370b_plugin.commandr_client.chat.completions, 'create', new_callable=AsyncMock) as mock_create, \
-         patch.object(azure_llama370b_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
-         patch.object(azure_llama370b_plugin.session_manager, 'add_event_to_session', new_callable=AsyncMock) as mock_add_event_to_session, \
-         patch.object(azure_llama370b_plugin.session_manager, 'save_session', new_callable=AsyncMock) as mock_save_session, \
-         patch.object(azure_llama370b_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-         patch.object(azure_llama370b_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
-         patch.object(azure_llama370b_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
+         patch.object(azure_llama370b_plugin.input_handler, 'filter_messages', new_callable=AsyncMock) as mock_filter_messages:
 
-        mock_create.return_value.choices[0].message.content = "Generated response"
+        mock_create.return_value.choices = [MagicMock(message=MagicMock(content="Generated response"))]
         mock_create.return_value.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
-        mock_get_or_create_session.return_value = MagicMock()
+        mock_filter_messages.return_value = messages
 
-        existing_messages = [{"role": "assistant", "content": "previous message"}]
-        mock_read_data_content.return_value = json.dumps(existing_messages)
+        response, genai_cost_base = await azure_llama370b_plugin.generate_completion(messages, event)
 
-        action_input = ActionInput(action_name='generate_text', parameters={'input': 'test input', 'main_prompt': 'test prompt', 'context': 'test context', 'conversation_data': 'test conversation'})
-        event = IncomingNotificationDataBase(
-            channel_id="channel_id",
-            thread_id="thread_id",
-            user_id="user_id",
-            text="user text",
-            timestamp="timestamp",
-            event_label="event_label",
-            response_id="response_id",
-            user_name="user_name",
-            user_email="user_email",
-            is_mention=True,
-            origin_plugin_name="origin_plugin_name"
+        assert response == "Generated response"
+        assert genai_cost_base.total_tk == 100
+        assert genai_cost_base.prompt_tk == 50
+        assert genai_cost_base.completion_tk == 50
+        assert genai_cost_base.input_token_price == azure_llama370b_plugin.input_token_price
+        assert genai_cost_base.output_token_price == azure_llama370b_plugin.output_token_price
+
+        mock_create.assert_called_once_with(
+            model=azure_llama370b_plugin.azure_llama370b_modelname,
+            messages=messages,
+            temperature=0.1,
+            top_p=0.1,
         )
 
-        result = await azure_llama370b_plugin.handle_action(action_input, event)
-        assert result == "Generated response"
+@pytest.mark.asyncio
+async def test_trigger_genai(azure_llama370b_plugin):
+    event = IncomingNotificationDataBase(
+        channel_id="channel_id",
+        thread_id="thread_id",
+        user_id="user_id",
+        text="user text",
+        timestamp="timestamp",
+        event_label="event_label",
+        response_id="response_id",
+        user_name="user_name",
+        user_email="user_email",
+        is_mention=True,
+        origin_plugin_name="test_plugin"
+    )
 
-        mock_create.assert_called_once()
-        call_kwargs = mock_create.call_args.kwargs
-        assert call_kwargs['model'] == "llama370b-model"
-        assert call_kwargs['temperature'] == 0.1
-        assert call_kwargs['top_p'] == 0.1
-        assert len(call_kwargs['messages']) == 4
-        assert call_kwargs['messages'][0] == {"role": "system", "content": json.dumps(existing_messages)}
-        assert call_kwargs['messages'][1]['role'] == "user"
-        assert "Here is additional context relevant to the following request: test context" in call_kwargs['messages'][1]['content']
-        assert call_kwargs['messages'][2]['role'] == "user"
-        assert "Here is the conversation that led to the following request:``` test conversation ```" in call_kwargs['messages'][2]['content']
-        assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
+    with patch.object(azure_llama370b_plugin.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message, \
+         patch.object(azure_llama370b_plugin.global_manager.user_interactions_behavior_dispatcher, 'process_incoming_notification_data', new_callable=AsyncMock) as mock_process, \
+         patch.object(azure_llama370b_plugin.user_interaction_dispatcher, 'format_trigger_genai_message', MagicMock(return_value="<@BOT123> user text")) as mock_format_message:
+
+        await azure_llama370b_plugin.trigger_genai(event)
+
+        mock_format_message.assert_called_once_with(event=event, message="user text")
+
+        assert mock_send_message.call_count == 2
+        mock_send_message.assert_any_call(event=event, message="Processing incoming data, please wait...", message_type=MessageType.COMMENT)
+        mock_send_message.assert_any_call(
+            event=event,
+            message=":zap::robot_face: *AutomatedUserInput*: <@BOT123> user text",
+            message_type=MessageType.TEXT,
+            is_internal=True
+        )
+
+        mock_process.assert_called_once()
+
+        assert event.user_id == "AUTOMATED_RESPONSE"
+        assert event.user_name == "AUTOMATED_RESPONSE"
+        assert event.user_email == "AUTOMATED_RESPONSE"
+        assert event.event_label == "thread_message"
+        assert event.text == "<@BOT123> user text"
+        assert event.is_mention == True
+        assert event.thread_id == "thread_id"
 
 @pytest.mark.asyncio
 async def test_trigger_genai_long_text(azure_llama370b_plugin):
@@ -146,7 +198,6 @@ async def test_trigger_genai_long_text(azure_llama370b_plugin):
         user_id="user_id",
         text=long_text,
         timestamp="timestamp",
-
         event_label="event_label",
         response_id="response_id",
         user_name="user_name",
@@ -155,16 +206,13 @@ async def test_trigger_genai_long_text(azure_llama370b_plugin):
         origin_plugin_name="test_plugin"
     )
 
-    mock_format_trigger_genai_message = MagicMock(return_value=f"<@BOT123> {long_text}")
-
     with patch.object(azure_llama370b_plugin.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message, \
          patch.object(azure_llama370b_plugin.global_manager.user_interactions_behavior_dispatcher, 'process_incoming_notification_data', new_callable=AsyncMock) as mock_process, \
-         patch.object(azure_llama370b_plugin.user_interaction_dispatcher, 'format_trigger_genai_message', mock_format_trigger_genai_message), \
+         patch.object(azure_llama370b_plugin.user_interaction_dispatcher, 'format_trigger_genai_message', MagicMock(return_value=f"<@BOT123> {long_text}")) as mock_format_message, \
          patch.object(azure_llama370b_plugin.user_interaction_dispatcher, 'upload_file', new_callable=AsyncMock) as mock_upload_file:
 
         await azure_llama370b_plugin.trigger_genai(event)
 
-        # Vérifications
         mock_send_message.assert_called_once_with(event=event, message="Processing incoming data, please wait...", message_type=MessageType.COMMENT)
         mock_upload_file.assert_called_once_with(
             event=event,
@@ -175,4 +223,4 @@ async def test_trigger_genai_long_text(azure_llama370b_plugin):
         )
 
         mock_process.assert_called_once()
-        mock_format_trigger_genai_message.assert_called_once_with(event=event, message=long_text)
+        mock_format_message.assert_called_once_with(event=event, message=long_text)
