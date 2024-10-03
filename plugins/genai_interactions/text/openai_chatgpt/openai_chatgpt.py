@@ -301,80 +301,18 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             return response, self.genai_cost_base
 
+        except asyncio.CancelledError:
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
+            self.logger.error("Task was cancelled")
+            raise
         except asyncio.exceptions.CancelledError:
             await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.ERROR, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.COMMENT, is_internal=True)
             raise  # Re-raise the exception after logging
-
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output=False):
-        self.logger.info("Generate completion triggered...")
-
-        # Determine if we need to use the assistant
-        model_name = self.openai_chatgpt_config.OPENAI_CHATGPT_MODEL_NAME
-
-        # Filter the messages for image handling (if required)
-        messages = await self.filter_images(messages)
-
-        try:
-            client = AsyncOpenAI(api_key=self.openai_api_key)
-            completion = await client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                temperature=0.1,
-                max_tokens=4096
-            )
-
-            # Extract the full response
-            response = completion.choices[0].message.content
-
-            if not raw_output:
-                start_marker = "[BEGINIMDETECT]"
-                end_marker = "[ENDIMDETECT]"
-
-                # Ensure the markers exist in the response
-                if start_marker in response and end_marker in response:
-                    # Extract the JSON content between the markers
-                    json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
-
-                    try:
-                        response_dict = json.loads(json_content)
-                        normalized_response_dict = self.normalize_keys(response_dict)
-
-                        # Locate "UserInteraction" action and replace escape sequences
-                        for action in normalized_response_dict.get("response", []):
-                            if action["Action"]["ActionName"] == "UserInteraction":
-                                value = action["Action"]["Parameters"]["value"]
-                                formatted_value = value.replace("\\n", "\n")
-                                action["Action"]["Parameters"]["value"] = formatted_value
-
-                        # Rebuild formatted JSON
-                        formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
-                        response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
-
-                    except json.JSONDecodeError as e:
-                        self.logger.error(f"Error decoding JSON: {e}")
-                else:
-                    self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
-
-            # Track usage and costs
-            self.genai_cost_base = GenAICostBase()
-            usage = completion.usage
-            self.genai_cost_base.total_tk = usage.total_tokens
-            self.genai_cost_base.prompt_tk = usage.prompt_tokens
-            self.genai_cost_base.completion_tk = usage.completion_tokens
-            self.genai_cost_base.input_token_price = self.input_token_price
-            self.genai_cost_base.output_token_price = self.output_token_price
-
-            return response, self.genai_cost_base
-
-        except Exception as e:
-            self.logger.error(f"An error occurred during completion: {str(e)}\n{traceback.format_exc()}")
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.ERROR, is_internal=True)
-            raise
 
     async def filter_images(self, messages):
         filtered_messages = []
@@ -432,3 +370,16 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"Error in processing feedback: {e}")
             raise
+    
+    def camel_case(self, snake_str):
+        components = snake_str.split('_')
+        return ''.join(x.title() for x in components)
+
+    def normalize_keys(self, d):
+        if isinstance(d, dict):
+            return {self.camel_case(k): self.normalize_keys(v) for k, v in d.items()}
+        elif isinstance(d, list):
+            return [self.normalize_keys(i) for i in d]
+        else:
+            return d
+            

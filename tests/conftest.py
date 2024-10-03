@@ -79,7 +79,20 @@ def mock_plugins():
         ),
         BACKEND=Backend(
             INTERNAL_DATA_PROCESSING={"some key": "some value"},
-            INTERNAL_QUEUE_PROCESSING={"some key": "some value"}
+            INTERNAL_QUEUE_PROCESSING={
+                "AZURE_SERVICE_BUS": {
+                    "PLUGIN_NAME": "azure_service_bus",
+                    "AZURE_SERVICE_BUS_CONNECTION_STRING": "fake-connection-string",
+                    "SERVICE_BUS_MESSAGES_QUEUE": "test-messages-queue",
+                    "SERVICE_BUS_INTERNAL_EVENTS_QUEUE": "test-internal-events-queue",
+                    "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE": "test-external-events-queue",
+                    "SERVICE_BUS_WAIT_QUEUE": "test-wait-queue",
+                    "SERVICE_BUS_MESSAGES_QUEUE_TTL": 3600,
+                    "SERVICE_BUS_INTERNAL_EVENTS_QUEUE_TTL": 1800,
+                    "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL": 7200,
+                    "SERVICE_BUS_WAIT_QUEUE_TTL": 600
+                }
+            }
         ),
         USER_INTERACTIONS=UserInteractions(
             INSTANT_MESSAGING={"some key": "some value"},
@@ -177,7 +190,25 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'
+
+    # Ensure the Azure Service Bus plugin is available
+    mock_global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {
+        "AZURE_SERVICE_BUS": {
+            "PLUGIN_NAME": "azure_service_bus",
+            "AZURE_SERVICE_BUS_CONNECTION_STRING": "fake-connection-string",
+            "SERVICE_BUS_MESSAGES_QUEUE": "test-messages-queue",
+            "SERVICE_BUS_INTERNAL_EVENTS_QUEUE": "test-internal-events-queue",
+            "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE": "test-external-events-queue",
+            "SERVICE_BUS_WAIT_QUEUE": "test-wait-queue",
+            "SERVICE_BUS_MESSAGES_QUEUE_TTL": 3600,
+            "SERVICE_BUS_INTERNAL_EVENTS_QUEUE_TTL": 1800,
+            "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL": 7200,
+            "SERVICE_BUS_WAIT_QUEUE_TTL": 600
+        }
+    }
+
     return mock_global_manager
+
 
 @pytest.fixture
 def mock_user_interactions_plugin():

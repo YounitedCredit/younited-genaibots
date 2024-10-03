@@ -269,3 +269,212 @@ async def test_clear_all_queues(azure_blob_storage_queue_plugin):
     # Vérifier que delete_blob a été appelé 8 fois
     for mock_blob_client in mock_blob_service_client.get_blob_client.side_effect:
         mock_blob_client.delete_blob.assert_called_once()
+
+from unittest.mock import MagicMock, create_autospec, patch
+import pytest
+from azure.storage.blob import BlobClient, ContainerClient
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+import time
+
+# Existing fixtures are reused from your current setup
+# mock_global_manager, mock_azure_blob_storage_config, azure_blob_storage_queue_plugin
+
+
+def test_initialize_failure(mock_global_manager, mock_azure_blob_storage_config):
+    """
+    Test that the initialize method handles exceptions during BlobServiceClient creation.
+    """
+    # Inject the proper config key to avoid KeyError
+    mock_global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {
+        "AZURE_BLOB_STORAGE_QUEUE": mock_azure_blob_storage_config
+    }
+
+    with patch('azure.identity.DefaultAzureCredential') as mock_credential, \
+         patch('azure.storage.blob.BlobServiceClient.__init__', side_effect=Exception("Connection failed")):
+
+        with pytest.raises(Exception, match="Connection failed"):
+            plugin = AzureBlobStorageQueuePlugin(mock_global_manager)
+            plugin.initialize()
+
+def test_init_containers_existing(azure_blob_storage_queue_plugin, mock_azure_blob_storage_config):
+    """
+    Test init_containers when containers already exist (no creation needed).
+    """
+    mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
+
+    # Create separate mocks for each container
+    mock_container_client_1 = MagicMock()
+    mock_container_client_2 = MagicMock()
+    mock_container_client_3 = MagicMock()
+    mock_container_client_4 = MagicMock()
+
+    # Mock exists() to return True for each container
+    mock_container_client_1.exists.return_value = True
+    mock_container_client_2.exists.return_value = True
+    mock_container_client_3.exists.return_value = True
+    mock_container_client_4.exists.return_value = True
+
+    # Return the mocked container client for each call to get_container_client
+    mock_blob_service_client.get_container_client.side_effect = [
+        mock_container_client_1, 
+        mock_container_client_2, 
+        mock_container_client_3, 
+        mock_container_client_4
+    ]
+
+    azure_blob_storage_queue_plugin.init_containers()
+
+    # Ensure create_container is NOT called when containers exist
+    mock_container_client_1.create_container.assert_not_called()
+    mock_container_client_2.create_container.assert_not_called()
+    mock_container_client_3.create_container.assert_not_called()
+    mock_container_client_4.create_container.assert_not_called()
+
+
+def test_extract_message_id_valid(azure_blob_storage_queue_plugin):
+    """
+    Test extract_message_id with a valid blob name that includes a UNIX timestamp and GUID.
+    """
+    # Correct blob name format with a UNIX timestamp and a GUID (without underscores in the timestamp section)
+    valid_blob_name = "channel1_thread1_1632492370.1234_guid.txt"
+    
+    # Call the method and capture the result
+    message_id = azure_blob_storage_queue_plugin.extract_message_id(valid_blob_name)
+    
+    # Ensure correct message ID extraction
+    assert message_id == 1632492370.1234
+
+
+def test_extract_message_id_invalid(azure_blob_storage_queue_plugin):
+    """
+    Test extract_message_id with invalid blob name.
+    """
+    invalid_blob_name = "invalid_blob_name.txt"
+    message_id = azure_blob_storage_queue_plugin.extract_message_id(invalid_blob_name)
+    assert message_id is None
+
+def test_is_message_expired_true(azure_blob_storage_queue_plugin):
+    """
+    Test is_message_expired when the message has expired, using the correct blob name format.
+    """
+    # Correct blob name format with a UNIX timestamp and GUID
+    blob_name = "channel1_thread1_1632492370.1234_guid.txt"  # Old timestamp
+    
+    ttl_seconds = 3600  # 1 hour (3600 seconds)
+    
+    # Simulate the current time being *more than 1 hour* after the message timestamp
+    message_timestamp = 1632492370.1234
+    current_time = message_timestamp + ttl_seconds + 100  # Simulate time 100 seconds after TTL
+    
+    # Patch time.time() to return the simulated current time
+    with patch('time.time', return_value=current_time):
+        expired = azure_blob_storage_queue_plugin.is_message_expired(blob_name, ttl_seconds)
+
+        # Assert that the message has indeed expired
+        assert expired is True
+
+def test_is_message_expired_false(azure_blob_storage_queue_plugin):
+    """
+    Test is_message_expired when the message has not expired.
+    """
+    blob_name = "channel_1_thread_1_1632492370.txt"  # Current timestamp
+    ttl_seconds = 3600  # 1 hour
+    with patch('time.time', return_value=1632492371):  # Simulate current time + 1 second
+        expired = azure_blob_storage_queue_plugin.is_message_expired(blob_name, ttl_seconds)
+        assert expired is False
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_messages_no_expiry(azure_blob_storage_queue_plugin):
+    """
+    Test cleanup_expired_messages when there are no expired messages.
+    """
+    channel_id = "channel_1"
+    thread_id = "thread_1"
+    valid_blob_name = f"{channel_id}_{thread_id}_1632492374.txt"  # Not expired
+    ttl_seconds = 3600
+
+    # Mock list_blobs to return blobs
+    mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
+    mock_container_client = mock_blob_service_client.get_container_client.return_value
+    mock_container_client.list_blobs.return_value = [MagicMock(name=valid_blob_name)]
+
+    # Mock is_message_expired to return False (no expiration)
+    with patch.object(azure_blob_storage_queue_plugin, 'is_message_expired', return_value=False):
+        await azure_blob_storage_queue_plugin.cleanup_expired_messages("messages", channel_id, thread_id, ttl_seconds)
+
+    # Ensure delete_blob is not called
+    mock_blob_service_client.get_blob_client.return_value.delete_blob.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_messages_with_expiry(azure_blob_storage_queue_plugin):
+    """
+    Test cleanup_expired_messages when messages are expired.
+    """
+    channel_id = "channel_1"
+    thread_id = "thread_1"
+    expired_blob_name = f"{channel_id}_{thread_id}_1632492370.txt"  # Expired
+    ttl_seconds = 3600
+
+    # Mock list_blobs to return blobs
+    mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
+    mock_container_client = mock_blob_service_client.get_container_client.return_value
+    mock_container_client.list_blobs.return_value = [MagicMock(name=expired_blob_name)]
+
+    # Mock is_message_expired to return True for expired blobs
+    with patch.object(azure_blob_storage_queue_plugin, 'is_message_expired', return_value=True):
+        await azure_blob_storage_queue_plugin.cleanup_expired_messages("messages", channel_id, thread_id, ttl_seconds)
+
+    # Ensure delete_blob is called for expired blobs
+    mock_blob_service_client.get_blob_client.return_value.delete_blob.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_dequeue_message_not_found(azure_blob_storage_queue_plugin):
+    """
+    Test dequeue_message when the message is not found (ResourceNotFoundError).
+    """
+    channel_id = "channel_1"
+    thread_id = "thread_1"
+    message_id = "1"
+    guid = "test_guid"
+
+    # Mock BlobClient
+    mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
+    mock_blob_client = mock_blob_service_client.get_blob_client.return_value
+
+    # Simulate ResourceNotFoundError when trying to delete blob
+    mock_blob_client.delete_blob.side_effect = ResourceNotFoundError
+
+    await azure_blob_storage_queue_plugin.dequeue_message("messages", channel_id, thread_id, message_id, guid)
+
+    # Ensure delete_blob is called, and it raised the appropriate exception
+    mock_blob_client.delete_blob.assert_called_once()
+    azure_blob_storage_queue_plugin.logger.warning.assert_called_with(f"[AZURE_BLOB_QUEUE] Message '{channel_id}_{thread_id}_{message_id}_{guid}.txt' not found.")
+
+
+@pytest.mark.asyncio
+async def test_enqueue_message_already_exists(azure_blob_storage_queue_plugin):
+    """
+    Test enqueue_message when the blob already exists (ResourceExistsError).
+    """
+    channel_id = "channel_1"
+    thread_id = "thread_1"
+    message_id = "1"
+    message = "Test Message"
+    guid = "test_guid"
+
+    # Mock BlobClient
+    mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
+    mock_blob_client = mock_blob_service_client.get_blob_client.return_value
+
+    # Simulate ResourceExistsError when trying to upload blob
+    mock_blob_client.upload_blob.side_effect = ResourceExistsError
+
+    await azure_blob_storage_queue_plugin.enqueue_message("messages", channel_id, thread_id, message_id, message, guid)
+
+    # Ensure upload_blob is called, and a warning is logged for existing blob
+    mock_blob_client.upload_blob.assert_called_once_with(message, overwrite=True)
+    azure_blob_storage_queue_plugin.logger.warning.assert_called_with(f"[AZURE_BLOB_QUEUE] Message with GUID '{guid}' already exists.")
+
