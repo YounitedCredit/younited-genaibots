@@ -26,7 +26,7 @@ class ChatInputHandler():
         self.logger = self.global_manager.logger
         self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.chat_plugin: GenAIInteractionsTextPluginBase = chat_plugin
-
+        self.bot_config = self.global_manager.bot_config
         # Dispatchers
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher

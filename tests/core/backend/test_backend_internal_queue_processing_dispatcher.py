@@ -1,6 +1,10 @@
 import pytest
+
+from core.backend.backend_internal_queue_processing_dispatcher import (
+    BackendInternalQueueProcessingDispatcher,
+)
 from core.backend.internal_queue_processing_base import InternalQueueProcessingBase
-from core.backend.backend_internal_queue_processing_dispatcher import BackendInternalQueueProcessingDispatcher
+
 
 @pytest.fixture
 def mock_plugin():
@@ -58,7 +62,7 @@ def mock_plugin():
         @property
         def wait_queue_ttl(self):
             return self._wait_queue_ttl
-        
+
         @property
         def messages_queue(self):
             return self._messages_queue

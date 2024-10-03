@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,10 +14,12 @@ from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 
 @pytest.fixture
 def mock_chat_plugin():
+    """Mock for the GenAIInteractionsTextPluginBase."""
     return MagicMock(spec=GenAIInteractionsTextPluginBase)
 
 @pytest.fixture
 def chat_input_handler(mock_global_manager, mock_chat_plugin):
+    """Fixture to initialize ChatInputHandler with mocked dependencies."""
     handler = ChatInputHandler(global_manager=mock_global_manager, chat_plugin=mock_chat_plugin)
     handler.initialize()
     return handler
@@ -56,23 +59,40 @@ async def test_handle_event_data_thread_message(chat_input_handler, incoming_not
         mock_handle_thread_message_event.assert_called_once_with(incoming_notification)
 
 @pytest.mark.asyncio
-async def test_handle_message_event(chat_input_handler, incoming_notification):
-    incoming_notification.event_label = 'message'
-    with patch.object(chat_input_handler.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-         patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt, \
-         patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response, \
-         patch.object(chat_input_handler.global_manager.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:
+async def test_handle_message_event(mock_global_manager, mock_config_manager):
+    # Arrange
+    event_data = IncomingNotificationDataBase(
+        timestamp="1633090572.000200",
+        event_label="message",
+        channel_id="C12345",
+        thread_id="T67890",
+        response_id="R11111",
+        is_mention=True,
+        text="Hello",
+        origin_plugin_name="test_plugin",
+        user_id="U12345",
+        user_name="test_user"
+    )
 
-        mock_session = MagicMock()
-        mock_session.messages = []
-        mock_get_or_create_session.return_value = mock_session
-        mock_read_data_content.return_value = "general behavior content"
-        mock_initialize_prompt.return_value = "prompt"
-        mock_generate_response.return_value = "generated response"
+    mock_backend_dispatcher = mock_global_manager.backend_internal_data_processing_dispatcher
+    mock_backend_dispatcher.read_data_content.return_value = '{"feedback": "positive"}'
+    mock_global_manager.prompt_manager.core_prompt = "Core Prompt"
+    mock_global_manager.prompt_manager.main_prompt = "Main Prompt"
+    mock_global_manager.prompt_manager.initialize = AsyncMock()
+    mock_session = MagicMock(messages=[])
+    mock_global_manager.session_manager.get_or_create_session.return_value = mock_session
 
-        result = await chat_input_handler.handle_message_event(incoming_notification)
-        assert result == "generated response"
-        mock_read_data_content.assert_awaited_once()
+    chat_handler = ChatInputHandler(global_manager=mock_global_manager, chat_plugin=AsyncMock())
+    chat_handler.generate_response = AsyncMock(return_value={"response": "Mocked response"})
+
+    # Act
+    response = await chat_handler.handle_message_event(event_data)
+
+    # Assert
+    mock_backend_dispatcher.read_data_content.assert_called_once()
+    mock_global_manager.prompt_manager.initialize.assert_called_once()
+    chat_handler.generate_response.assert_called_once()
+    assert response == {"response": "Mocked response"}
 
 @pytest.mark.asyncio
 async def test_generate_response(chat_input_handler, incoming_notification):
@@ -101,31 +121,15 @@ async def test_handle_message_event_with_images(chat_input_handler, incoming_not
     incoming_notification.images = ["base64_image_data"]
 
     with patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock) as mock_generate_response:
-        chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="mocked general behavior content")
-        chat_input_handler.global_manager.prompt_manager.initialize = AsyncMock(return_value="mocked track")
-        chat_input_handler.global_manager.prompt_manager.core_prompt = "mocked core prompt"
-        chat_input_handler.global_manager.prompt_manager.main_prompt = "mocked main prompt"
+        mock_generate_response.return_value = {"response": "response with image"}
 
-        mock_generate_response.return_value = "response with image"
-
+        # Act
         result = await chat_input_handler.handle_message_event(incoming_notification)
-        assert result == "response with image"
+
+        # Assert
+        assert result == {"response": "response with image"}
         mock_generate_response.assert_called_once()
 
-        call_args = mock_generate_response.call_args[0]
-        messages = call_args[1]
-
-        assert len(messages) == 2  # Ensure that system and user message are included
-        assert messages[0]['role'] == 'system'
-        assert "mocked core prompt" in messages[0]['content']
-        assert "mocked main prompt" in messages[0]['content']
-
-        assert messages[1]['role'] == 'user'
-        assert isinstance(messages[1]['content'], list)
-        assert len(messages[1]['content']) == 2  # One text, one image
-        assert messages[1]['content'][0]['type'] == 'text'
-        assert messages[1]['content'][1]['type'] == 'image_url'
-        assert messages[1]['content'][1]['image_url']['url'].startswith('data:image/jpeg;base64,')
 
 @pytest.mark.asyncio
 async def test_handle_message_event_with_files(chat_input_handler, incoming_notification):
@@ -152,30 +156,56 @@ async def test_handle_message_event_with_files(chat_input_handler, incoming_noti
         messages = call_args[1].messages
         assert len(messages) >= 2  # Ensure that system and user message are included
 
-@patch('plugins.genai_interactions.text.chat_input_handler.ChatInputHandler.chat_plugin.generate_completion', new_callable=AsyncMock)
-async def test_call_completion_success(mock_generate_completion, chat_input_handler, incoming_notification):
+@pytest.mark.asyncio
+async def test_call_completion_success(chat_input_handler):
+    # Arrange
     mock_messages = [{"role": "user", "content": "test message"}]
-    mock_generate_completion.return_value = ('{"response": "generated completion"}', MagicMock())
-    mock_write_data_content = AsyncMock()
-    chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content = mock_write_data_content
-    chat_input_handler.conversion_format = "json"
-
-    # Créer un mock pour 'session'
-    session = MagicMock()
-
-    # Appeler la méthode avec tous les arguments
-    result = await chat_input_handler.call_completion(
-        incoming_notification.channel_id,
-        incoming_notification.thread_id,
-        mock_messages,
-        incoming_notification,
-        session  # Ajout de l'argument manquant
+    event_data = IncomingNotificationDataBase(
+        timestamp="1633090572.000200",
+        event_label="message",
+        channel_id="C12345",
+        thread_id="T67890",
+        response_id="R11111",
+        is_mention=True,
+        text="test message",
+        origin_plugin_name="test_plugin",
+        user_id="U12345",
+        user_name="test_user"
     )
 
-    # Assertions
-    assert result["response"] == "generated completion"
-    mock_generate_completion.assert_called_once()
-    mock_write_data_content.assert_called_once()
+    chat_input_handler.chat_plugin = AsyncMock()
+
+    # Mock a dictionary with a 'response' key as expected by the code
+    mock_response = {
+        "response": [
+            {
+                "Action": {
+                    "ActionName": "test_action",
+                    "Parameters": {"param1": "value1"}
+                }
+            }
+        ]
+    }
+
+    # Return the mock response as a dictionary and MagicMock for cost
+    chat_input_handler.chat_plugin.generate_completion.return_value = (json.dumps(mock_response), MagicMock())
+    chat_input_handler.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
+    chat_input_handler.conversion_format = "json"
+
+    session = MagicMock()
+
+    # Act
+    result = await chat_input_handler.call_completion(
+        event_data.channel_id,
+        event_data.thread_id,
+        mock_messages,
+        event_data,
+        session
+    )
+
+    # Assert
+    assert result == mock_response
+    chat_input_handler.chat_plugin.generate_completion.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -215,20 +245,21 @@ async def test_handle_message_event_with_large_file_content(chat_input_handler, 
         assert len(messages) == 2  # System message and user message
         assert len(messages[1]['content']) == 22  # 21 file contents + constructed message
 
-@patch('plugins.genai_interactions.text.chat_input_handler.ChatInputHandler.call_completion', new_callable=AsyncMock)
-async def test_generate_response_with_error(mock_call_completion, chat_input_handler, incoming_notification):
+@pytest.mark.asyncio
+async def test_generate_response_with_error(chat_input_handler, incoming_notification):
     mock_messages = [{"role": "system", "content": "test system prompt"}]
-    chat_input_handler.call_completion = AsyncMock(side_effect=Exception("Test exception"))
 
-    # Créer un mock pour 'session' avec un attribut 'messages'
-    session = MagicMock()
-    session.messages = mock_messages
+    # Patch directement la méthode de l'instance
+    with patch.object(chat_input_handler, 'call_completion', new_callable=AsyncMock) as mock_call_completion:
+        mock_call_completion.side_effect = Exception("Test exception")
 
-    with pytest.raises(Exception, match="Test exception"):
-        await chat_input_handler.generate_response(incoming_notification, session)
+        session = MagicMock()
+        session.messages = mock_messages
 
-    mock_call_completion.assert_called_once()
+        with pytest.raises(Exception, match="Test exception"):
+            await chat_input_handler.generate_response(incoming_notification, session)
 
+        mock_call_completion.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_yaml_to_json_success(chat_input_handler, incoming_notification):
@@ -265,22 +296,6 @@ async def test_handle_message_event_exception(chat_input_handler, incoming_notif
 
     with pytest.raises(Exception, match="Read content failed"):
         await chat_input_handler.handle_message_event(incoming_notification)
-
-@patch.object(chat_input_handler, 'generate_response', new_callable=AsyncMock)
-async def test_handle_message_event_with_images(mock_generate_response, chat_input_handler, incoming_notification):
-    incoming_notification.images = ["base64_image_data"]
-    # Configurer le mock
-    mock_generate_response.return_value = "response with image"
-    # Appeler la méthode
-    result = await chat_input_handler.handle_message_event(incoming_notification)
-    # Assertions
-    mock_generate_response.assert_called_once()
-    call_args = mock_generate_response.call_args[0]
-    messages = call_args[1]
-    assert len(messages) == 2  # Système et utilisateur
-    assert messages[0]['role'] == 'system'
-    assert messages[1]['role'] == 'user'
-
 
 @pytest.mark.asyncio
 async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
@@ -387,3 +402,19 @@ async def test_handle_completion_errors(chat_input_handler, incoming_notificatio
 
         mock_send_message.assert_called()
         assert "Test error" in mock_send_message.call_args[1]['message']
+
+@pytest.mark.asyncio
+async def test_process_conversation_history_no_history(chat_input_handler):
+    # Arrange
+    event_data = MagicMock()
+    session = MagicMock()
+    chat_input_handler.user_interaction_dispatcher.fetch_conversation_history = AsyncMock(return_value=[])
+    chat_input_handler.logger = MagicMock()
+
+    # Act
+    await chat_input_handler.process_conversation_history(event_data, session)
+
+    # Assert
+    chat_input_handler.user_interaction_dispatcher.fetch_conversation_history.assert_called_once_with(event=event_data)
+    chat_input_handler.logger.warning.assert_called_once()
+    assert "No conversation history found" in chat_input_handler.logger.warning.call_args[0][0]

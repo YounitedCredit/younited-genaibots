@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, create_autospec, patch
+
 import pydantic
 import pytest
 from azure.storage.blob import BlobClient, ContainerClient
@@ -270,11 +271,8 @@ async def test_clear_all_queues(azure_blob_storage_queue_plugin):
     for mock_blob_client in mock_blob_service_client.get_blob_client.side_effect:
         mock_blob_client.delete_blob.assert_called_once()
 
-from unittest.mock import MagicMock, create_autospec, patch
 import pytest
-from azure.storage.blob import BlobClient, ContainerClient
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-import time
 
 # Existing fixtures are reused from your current setup
 # mock_global_manager, mock_azure_blob_storage_config, azure_blob_storage_queue_plugin
@@ -316,9 +314,9 @@ def test_init_containers_existing(azure_blob_storage_queue_plugin, mock_azure_bl
 
     # Return the mocked container client for each call to get_container_client
     mock_blob_service_client.get_container_client.side_effect = [
-        mock_container_client_1, 
-        mock_container_client_2, 
-        mock_container_client_3, 
+        mock_container_client_1,
+        mock_container_client_2,
+        mock_container_client_3,
         mock_container_client_4
     ]
 
@@ -337,10 +335,10 @@ def test_extract_message_id_valid(azure_blob_storage_queue_plugin):
     """
     # Correct blob name format with a UNIX timestamp and a GUID (without underscores in the timestamp section)
     valid_blob_name = "channel1_thread1_1632492370.1234_guid.txt"
-    
+
     # Call the method and capture the result
     message_id = azure_blob_storage_queue_plugin.extract_message_id(valid_blob_name)
-    
+
     # Ensure correct message ID extraction
     assert message_id == 1632492370.1234
 
@@ -359,13 +357,13 @@ def test_is_message_expired_true(azure_blob_storage_queue_plugin):
     """
     # Correct blob name format with a UNIX timestamp and GUID
     blob_name = "channel1_thread1_1632492370.1234_guid.txt"  # Old timestamp
-    
+
     ttl_seconds = 3600  # 1 hour (3600 seconds)
-    
+
     # Simulate the current time being *more than 1 hour* after the message timestamp
     message_timestamp = 1632492370.1234
     current_time = message_timestamp + ttl_seconds + 100  # Simulate time 100 seconds after TTL
-    
+
     # Patch time.time() to return the simulated current time
     with patch('time.time', return_value=current_time):
         expired = azure_blob_storage_queue_plugin.is_message_expired(blob_name, ttl_seconds)

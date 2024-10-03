@@ -370,7 +370,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"Error in processing feedback: {e}")
             raise
-    
+
     def camel_case(self, snake_str):
         components = snake_str.split('_')
         return ''.join(x.title() for x in components)
@@ -382,4 +382,3 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             return [self.normalize_keys(i) for i in d]
         else:
             return d
-            

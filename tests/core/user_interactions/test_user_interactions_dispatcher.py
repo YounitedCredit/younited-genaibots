@@ -1,7 +1,8 @@
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock
-from fastapi import BackgroundTasks
+
 import pytest
+from fastapi import BackgroundTasks
 
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
@@ -130,7 +131,7 @@ async def test_process_event_data(mock_user_interactions_dispatcher, mock_user_i
 def test_set_default_plugin(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.set_default_plugin("test_plugin")
-    
+
     # Check that the default plugin is correctly set
     assert mock_user_interactions_dispatcher.default_plugin_name == "test_plugin"
     assert mock_user_interactions_dispatcher.default_plugin == mock_user_interactions_plugin
@@ -141,7 +142,7 @@ def test_get_plugin_not_found(mock_user_interactions_dispatcher):
 
     # Ensure plugins are set up as a dictionary
     mock_user_interactions_dispatcher.plugins = {"default_category": []}
-    
+
     # No default plugin is set
     mock_user_interactions_dispatcher.default_plugin = None
 
@@ -150,7 +151,7 @@ def test_get_plugin_not_found(mock_user_interactions_dispatcher):
 
     # Expecting None to be returned
     assert result is None
-    
+
     # Check that the logger was called with the correct error message for no default plugin
     mock_user_interactions_dispatcher.logger.error.assert_called_with('No default plugin configured.')
 
@@ -178,7 +179,7 @@ async def test_process_event_data(mock_user_interactions_dispatcher, mock_user_i
     mock_event.origin_plugin_name = "test_plugin"
     headers = {"header": "value"}
     raw_body_str = "raw body"
-    
+
     # Mock the plugin's process_event_data method
     mock_user_interactions_plugin.process_event_data = AsyncMock()
 

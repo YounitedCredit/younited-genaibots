@@ -5,10 +5,11 @@ import pytest
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
+from core.user_interactions.message_type import MessageType
 from plugins.user_interactions_behaviors.custom_api.ca_default_behavior.ca_default_behavior import (
     CaDefaultBehaviorPlugin,
 )
-from core.user_interactions.message_type import MessageType
+
 
 @pytest.fixture(scope="function", autouse=True)
 def global_manager(mock_global_manager):
@@ -422,31 +423,31 @@ async def test_process_interaction_message_queuing_enabled(ca_default_behavior_p
     event = IncomingNotificationDataBase.from_dict(event_data)
     ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
     ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.has_older_messages = AsyncMock(return_value=True)
-    
+
     # Set up the reaction_wait as a string
     ca_default_behavior_plugin.user_interaction_dispatcher.reactions.WAIT = "wait"
     ca_default_behavior_plugin.reaction_wait = "wait"
 
     # Mock the event_label to be "thread_message" to trigger the wait reaction
     event.event_label = "thread_message"
-    
+
     # Mock the bot_config attributes
     ca_default_behavior_plugin.global_manager.bot_config.BREAK_KEYWORD = "break"
     ca_default_behavior_plugin.global_manager.bot_config.START_KEYWORD = "start"
     ca_default_behavior_plugin.global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"
-    
+
     # Ensure event.text is a string
     event.text = "some message text"
 
     await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
 
     ca_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_awaited_once()
-    
+
     # Debug: Print all calls to add_reaction
     print("Calls to add_reaction:")
     for call in ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.mock_calls:
         print(f"  {call}")
-    
+
     # Check if add_reaction was called with the correct arguments
     ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once_with(
         event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name="wait"
@@ -468,7 +469,7 @@ async def test_begin_genai_completion(ca_default_behavior_plugin, event_data):
     event = IncomingNotificationDataBase.from_dict(event_data)
     ca_default_behavior_plugin.reaction_writing = "writing"
     ca_default_behavior_plugin.reaction_generating = "generating"
-    
+
     await ca_default_behavior_plugin.begin_genai_completion(event, event.channel_id, event.timestamp)
 
     ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
@@ -490,7 +491,7 @@ async def test_mark_error(ca_default_behavior_plugin, event_data):
     event = IncomingNotificationDataBase.from_dict(event_data)
     ca_default_behavior_plugin.reaction_generating = "generating"
     ca_default_behavior_plugin.reaction_error = "error"
-    
+
     await ca_default_behavior_plugin.mark_error(event, event.channel_id, event.timestamp)
 
     ca_default_behavior_plugin.user_interaction_dispatcher.remove_reaction.assert_awaited_once_with(
@@ -505,15 +506,15 @@ async def test_process_interaction_error_handling(ca_default_behavior_plugin, ev
     # Mock the request_to_notification_data to return a valid event before raising an exception
     mock_event = IncomingNotificationDataBase.from_dict(event_data)
     ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=mock_event)
-    
+
     # Mock the backend_internal_data_processing_dispatcher to raise an exception
     ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock(side_effect=Exception("Test error"))
-    
+
     ca_default_behavior_plugin.mark_error = AsyncMock()
-    
+
     # Mock the necessary attributes
     ca_default_behavior_plugin.logger = MagicMock()
-    
+
     # Mock the global_manager and its attributes
     ca_default_behavior_plugin.global_manager = MagicMock()
     ca_default_behavior_plugin.global_manager.bot_config.BREAK_KEYWORD = "break"
@@ -536,7 +537,7 @@ async def test_process_interaction_error_handling(ca_default_behavior_plugin, ev
         is_internal=True,
         show_ref=False
     )
-    
+
     # Check if mark_error was called
     ca_default_behavior_plugin.mark_error.assert_awaited_once_with(
         mock_event, mock_event.channel_id, mock_event.timestamp

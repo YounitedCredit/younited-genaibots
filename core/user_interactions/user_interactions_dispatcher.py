@@ -47,11 +47,11 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                         return plugin
 
         self.logger.error(f"UserInteractionsDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
-        
+
         # Return the default plugin if the requested one is not found
         if self.default_plugin:
             return self.default_plugin
-        
+
         # Handle the case where no default plugin is set
         self.logger.error("No default plugin configured.")
         return None

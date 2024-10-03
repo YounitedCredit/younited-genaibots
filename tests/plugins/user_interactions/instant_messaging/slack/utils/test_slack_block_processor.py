@@ -1,5 +1,9 @@
 import pytest
-from plugins.user_interactions.instant_messaging.slack.utils.slack_block_processor import SlackBlockProcessor
+
+from plugins.user_interactions.instant_messaging.slack.utils.slack_block_processor import (
+    SlackBlockProcessor,
+)
+
 
 @pytest.fixture
 def slack_block_processor():

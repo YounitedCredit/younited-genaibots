@@ -1,8 +1,9 @@
-import pytest
+import json
 from datetime import datetime
 from unittest.mock import patch
+
 from core.sessions.session_base import SessionBase
-import json
+
 
 def test_session_base_initialization():
     """

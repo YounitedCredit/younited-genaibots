@@ -1,10 +1,12 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+import json
 from datetime import datetime
-from core.sessions.session_manager import SessionManager
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from core.sessions.enriched_session import EnrichedSession
 from core.sessions.session_base import SessionBase
-import json
+from core.sessions.session_manager import SessionManager
 
 
 @pytest.fixture
@@ -32,7 +34,7 @@ async def test_initialize(session_manager, mock_global_manager):
     Test the initialize method of SessionManager to ensure it sets up the backend dispatcher.
     """
     session_manager.initialize()
-    
+
     assert session_manager.backend_dispatcher == mock_global_manager.backend_internal_data_processing_dispatcher
 
 def test_generate_session_id(session_manager):
@@ -51,7 +53,7 @@ async def test_create_session(session_manager):
     session = await session_manager.create_session("channel_123", "thread_456")
     assert isinstance(session, SessionBase)
     assert session.session_id == "channel_123_thread_456.json"
-    
+
     # Test creating an enriched session
     enriched_session = await session_manager.create_session("channel_123", "thread_456", enriched=True)
     assert isinstance(enriched_session, EnrichedSession)
@@ -99,7 +101,7 @@ async def test_save_session(session_manager, mock_global_manager):
     Test saving a session by serializing it to JSON and storing it via the backend dispatcher.
     """
     session = EnrichedSession(session_id="channel_123_thread_456.json", start_time="2024-10-01T10:00:00")
-    
+
     # Mock the backend dispatcher save method
     mock_global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
 

@@ -1,14 +1,18 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from core.genai_interactions.genai_cost_base import GenAICostBase
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+
+import pytest
+
 from core.action_interactions.action_input import ActionInput
-from plugins.genai_interactions.text.openai_chatgpt.openai_chatgpt import OpenaiChatgptPlugin
-from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
+from core.genai_interactions.genai_cost_base import GenAICostBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from openai.types.chat import ChatCompletion
-from openai.types.chat.chat_completion import Choice
-from openai.types.chat.chat_completion_message import ChatCompletionMessage
+from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
+from plugins.genai_interactions.text.openai_chatgpt.openai_chatgpt import (
+    OpenaiChatgptPlugin,
+)
+
 
 # Fixtures for mock config and global manager
 @pytest.fixture
@@ -134,7 +138,7 @@ async def test_handle_request_with_error(openai_chatgpt_plugin):
          patch.object(openai_chatgpt_plugin.user_interaction_dispatcher, 'send_message', new_callable=AsyncMock) as mock_send_message:
 
         mock_handle_event_data.side_effect = Exception("Test Error")
-        
+
         response = await openai_chatgpt_plugin.handle_request(event)
 
         assert response is None
@@ -290,7 +294,7 @@ async def test_handle_action_error(openai_chatgpt_plugin):
          patch.object(openai_chatgpt_plugin.logger, 'error') as mock_logger_error:
 
         mock_get_or_create_session.side_effect = Exception("Test exception")
-        
+
         with pytest.raises(Exception, match="Test exception"):
             await openai_chatgpt_plugin.handle_action(action_input, event)
 
@@ -309,7 +313,7 @@ async def trigger_genai(self, event: IncomingNotificationDataBase):
     event_copy.user_name = AUTOMATED_RESPONSE_TRIGGER
     event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
     event_copy.event_label = "thread_message"
-    
+
     # Await the coroutine
     user_message = await self.user_interaction_dispatcher.format_trigger_genai_message(event=event, message=event_copy.text)
     event_copy.text = user_message
@@ -359,10 +363,10 @@ async def test_generate_completion_with_image(openai_chatgpt_plugin):
 def test_camel_case(openai_chatgpt_plugin):
     # Typical case
     assert openai_chatgpt_plugin.camel_case("hello_world") == "HelloWorld"
-    
+
     # Single word, should capitalize
     assert openai_chatgpt_plugin.camel_case("hello") == "Hello"
-    
+
     # Edge case: empty string
     assert openai_chatgpt_plugin.camel_case("") == ""
 
@@ -411,7 +415,7 @@ async def test_generate_completion_basic(openai_chatgpt_plugin):
         text="user text",
         origin_plugin_name="openai_chatgpt"
     )
-    
+
     with patch.object(openai_chatgpt_plugin, 'generate_completion', new_callable=AsyncMock) as mock_generate_completion:
         mock_generate_completion.return_value = ("Generated response", GenAICostBase(total_tk=100, prompt_tk=50, completion_tk=50))
 
@@ -531,8 +535,8 @@ async def test_generate_completion_with_images_but_no_vision_model(openai_chatgp
         result = await openai_chatgpt_plugin.generate_completion(messages, event)
 
         mock_send_message.assert_called_once_with(
-            event=event, 
-            message="Image received without genai interpreter in config", 
+            event=event,
+            message="Image received without genai interpreter in config",
             message_type=MessageType.COMMENT
         )
         assert result is None
