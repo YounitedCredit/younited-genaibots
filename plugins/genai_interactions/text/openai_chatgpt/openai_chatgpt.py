@@ -1,8 +1,9 @@
+import asyncio
 import json
 import traceback
 from datetime import datetime
 from typing import Any
-import asyncio
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -224,11 +225,11 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"Error in handle_action: {e}")
             raise
-    
+
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output= False):
         # Check if we should use the assistant
         self.logger.info("Generate completion triggered...")
-        
+
         # If not using an assistant, proceed with the standard completion
         model_name = self.openai_chatgpt_config.OPENAI_CHATGPT_MODEL_NAME
 
@@ -289,7 +290,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
                         self.logger.error(f"Error decoding JSON: {e}")
                 else:
                     self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
-                
+
             # Extract the GPT response and token usage details
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = completion.usage.total_tokens

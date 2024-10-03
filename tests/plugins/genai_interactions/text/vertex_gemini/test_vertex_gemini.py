@@ -95,7 +95,7 @@ async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
             )
 
             result = await vertexai_gemini_plugin.handle_action(action_input, event)
-            
+
             assert result == "Invalid JSON response"  # We expect the cleaned text to be returned
             mock_generate.assert_called_once()
 

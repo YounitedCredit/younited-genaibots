@@ -5,17 +5,35 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from azure.storage.blob import BlobServiceClient
 
 from core.global_manager import GlobalManager
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.reaction_base import ReactionBase
-from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
-from core.user_interactions.user_interactions_plugin_base import UserInteractionsPluginBase
-from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import UserInteractionsBehaviorsDispatcher
+from core.user_interactions.user_interactions_dispatcher import (
+    UserInteractionsDispatcher,
+)
+from core.user_interactions.user_interactions_plugin_base import (
+    UserInteractionsPluginBase,
+)
+from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
+    UserInteractionsBehaviorsDispatcher,
+)
 from utils.config_manager.config_model import (
-    ActionInteractions, AzureLogging, Backend, BotConfig, ConfigModel, GenaiInteractions,
-    LocalLogging, Logging, Plugin, Plugins, UserInteractions, UserInteractionsBehaviors, Utils
+    ActionInteractions,
+    AzureLogging,
+    Backend,
+    BotConfig,
+    ConfigModel,
+    GenaiInteractions,
+    LocalLogging,
+    Logging,
+    Plugin,
+    Plugins,
+    UserInteractions,
+    UserInteractionsBehaviors,
+    Utils,
 )
 
 # Utiliser la boucle SelectorEventLoop sur Windows

@@ -508,7 +508,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                         self.logger.error(f"Error decoding JSON: {e}")
                 else:
                     self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
-                
+
             # Extract the GPT response and token usage details
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = completion.usage.total_tokens

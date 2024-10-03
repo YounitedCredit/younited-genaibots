@@ -1,11 +1,13 @@
 
+import copy
+
 from core.action_interactions.action_base import ActionBase
 from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
 from core.user_interactions.message_type import MessageType
-import copy
+
 
 class UserInteraction(ActionBase):
     REQUIRED_PARAMETERS = ['value']
@@ -29,7 +31,7 @@ class UserInteraction(ActionBase):
         if channel_id and channel_id.lower() != "none":
             event_copy.channel_id = channel_id
             is_custom_target = True
-        
+
         if thread_id and channel_id.lower() != "none":
             is_custom_target = True
             if thread_id.lower() == "none":

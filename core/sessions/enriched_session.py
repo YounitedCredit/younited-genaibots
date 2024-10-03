@@ -70,7 +70,7 @@ class EnrichedSession(SessionBase):
                 if "mind_interactions" not in message:
                     message["mind_interactions"] = []
                 message["mind_interactions"].append(interaction)
-                
+
     def add_user_interaction_to_message(self, message_index: int, interaction: Dict) -> None:
         """
         Add a user interaction to a specific assistant message by index.

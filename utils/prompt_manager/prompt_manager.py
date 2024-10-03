@@ -85,7 +85,7 @@ class PromptManager:
 
         if main_prompt_file is None:
             main_prompt_file = self.config_manager.get_config(['BOT_CONFIG', 'MAIN_PROMPT'])
-            
+
         self.logger.info("Fetching main prompt from %s...", "backend" if self.load_prompts_from_backend else "local")
 
         if self.load_prompts_from_backend:

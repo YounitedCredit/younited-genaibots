@@ -130,7 +130,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         show_ref=False
                     )
                     self.global_manager.interaction_queue_manager.clear_expired_messages()
-                    
+
                     await self.user_interaction_dispatcher.remove_reaction_from_thread(
                         channel_id=event.channel_id,
                         thread_id=event.thread_id,

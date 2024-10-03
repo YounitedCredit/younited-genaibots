@@ -79,7 +79,7 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
         self.input_token_price = self.azure_llama370b_config.AZURE_LLAMA370B_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_llama370b_config.AZURE_LLAMA370B_OUTPUT_TOKEN_PRICE
         self.plugin_name = self.azure_llama370b_config.PLUGIN_NAME
-        
+
         self.load_client()
         self.input_handler = ChatInputHandler(self.global_manager, self)
         self.input_handler.initialize()
@@ -220,7 +220,7 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"Error in handle_action: {e}")
             raise
-    
+
     async def filter_images(self, messages):
         filtered_messages = []
         for message in messages:
@@ -231,10 +231,10 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-    
+
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output=False):
         self.logger.info("Generate completion triggered...")
-        
+
         # Filtrer les images si non nécessaires
         messages = await self.filter_images(messages)
 
@@ -294,9 +294,9 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
 
         except asyncio.exceptions.CancelledError:
             await self.user_interaction_dispatcher.send_message(
-                event=event_data, 
-                message="Task was cancelled", 
-                message_type=MessageType.COMMENT, 
+                event=event_data,
+                message="Task was cancelled",
+                message_type=MessageType.COMMENT,
                 is_internal=True
             )
             self.logger.error("Task was cancelled")
@@ -305,9 +305,9 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
             await self.user_interaction_dispatcher.send_message(
-                event=event_data, 
-                message="An unexpected error occurred", 
-                message_type=MessageType.ERROR, 
+                event=event_data,
+                message="An unexpected error occurred",
+                message_type=MessageType.ERROR,
                 is_internal=True
             )
             raise

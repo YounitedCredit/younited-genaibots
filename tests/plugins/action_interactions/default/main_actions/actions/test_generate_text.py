@@ -1,12 +1,16 @@
-import json
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from plugins.action_interactions.default.main_actions.actions.generate_text import GenerateText
+from plugins.action_interactions.default.main_actions.actions.generate_text import (
+    GenerateText,
+)
+
 
 @pytest.mark.asyncio
 async def test_generate_text_execute(mock_global_manager):

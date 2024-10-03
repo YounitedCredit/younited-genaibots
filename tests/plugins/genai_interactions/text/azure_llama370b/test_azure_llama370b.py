@@ -1,4 +1,3 @@
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,6 +10,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.azure_llama370b.azure_llama370b import (
     AzureLlama370bPlugin,
 )
+
 
 @pytest.fixture
 def mock_config():
@@ -51,7 +51,7 @@ async def test_handle_action(azure_llama370b_plugin):
 
         mock_create.return_value.choices = [MagicMock(message=MagicMock(content="Generated response"))]
         mock_create.return_value.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
-        
+
         fake_session = MagicMock()
         fake_session.messages = []
         mock_get_or_create_session.return_value = fake_session

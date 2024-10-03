@@ -226,7 +226,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
 
     async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output=False):
         self.logger.info("Generate completion triggered...")
-        
+
         # Déterminer si nous devons utiliser un modèle pour les images
         model_name = self.azure_mistral_modelname
         messages = await self.filter_images(messages)  # Filtrer les images si non nécessaires
@@ -288,9 +288,9 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
 
         except asyncio.exceptions.CancelledError:
             await self.user_interaction_dispatcher.send_message(
-                event=event_data, 
-                message="Task was cancelled", 
-                message_type=MessageType.COMMENT, 
+                event=event_data,
+                message="Task was cancelled",
+                message_type=MessageType.COMMENT,
                 is_internal=True
             )
             self.logger.error("Task was cancelled")
@@ -299,9 +299,9 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
             await self.user_interaction_dispatcher.send_message(
-                event=event_data, 
-                message="An unexpected error occurred", 
-                message_type=MessageType.ERROR, 
+                event=event_data,
+                message="An unexpected error occurred",
+                message_type=MessageType.ERROR,
                 is_internal=True
             )
             raise
@@ -316,7 +316,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
                 message['content'] = filtered_content
             filtered_messages.append(message)
         return filtered_messages
-    
+
     async def trigger_genai(self, event :IncomingNotificationDataBase):
             event_copy = event
 

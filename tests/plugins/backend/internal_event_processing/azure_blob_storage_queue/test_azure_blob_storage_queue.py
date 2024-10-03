@@ -1,27 +1,32 @@
+from unittest.mock import MagicMock, create_autospec, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, create_autospec
+from azure.storage.blob import BlobClient, ContainerClient
+
 from core.global_manager import GlobalManager
-from plugins.backend.internal_queue_processing.azure_blob_storage_queue.azure_blob_storage_queue import AzureBlobStorageQueuePlugin
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from plugins.backend.internal_queue_processing.azure_blob_storage_queue.azure_blob_storage_queue import (
+    AzureBlobStorageQueuePlugin,
+)
+
 
 @pytest.fixture
 def mock_global_manager():
     # Créez un mock spécifique basé sur GlobalManager
     mock = create_autospec(GlobalManager, instance=True)
-    
+
     # Configurez les attributs nécessaires
     mock.logger = MagicMock()
-    
+
     # Configurer config_manager avec config_model
     mock.config_manager = MagicMock()
     mock.config_manager.config_model = MagicMock()
     mock.config_manager.config_model.PLUGINS = MagicMock()
     mock.config_manager.config_model.PLUGINS.BACKEND = MagicMock()
     mock.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {}
-    
+
     # Configurer plugin_manager
     mock.plugin_manager = MagicMock()
-    
+
     return mock
 
 @pytest.fixture
@@ -44,43 +49,43 @@ def azure_blob_storage_queue_plugin(mock_global_manager, mock_azure_blob_storage
     with patch('azure.identity.DefaultAzureCredential') as mock_credential, \
          patch('plugins.backend.internal_queue_processing.azure_blob_storage_queue.azure_blob_storage_queue.BlobServiceClient.__init__', return_value=None) as mock_blob_service_init, \
          patch('plugins.backend.internal_queue_processing.azure_blob_storage_queue.azure_blob_storage_queue.BlobServiceClient') as mock_blob_service_client:
-        
+
         # Configurer le BlobServiceClient mock
         mock_blob_service = MagicMock()
         mock_blob_service_client.return_value = mock_blob_service
-        
+
         # Configurer get_container_client pour retourner un MagicMock
         mock_container_client = MagicMock(spec=ContainerClient)
         mock_blob_service.get_container_client.return_value = mock_container_client
-        
+
         # Mock exists() pour retourner False (container n'existe pas)
         mock_container_client.exists.return_value = False
-        
+
         # Mock create_container() pour simuler la création d'un container
         mock_container_client.create_container.return_value = None
-        
+
         # Injecter la configuration mockée dans le config_manager
         mock_global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {
             "AZURE_BLOB_STORAGE_QUEUE": mock_azure_blob_storage_config
         }
-        
+
         # Initialiser le plugin
         plugin = AzureBlobStorageQueuePlugin(mock_global_manager)
         plugin.initialize()
-        
+
         return plugin
 
 def test_initialize(azure_blob_storage_queue_plugin, mock_azure_blob_storage_config):
     # Le plugin a déjà été initialisé dans la fixture
     assert azure_blob_storage_queue_plugin.plugin_name == "azure_blob_storage_queue"
-    
+
     # Vérifier que BlobServiceClient a été initialisé avec la chaîne de connexion
     mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
     mock_blob_service_client.get_container_client.assert_any_call(mock_azure_blob_storage_config["AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER"])
     mock_blob_service_client.get_container_client.assert_any_call(mock_azure_blob_storage_config["AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER"])
     mock_blob_service_client.get_container_client.assert_any_call(mock_azure_blob_storage_config["AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER"])
     mock_blob_service_client.get_container_client.assert_any_call(mock_azure_blob_storage_config["AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER"])
-    
+
     # Vérifier que create_container a été appelé pour chaque container
     mock_container_client = mock_blob_service_client.get_container_client.return_value
     assert mock_container_client.create_container.call_count == 4  # Quatre containers
@@ -95,7 +100,7 @@ async def test_enqueue_message(azure_blob_storage_queue_plugin):
 
     # Récupérer le mock_blob_service_client de la fixture
     mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
-    
+
     # Configurer le mock_blob_client
     mock_blob_client = MagicMock(spec=BlobClient)
     mock_blob_service_client.get_blob_client.return_value = mock_blob_client
@@ -117,7 +122,7 @@ async def test_dequeue_message(azure_blob_storage_queue_plugin):
 
     # Récupérer le mock_blob_service_client de la fixture
     mock_blob_service_client = azure_blob_storage_queue_plugin.blob_service_client
-    
+
     # Configurer le mock_blob_client
     mock_blob_client = MagicMock(spec=BlobClient)
     mock_blob_service_client.get_blob_client.return_value = mock_blob_client

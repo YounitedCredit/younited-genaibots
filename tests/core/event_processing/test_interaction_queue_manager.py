@@ -1,6 +1,7 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
 import json
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from core.event_processing.interaction_queue_manager import InteractionQueueManager
@@ -46,7 +47,7 @@ async def test_save_event_to_backend(interaction_queue_manager, mock_global_mana
         message=json.dumps(event_data),
         guid='event123'
     )
-    
+
 # Test the initialization of the InteractionQueueManager
 def test_interaction_queue_manager_initialization(interaction_queue_manager, mock_global_manager):
     interaction_queue_manager.initialize()

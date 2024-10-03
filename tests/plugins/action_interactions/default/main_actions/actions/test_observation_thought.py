@@ -3,9 +3,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from plugins.action_interactions.default.main_actions.actions.observation_thought import ObservationThought
+from plugins.action_interactions.default.main_actions.actions.observation_thought import (
+    ObservationThought,
+)
 
 
 @pytest.mark.asyncio

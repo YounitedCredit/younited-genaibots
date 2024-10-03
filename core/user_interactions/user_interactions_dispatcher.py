@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import BackgroundTasks
@@ -11,7 +12,7 @@ from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
 from utils.config_manager.config_model import BotConfig
-from datetime import datetime
+
 
 class UserInteractionsDispatcher(UserInteractionsPluginBase):
     def __init__(self, global_manager):
@@ -205,7 +206,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
 
                     # Save the session after adding the interaction
                     await self.global_manager.session_manager.save_session(session)
-                
+
                 plugin_name = event.origin_plugin_name
                 self.logger.debug(f"Event provided with origin_plugin_name: {plugin_name}")
 

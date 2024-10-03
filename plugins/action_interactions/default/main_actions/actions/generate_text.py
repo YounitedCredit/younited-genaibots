@@ -1,4 +1,3 @@
-import json
 import traceback
 
 from core.action_interactions.action_base import ActionBase
@@ -80,17 +79,17 @@ class GenerateText(ActionBase):
                 messages.append({"role": "system", "content": "No specific instruction provided."})
 
             # Handle conversation history if requested
-            if conversation:                
+            if conversation:
                 session = await self.global_manager.session_manager.get_or_create_session(
                     channel_id=event.channel_id,
                     thread_id=event.thread_id or event.timestamp,  # Use timestamp if thread_id is None
                     enriched=True
                 )
-                
+
                 if session:
                     # Concaténer le contenu de tous les messages de session.messages
                     concatenated_content = self.format_llm_session(session)
-                    
+
                     # Ajouter le message concaténé à la liste des messages
                     messages.append({"role": "user", "content": concatenated_content})
 
@@ -100,7 +99,7 @@ class GenerateText(ActionBase):
 
             # Add the user input
             messages.append({"role": "user", "content": input_query})
-            
+
             action_input.parameters['messages'] = messages
             # Notify the user that the model invocation is starting
             await self.user_interaction_dispatcher.send_message(f"Invoking model {model_name}...", event, message_type=MessageType.COMMENT)

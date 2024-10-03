@@ -1,7 +1,6 @@
 import asyncio
 import json
 import re
-import traceback
 from datetime import datetime
 from typing import Any
 
@@ -250,7 +249,7 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             # Get the first candidate's response text from the 'parts' field
             first_candidate = completion.candidates[0]
             response = first_candidate.content.parts[0].text
-            
+
             if not raw_output:
                 start_marker = "[BEGINIMDETECT]"
                 end_marker = "[ENDIMDETECT]"
