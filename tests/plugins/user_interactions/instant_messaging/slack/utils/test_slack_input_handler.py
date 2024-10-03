@@ -1356,3 +1356,70 @@ async def test_get_user_info_no_response(slack_input_handler, mocker):
     assert name == 'Unknown'
     assert email == 'Unknown'
     assert user_id == 'USER_ID'
+
+@pytest.mark.asyncio
+async def test_process_slack_links_in_text(slack_input_handler, mocker):
+    mocker.patch.object(slack_input_handler, "_process_single_slack_link", return_value="Processed link content")
+    
+    text = "Check this <https://slack.com/archives/C12345/p1620834875000300|Link> and this <https://slack.com/archives/C67890/p1620834875000400>"
+    result = await slack_input_handler._process_slack_links_in_text(text, 0)
+    
+    assert "Processed link content" in result
+    assert result.count("Processed link content") == 2
+
+@pytest.mark.asyncio
+async def test_search_message_in_thread(slack_input_handler, mocker):
+    mock_response = {
+        'messages': {
+            'matches': [
+                {'channel': {'id': 'C12345'}, 'ts': '1620834875.000300'},
+                {'channel': {'id': 'C67890'}, 'ts': '1620834875.000400'}
+            ]
+        }
+    }
+    mocker.patch.object(slack_input_handler.client, "search_messages", return_value=mock_response)
+    
+    result = await slack_input_handler.search_message_in_thread("query")
+    assert result == '1620834875.000300'
+
+def test_format_slack_timestamp(slack_input_handler):
+    timestamp = "1620834875.000400"
+    formatted = slack_input_handler.format_slack_timestamp(timestamp)
+    assert formatted == "2021-05-12 19:41:15"
+
+@pytest.mark.asyncio
+async def test_get_bot_info(slack_input_handler, mocker):
+    mock_response = {'ok': True, 'bot': {'name': 'TestBot'}}
+    mocker.patch.object(slack_input_handler.async_client, "bots_info", return_value=mock_response)
+    
+    bot_name = await slack_input_handler.get_bot_info("B12345")
+    assert bot_name == "TestBot"
+
+@pytest.mark.asyncio
+async def test_fetch_thread_messages(slack_input_handler, mocker):
+    mock_response = {'ok': True, 'messages': [{'text': 'Thread message'}]}
+    mocker.patch.object(slack_input_handler, "_make_slack_api_call", return_value=mock_response)
+    
+    result = await slack_input_handler._fetch_thread_messages("C12345", "1620834875.000300")
+    assert result == mock_response
+
+@pytest.mark.asyncio
+async def test_fetch_single_message(slack_input_handler, mocker):
+    mock_response = {'ok': True, 'messages': [{'text': 'Single message'}]}
+    mocker.patch.object(slack_input_handler, "_make_slack_api_call", return_value=mock_response)
+    
+    result = await slack_input_handler._fetch_single_message("C12345", "1620834875.000300")
+    assert result == mock_response
+
+@pytest.mark.asyncio
+async def test_make_slack_api_call(slack_input_handler, mocker):
+    mock_response = mocker.AsyncMock()
+    mock_response.status = 200
+    mock_response.json.return_value = {'ok': True, 'result': 'Success'}
+    
+    mock_session = mocker.AsyncMock()
+    mock_session.get.return_value.__aenter__.return_value = mock_response
+    mocker.patch("aiohttp.ClientSession", return_value=mock_session)
+    
+    result = await slack_input_handler._make_slack_api_call("https://api.slack.com/test", {'param': 'value'})
+    assert result == {'ok': True, 'result': 'Success'}

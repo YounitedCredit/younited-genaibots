@@ -39,13 +39,22 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         if plugin_name is None:
             plugin_name = self.default_plugin_name
 
-        for plugins_in_category in self.plugins.values():
-            for plugin in plugins_in_category:
-                if plugin.plugin_name == plugin_name:
-                    return plugin
+        # Ensure plugins is treated as a dictionary
+        if isinstance(self.plugins, dict):
+            for plugins_in_category in self.plugins.values():
+                for plugin in plugins_in_category:
+                    if plugin.plugin_name == plugin_name:
+                        return plugin
 
         self.logger.error(f"UserInteractionsDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
-        return self.default_plugin
+        
+        # Return the default plugin if the requested one is not found
+        if self.default_plugin:
+            return self.default_plugin
+        
+        # Handle the case where no default plugin is set
+        self.logger.error("No default plugin configured.")
+        return None
 
     def set_default_plugin(self, plugin_name):
         self.default_plugin_name = plugin_name

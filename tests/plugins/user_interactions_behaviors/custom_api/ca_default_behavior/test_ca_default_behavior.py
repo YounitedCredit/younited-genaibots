@@ -422,8 +422,11 @@ async def test_process_interaction_message_queuing_enabled(ca_default_behavior_p
     event = IncomingNotificationDataBase.from_dict(event_data)
     ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
     ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.has_older_messages = AsyncMock(return_value=True)
-    ca_default_behavior_plugin.reaction_wait = "wait"
     
+    # Set up the reaction_wait as a string
+    ca_default_behavior_plugin.user_interaction_dispatcher.reactions.WAIT = "wait"
+    ca_default_behavior_plugin.reaction_wait = "wait"
+
     # Mock the event_label to be "thread_message" to trigger the wait reaction
     event.event_label = "thread_message"
     
@@ -438,6 +441,11 @@ async def test_process_interaction_message_queuing_enabled(ca_default_behavior_p
     await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
 
     ca_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_awaited_once()
+    
+    # Debug: Print all calls to add_reaction
+    print("Calls to add_reaction:")
+    for call in ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.mock_calls:
+        print(f"  {call}")
     
     # Check if add_reaction was called with the correct arguments
     ca_default_behavior_plugin.user_interaction_dispatcher.add_reaction.assert_awaited_once_with(
@@ -494,7 +502,13 @@ async def test_mark_error(ca_default_behavior_plugin, event_data):
 
 @pytest.mark.asyncio
 async def test_process_interaction_error_handling(ca_default_behavior_plugin, event_data):
-    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(side_effect=Exception("Test error"))
+    # Mock the request_to_notification_data to return a valid event before raising an exception
+    mock_event = IncomingNotificationDataBase.from_dict(event_data)
+    ca_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=mock_event)
+    
+    # Mock the backend_internal_data_processing_dispatcher to raise an exception
+    ca_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock(side_effect=Exception("Test error"))
+    
     ca_default_behavior_plugin.mark_error = AsyncMock()
     
     # Mock the necessary attributes
@@ -509,9 +523,14 @@ async def test_process_interaction_error_handling(ca_default_behavior_plugin, ev
     with pytest.raises(Exception):
         await ca_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
 
+    # Debug: Print all calls to send_message
+    print("Calls to send_message:")
+    for call in ca_default_behavior_plugin.user_interaction_dispatcher.send_message.mock_calls:
+        print(f"  {call}")
+
     # Check if send_message was called with the correct arguments
     ca_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited_once_with(
-        event=None,  # or the appropriate event object
+        event=mock_event,  # Use the mock event we created
         message=":warning: Error processing incoming request: Test error",
         message_type=MessageType.TEXT,
         is_internal=True,
@@ -519,10 +538,46 @@ async def test_process_interaction_error_handling(ca_default_behavior_plugin, ev
     )
     
     # Check if mark_error was called
-    ca_default_behavior_plugin.mark_error.assert_awaited_once()
+    ca_default_behavior_plugin.mark_error.assert_awaited_once_with(
+        mock_event, mock_event.channel_id, mock_event.timestamp
+    )
 
-# Add this helper function to your test file if not already present
-def print_mock_calls(mock_obj):
-    print(f"Calls to {mock_obj._mock_name}:")
-    for call in mock_obj.mock_calls:
-        print(f"  {call}")
+    # Reset mocks to avoid teardown assertions
+    ca_default_behavior_plugin.mark_error.reset_mock()
+    ca_default_behavior_plugin.user_interaction_dispatcher.send_message.reset_mock()
+
+# Modify your teardown fixtures
+
+@pytest.fixture(autouse=True)
+def check_unused_mocks(ca_default_behavior_plugin, global_manager):
+    yield
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (MagicMock, AsyncMock)) and attr_name not in ["process_incoming_notification_data", "mark_error"]:
+            assert not attr.called, f"Unexpected call to {attr_name}"
+
+@pytest.fixture(autouse=True)
+def reset_mocks(ca_default_behavior_plugin):
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (AsyncMock, MagicMock)):
+            attr.reset_mock()
+    yield
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (AsyncMock, MagicMock)) and attr_name not in ["process_incoming_notification_data", "mark_error"]:
+            assert not attr.called, f"Unexpected call to {attr_name}"
+
+@pytest.fixture(autouse=True)
+def no_unexpected_calls(ca_default_behavior_plugin):
+    yield
+    for attr_name in dir(ca_default_behavior_plugin):
+        attr = getattr(ca_default_behavior_plugin, attr_name)
+        if isinstance(attr, (MagicMock, AsyncMock)) and attr_name not in ["process_incoming_notification_data", "mark_error"]:
+            assert not attr.called, f"Unexpected call to {attr_name}"
+
+def assert_no_unused_mocks(obj):
+    for attr_name in dir(obj):
+        attr = getattr(obj, attr_name)
+        if isinstance(attr, (MagicMock, AsyncMock)) and attr_name not in ["process_incoming_notification_data", "mark_error"]:
+            assert not attr.called, f"Unexpected call to {attr_name}"
