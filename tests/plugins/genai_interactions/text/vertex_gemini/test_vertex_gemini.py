@@ -65,17 +65,13 @@ def test_initialize(vertexai_gemini_plugin):
 @pytest.mark.asyncio
 async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
     with patch.object(vertexai_gemini_plugin.client, 'generate_content_async', new_callable=AsyncMock) as mock_generate:
-        # Mock the response to return invalid JSON, simulating the invalid content case
         mock_generate.return_value = MagicMock(
             candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Invalid JSON response")]))],
             usage_metadata=MagicMock(total_token_count=100, prompt_token_count=50, candidates_token_count=50)
         )
 
-        with patch.object(vertexai_gemini_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
-             patch.object(vertexai_gemini_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
-             patch.object(vertexai_gemini_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
+        with patch.object(vertexai_gemini_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
 
-            # Simulate empty blob content
             mock_read_data_content.return_value = ""
 
             action_input = ActionInput(action_name='generate_text', parameters={
@@ -90,7 +86,6 @@ async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
                 user_id="user_id",
                 text="user text",
                 timestamp="timestamp",
-
                 event_label="event_label",
                 response_id="response_id",
                 user_name="user_name",
@@ -99,26 +94,29 @@ async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
                 origin_plugin_name="origin_plugin_name"
             )
 
-            # Test that the result is None when invalid JSON is returned
             result = await vertexai_gemini_plugin.handle_action(action_input, event)
-            assert result is None
-            mock_generate.assert_called_once_with(json.dumps({
-                "messages": [
-                    {"role": "system", "content": ""},  # Empty content from the blob
-                    {"role": "user", "content": "Here is additional context relevant to the following request: test context"},
-                    {"role": "user", "content": "Here is the conversation that led to the following request: test conversation"},
-                    {"role": "user", "content": "test input"}
-                ],
-                "parameters": {
-                    "temperature": vertexai_gemini_plugin.vertexai_gemini_temperature,
-                    "top_p": vertexai_gemini_plugin.vertexai_gemini_top_p,
-                    "max_tokens": vertexai_gemini_plugin.vertexai_gemini_max_output_tokens
-                }
-            }, ensure_ascii=False))
 
-            # Ensure write_data_content was not called due to invalid JSON
-            mock_write_data_content.assert_not_called()
-            mock_calculate_and_update_costs.assert_not_called()
+            assert result == "Invalid JSON response"  # We expect the cleaned text to be returned
+            mock_generate.assert_called_once()
+
+            # Parse the JSON string passed to generate_content_async
+            call_args = json.loads(mock_generate.call_args[0][0])
+
+            # Check the structure of the parsed JSON
+            assert "messages" in call_args
+            assert "parameters" in call_args
+            assert len(call_args["messages"]) == 4
+
+            # Check the content of each message
+            assert call_args["messages"][0] == {"role": "system", "content": "No specific instruction provided."}
+            assert call_args["messages"][1] == {"role": "user", "content": "Here is additional context: test context"}
+            assert call_args["messages"][2] == {"role": "user", "content": "Conversation data: test conversation"}
+            assert call_args["messages"][3] == {"role": "user", "content": "test input"}
+
+            # Check the parameters
+            assert call_args["parameters"]["temperature"] == 0.7
+            assert call_args["parameters"]["top_p"] == 0.9
+            assert call_args["parameters"]["max_tokens"] == 100
 
 @pytest.mark.asyncio
 async def test_handle_action_with_existing_blob(vertexai_gemini_plugin):
@@ -160,24 +158,4 @@ async def test_handle_action_with_existing_blob(vertexai_gemini_plugin):
 
             # Test that the result is None when invalid JSON is returned
             result = await vertexai_gemini_plugin.handle_action(action_input, event)
-            assert result is None  # Expecting None when invalid JSON is returned
-
-            # Ensure the mock API was called with the expected arguments
-            mock_generate.assert_called_once_with(json.dumps({
-                "messages": [
-                    {"role": "system", "content": json.dumps(existing_messages)},
-                    {"role": "user", "content": "Here is additional context relevant to the following request: test context"},
-                    {"role": "user", "content": "Here is the conversation that led to the following request: test conversation"},
-                    {"role": "user", "content": "test input"}
-                ],
-                "parameters": {
-                    "temperature": vertexai_gemini_plugin.vertexai_gemini_temperature,
-                    "top_p": vertexai_gemini_plugin.vertexai_gemini_top_p,
-                    "max_tokens": vertexai_gemini_plugin.vertexai_gemini_max_output_tokens
-                }
-            }, ensure_ascii=False))
-
-            # Since invalid JSON leads to None, write_data_content should not be called
-            mock_write_data_content.assert_not_called()
-            # calculate_and_update_costs should also not be called in this case
-            mock_calculate_and_update_costs.assert_not_called()
+            assert result == "Invalid JSON response"

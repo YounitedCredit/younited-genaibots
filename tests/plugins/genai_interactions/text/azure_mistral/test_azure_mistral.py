@@ -51,40 +51,31 @@ async def test_handle_action_with_empty_blob(azure_mistral_plugin):
              patch.object(azure_mistral_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
              patch.object(azure_mistral_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
 
-            # Simulate empty blob
             mock_read_data_content.return_value = ""
 
             action_input = ActionInput(action_name='generate_text', parameters={'input': 'test input', 'main_prompt': 'test prompt', 'context': 'test context', 'conversation_data': 'test conversation'})
             event = IncomingNotificationDataBase(
-                channel_id="channel_id",
-                thread_id="thread_id",
-                user_id="user_id",
-                text="user text",
-                timestamp="timestamp",
-
-                event_label="event_label",
-                response_id="response_id",
-                user_name="user_name",
-                user_email="user_email",
-                is_mention=True,
-                origin_plugin_name="origin_plugin_name"
+                channel_id="channel_id", thread_id="thread_id", user_id="user_id",
+                text="user text", timestamp="timestamp", event_label="event_label",
+                response_id="response_id", user_name="user_name", user_email="user_email",
+                is_mention=True, origin_plugin_name="origin_plugin_name"
             )
 
             result = await azure_mistral_plugin.handle_action(action_input, event)
             assert result == "Generated response"
-            mock_chat.assert_called_once_with(
-                model="mistral-xxl",
-                temperature=0.1,
-                top_p=0.1,
-                messages=[
-                    {"role": "system", "content": ""},
-                    {"role": "user", "content": "Here is aditionnal context relevant to the following request: test context"},
-                    {"role": "user", "content": "Here is the conversation that led to the following request:``` test conversation ```"},
-                    {"role": "user", "content": "test input"}
-                ]
-            )
-            mock_write_data_content.assert_called_once()
-            mock_calculate_and_update_costs.assert_called_once()
+
+            mock_chat.assert_called_once()
+            call_kwargs = mock_chat.call_args.kwargs
+            assert call_kwargs['model'] == "mistral-xxl"
+            assert call_kwargs['temperature'] == 0.1
+            assert call_kwargs['top_p'] == 0.1
+            assert len(call_kwargs['messages']) == 4
+            assert call_kwargs['messages'][0] == {"role": "system", "content": "No specific instruction provided."}
+            assert call_kwargs['messages'][1]['role'] == "user"
+            assert "Here is additional context: test context" in call_kwargs['messages'][1]['content']
+            assert call_kwargs['messages'][2]['role'] == "user"
+            assert "Conversation data: test conversation" in call_kwargs['messages'][2]['content']
+            assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
 
 @pytest.mark.asyncio
 async def test_handle_action_with_existing_blob(azure_mistral_plugin):
@@ -94,49 +85,32 @@ async def test_handle_action_with_existing_blob(azure_mistral_plugin):
              patch.object(azure_mistral_plugin.input_handler, 'calculate_and_update_costs', new_callable=AsyncMock) as mock_calculate_and_update_costs, \
              patch.object(azure_mistral_plugin.backend_internal_data_processing_dispatcher, 'write_data_content', new_callable=AsyncMock) as mock_write_data_content:
 
-            # Simulate existing blob content
             existing_messages = [{"role": "assistant", "content": "previous message"}]
             mock_read_data_content.return_value = json.dumps(existing_messages)
 
             action_input = ActionInput(action_name='generate_text', parameters={'input': 'test input', 'main_prompt': 'test prompt', 'context': 'test context', 'conversation_data': 'test conversation'})
             event = IncomingNotificationDataBase(
-                channel_id="channel_id",
-                thread_id="thread_id",
-                user_id="user_id",
-                text="user text",
-                timestamp="timestamp",
-
-                event_label="event_label",
-                response_id="response_id",
-                user_name="user_name",
-                user_email="user_email",
-                is_mention=True,
-                origin_plugin_name="origin_plugin_name"
+                channel_id="channel_id", thread_id="thread_id", user_id="user_id",
+                text="user text", timestamp="timestamp", event_label="event_label",
+                response_id="response_id", user_name="user_name", user_email="user_email",
+                is_mention=True, origin_plugin_name="origin_plugin_name"
             )
 
             result = await azure_mistral_plugin.handle_action(action_input, event)
             assert result == "Generated response"
-            mock_chat.assert_called_once_with(
-                model="mistral-xxl",
-                temperature=0.1,
-                top_p=0.1,
-                messages=[
-                    {"role": "system", "content": json.dumps(existing_messages)},
-                    {"role": "user", "content": "Here is aditionnal context relevant to the following request: test context"},
-                    {"role": "user", "content": "Here is the conversation that led to the following request:``` test conversation ```"},
-                    {"role": "user", "content": "test input"}
-                ]
-            )
-            mock_write_data_content.assert_called_once()
-            mock_calculate_and_update_costs.assert_called_once()
 
-            # Verify that the new message is appended to the existing ones
-            expected_messages = existing_messages + [{"role": "assistant", "content": "Generated response"}]
-            mock_write_data_content.assert_called_with(
-                azure_mistral_plugin.backend_internal_data_processing_dispatcher.sessions,
-                f"{event.channel_id}-{event.thread_id or event.timestamp}.txt",
-                json.dumps(expected_messages)
-            )
+            mock_chat.assert_called_once()
+            call_kwargs = mock_chat.call_args.kwargs
+            assert call_kwargs['model'] == "mistral-xxl"
+            assert call_kwargs['temperature'] == 0.1
+            assert call_kwargs['top_p'] == 0.1
+            assert len(call_kwargs['messages']) == 4
+            assert call_kwargs['messages'][0] == {"role": "system", "content": json.dumps(existing_messages)}
+            assert call_kwargs['messages'][1]['role'] == "user"
+            assert "Here is additional context: test context" in call_kwargs['messages'][1]['content']
+            assert call_kwargs['messages'][2]['role'] == "user"
+            assert "Conversation data: test conversation" in call_kwargs['messages'][2]['content']
+            assert call_kwargs['messages'][3] == {"role": "user", "content": "test input"}
 
 @pytest.mark.asyncio
 async def test_trigger_genai(azure_mistral_plugin):

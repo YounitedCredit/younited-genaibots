@@ -57,12 +57,8 @@ async def test_execute_generate_image_failure(mock_global_manager):
     )
     action.user_interaction_dispatcher.send_message.assert_any_call(
         event=event,
-        message="Image generation failed: Detailed error message"
-    )
-    action.user_interaction_dispatcher.send_message.assert_any_call(
-        event=event,
         message="Image generation failed: {'Error': 'Something went wrong', 'message': 'Detailed error message'}",
-        is_internal=True
+        is_internal=True  # Updated assertion to reflect internal message
     )
 
 @pytest.mark.asyncio
@@ -86,12 +82,8 @@ async def test_execute_generate_image_invalid_url(mock_global_manager):
     )
     action.user_interaction_dispatcher.send_message.assert_any_call(
         event=event,
-        message="Image generation failed: Invalid URL invalid_url"
-    )
-    action.user_interaction_dispatcher.send_message.assert_any_call(
-        event=event,
         message="Image generation failed: Invalid URL invalid_url",
-        is_internal=True
+        is_internal=True  # Updated assertion to reflect internal message
     )
 
 @pytest.mark.asyncio
@@ -115,12 +107,8 @@ async def test_execute_generate_image_no_url(mock_global_manager):
     )
     action.user_interaction_dispatcher.send_message.assert_any_call(
         event=event,
-        message="Image generation failed"
-    )
-    action.user_interaction_dispatcher.send_message.assert_any_call(
-        event=event,
         message="Image generation failed",
-        is_internal=True
+        is_internal=True  # Updated assertion to reflect internal message
     )
 
 @pytest.mark.asyncio

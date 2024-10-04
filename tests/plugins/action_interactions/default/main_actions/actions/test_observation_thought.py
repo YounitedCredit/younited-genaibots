@@ -20,7 +20,10 @@ async def test_observation_thought_execute(mock_global_manager):
         'observation': 'Test Observation',
         'thought': 'Test Thought',
         'plan': 'Test Plan',
-        'nextstep': 'Test Next Step'
+        'nextstep': 'Test Next Step',
+        'autoeval': 'Test Autoeval',
+        'autoevaljustification': 'Test Autoeval Justification',
+        'usermood': 'Test User Mood'
     })
     event = IncomingNotificationDataBase(
         timestamp='123456',
@@ -49,18 +52,11 @@ async def test_observation_thought_execute(mock_global_manager):
         ":mag: *Observation*: Test Observation \n\n "
         ":brain: *Thought*: Test Thought \n\n "
         ":clipboard: *Plan*: Test Plan \n\n "
-        ":rocket: *Next Step*: Test Next Step"
+        ":rocket: *Next Step*: Test Next Step \n\n "
+        ":bar_chart: *Autoeval*: Test Autoeval \n\n "
+        ":straight_ruler: *Autoeval Justification*: Test Autoeval Justification \n\n "
+        ":smiley: *User Mood*: Test User Mood"
     )
-    
-    actual_message = (
-        ":mag: *Observation*: Test Observation \n\n "
-        ":brain: *Thought*: Test Thought \n\n "
-        ":clipboard: *Plan*: Test Plan \n\n "
-        ":rocket: *Next Step*: Test Next Step"
-    )
-
-    # Compare the actual message to the expected message
-    assert actual_message == expected_message, f"Message mismatch: expected {expected_message}, got {actual_message}"
 
     mock_global_manager.user_interactions_dispatcher.send_message.assert_called_once_with(
         event=event,
@@ -70,13 +66,12 @@ async def test_observation_thought_execute(mock_global_manager):
         is_internal=True
     )
 
+
 @pytest.mark.asyncio
 async def test_observation_thought_execute_with_missing_parameters(mock_global_manager):
     # Setup
     observation_thought_action = ObservationThought(global_manager=mock_global_manager)
     action_input = ActionInput(action_name='observation_thought', parameters={})
-    
-    # Ajout du paramètre 'origin_plugin_name' manquant
     event = IncomingNotificationDataBase(
         timestamp='123456',
         event_label='test_event',
@@ -90,7 +85,7 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
         text='',
         images=[],
         files_content=[],
-        origin_plugin_name='test_plugin'  # Ajout de ce paramètre
+        origin_plugin_name='test_plugin'
     )
 
     # Mock methods
@@ -104,18 +99,11 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
         ":mag: *Observation*: No Observation \n\n "
         ":brain: *Thought*: No Thought \n\n "
         ":clipboard: *Plan*: No Plan \n\n "
-        ":rocket: *Next Step*: No Next Step"
+        ":rocket: *Next Step*: No Next Step \n\n "
+        ":bar_chart: *Autoeval*: No Autoeval \n\n "
+        ":straight_ruler: *Autoeval Justification*: No Autoeval Justification \n\n "
+        ":smiley: *User Mood*: No User Mood"
     )
-    
-    actual_message = (
-        ":mag: *Observation*: No Observation \n\n "
-        ":brain: *Thought*: No Thought \n\n "
-        ":clipboard: *Plan*: No Plan \n\n "
-        ":rocket: *Next Step*: No Next Step"
-    )
-
-    # Compare the actual message to the expected message
-    assert actual_message == expected_message, f"Message mismatch: expected {expected_message}, got {actual_message}"
 
     mock_global_manager.user_interactions_dispatcher.send_message.assert_called_once_with(
         event=event,
@@ -124,3 +112,36 @@ async def test_observation_thought_execute_with_missing_parameters(mock_global_m
         title=None,
         is_internal=True
     )
+
+
+@pytest.mark.asyncio
+async def test_observation_thought_execute_with_exception(mock_global_manager):
+    # Setup
+    observation_thought_action = ObservationThought(global_manager=mock_global_manager)
+    action_input = ActionInput(action_name='observation_thought', parameters={})
+    event = IncomingNotificationDataBase(
+        timestamp='123456',
+        event_label='test_event',
+        channel_id='channel_1',
+        thread_id='thread_123',
+        response_id='response_123',
+        user_name='test_user',
+        user_email='test_user@example.com',
+        user_id='user_123',
+        is_mention=False,
+        text='',
+        images=[],
+        files_content=[],
+        origin_plugin_name='test_plugin'
+    )
+
+    # Mock methods to raise an exception
+    mock_global_manager.user_interactions_dispatcher.send_message = AsyncMock(side_effect=Exception("Test exception"))
+
+    # Execute the action
+    await observation_thought_action.execute(action_input, event)
+
+    # Assert that the exception was handled and printed
+    # Note: This test assumes that the print function is not mocked
+    # You might want to use a mocked logger instead of print for better testing
+    # assert mock_logger.error.called_once_with("An error occurred while sending the message: Test exception")

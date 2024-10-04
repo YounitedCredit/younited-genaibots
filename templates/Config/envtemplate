@@ -1,34 +1,39 @@
 # ====================================================
 # BOT CONFIGURATION
 # ====================================================
-LOG_DEBUG_LEVEL="info"  # Set the logging level (e.g., "info", "debug", "warning", "error")
-LOAD_ACTIONS_FROM_BACKEND=False  # Whether to load actions from backend storage
+LOG_DEBUG_LEVEL="info"
+LOAD_ACTIONS_FROM_BACKEND=False # If set to True, actions will not be loaded from plugins/action_interactions/custom but for action python script in the custom actions folder of the backend
+LOAD_PROMPTS_FROM_BACKEND=False # If set to True prompts and subprompts are loaded from the backend prompts and subprompts folder, if False from the path specified below
+LOCAL_PROMPTS_PATH="./prompts" # Path to local prompts folder
+LOCAL_SUBPROMPTS_PATH="./subprompts" ## Path to local subprompts folder
+
 
 # ====================================================
 # PROMPT CONFIGURATION
 # ====================================================
-CORE_PROMPT="core_prompt"  # Filename of the core prompt
-MAIN_PROMPT="main_prompt"  # Filename of the main prompt
-FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"  # Filename for general feedback behavior
+CORE_PROMPT="core_prompt" 
+MAIN_PROMPT="main_prompt"
+FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"
 
 # ====================================================
 # BOT BEHAVIOR CONFIGURATION
 # ====================================================
-REQUIRE_MENTION_NEW_MESSAGE=False  # Require bot mention in new messages to trigger response
-REQUIRE_MENTION_THREAD_MESSAGE=True  # Require bot mention in thread messages to trigger response
-GET_ALL_THREAD_FROM_MESSAGE_LINKS=True  # Fetch all thread messages from message links
-ACTIVATE_MESSAGE_QUEUING = True # Activate message queuing, if False, the bot won't treat message until previous message is processed or TTL time is reached
-MESSAGE_QUEUING_TTL = 120 # Time-to-live for queued messages (in seconds)
+REQUIRE_MENTION_NEW_MESSAGE = False # If set to True, the bot will only respond to new thread where the bot is mentioned
+REQUIRE_MENTION_THREAD_MESSAGE = True # if set to True, the bot will only respond in a thread to messages where the bot is mentioned (default recommanded behavior)
+GET_ALL_THREAD_FROM_MESSAGE_LINKS = False # If set to true, the bot will get all thread from the message links and not only the specific message that is forwarded
+ACTIVATE_MESSAGE_QUEUING = False # If set to True, when the bot is already generating an answer, the bot will queue the message and generate the answer when the bot is free. False the bot will not process new messages until it is free.
+ACTIVATE_USER_INTERACTION_EVENTS_QUEUING = True # If set to True, event for the user_interaction target will be queued and processed independently of the generative AI process. Recommended.
 
 # ====================================================
 # BOT DEFAULT PLUGINS
 # ====================================================
-ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="main_actions"  # Default plugin for action interactions
-USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="im_default_behavior"  # Default plugin for instant messaging behavior
-GENAI_TEXT_DEFAULT_PLUGIN_NAME="azure_chatgpt"  # Default plugin for text generation
-GENAI_IMAGE_DEFAULT_PLUGIN_NAME="azure_dalle"  # Default plugin for image generation
-GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="azure_aisearch"  # Default plugin for vector search
-INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="file_system"  # Default plugin for internal data processing
+ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="main_actions"
+USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="im_default_behavior"
+GENAI_TEXT_DEFAULT_PLUGIN_NAME="azure_chatgpt"
+GENAI_IMAGE_DEFAULT_PLUGIN_NAME="azure_dalle"
+GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="openai_file_search"
+INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="file_system"
+INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="file_system_queue"
 
 # ====================================================
 # LOGGING - LOCAL LOGGING
@@ -41,34 +46,60 @@ LOCAL_LOGGING_FILE_PATH="C:\\LOGS\\GENAI_BOT.log"  # File path for storing local
 # AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING="your_application_insights_connection_string"  # Connection string for Azure Application Insights
 
 # ====================================================
-# BACKEND - FILE SYSTEM CONFIGURATION
+# BACKEND DATA - FILE SYSTEM CONFIGURATION
 # ====================================================
-FILE_SYSTEM_DIRECTORY="C:\\GenAI"  # Root directory for file system storage
-FILE_SYSTEM_SESSIONS_CONTAINER="sessions"  # Directory for session data
-FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"  # Directory for feedback data
-FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"  # Directory for concatenated data
-FILE_SYSTEM_PROMPTS_CONTAINER="prompts"  # Directory for prompt files
-FILE_SYSTEM_COSTS_CONTAINER="costs"  # Directory for cost data
-FILE_SYSTEM_PROCESSING_CONTAINER="processing"  # Directory for processing data
-FILE_SYSTEM_ABORT_CONTAINER="abort"  # Directory for aborted operations
-FILE_SYSTEM_VECTORS_CONTAINER="vectors"  # Directory for vector data
-FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"  # Directory for custom action files
-FILE_SYSTEM_MESSAGES_QUEUE_CONTAINER="messages_queue"
+FILE_SYSTEM_DIRECTORY="C:\\GenAI" # Directory path for storing backend data
+FILE_SYSTEM_SESSIONS_CONTAINER="sessions"
+FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"
+FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"
+FILE_SYSTEM_COSTS_CONTAINER="costs"
+FILE_SYSTEM_PROCESSING_CONTAINER="processing"
+FILE_SYSTEM_ABORT_CONTAINER="abort"
+FILE_SYSTEM_VECTORS_CONTAINER="vectors"
+FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"
+FILE_SYSTEM_PROMPTS_CONTAINER="prompts"
+FILE_SYSTEM_SUBPROMPTS_CONTAINER="subprompts"
 
 # ====================================================
-# BACKEND - Azure Blob Storage
+# BACKEND DATA - Azure Blob Storage
 # ====================================================
-# AZURE_BLOB_STORAGE_CONNECTION_STRING="your_azure_blob_storage_connection_string"  # Connection string for Azure Blob Storage
-# AZURE_BLOB_STORAGE_ABORT_CONTAINER="abort"  # Blob container for aborted operations
-# AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER="concatenate"  # Blob container for concatenated data
-# AZURE_BLOB_STORAGE_COSTS_CONTAINER="costs"  # Blob container for cost data
-# AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER="feedbacks"  # Blob container for feedback data
-# AZURE_BLOB_STORAGE_PROCESSING_CONTAINER="processing"  # Blob container for processing data
-# AZURE_BLOB_STORAGE_PROMPTS_CONTAINER="prompts"  # Blob container for prompts
-# AZURE_BLOB_STORAGE_SESSIONS_CONTAINER="sessions"  # Blob container for sessions
-# AZURE_BLOB_STORAGE_VECTORS_CONTAINER="vectors"  # Blob container for vector data
-# AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER="custom_actions"  # Blob container for custom action files
-# AZURE_BLOB_STORAGE_MESSAGES_QUEUE_CONTAINER="messages_queue"
+#AZURE_BLOB_STORAGE_CONNECTION_STRING="Blob storage connection string"
+#AZURE_BLOB_STORAGE_ABORT_CONTAINER="abort"
+#AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER="concatenate"
+#AZURE_BLOB_STORAGE_COSTS_CONTAINER="costs"
+#AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER="feedbacks"
+#AZURE_BLOB_STORAGE_PROCESSING_CONTAINER="processing"
+#AZURE_BLOB_STORAGE_SESSIONS_CONTAINER="sessions"
+#AZURE_BLOB_STORAGE_VECTORS_CONTAINER="vectors"
+#AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER="custom-actions"
+#AZURE_BLOB_STORAGE_PROMPTS_CONTAINER="prompts"
+#AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER="subprompts"
+
+# ====================================================
+# BACKEND QUEUE - FILE SYSTEM QUEUE CONFIGURATION
+# ====================================================
+FILE_SYSTEM_QUEUE_DIRECTORY = "C:\\GenAI\\" # Directory path for storing backend queue data
+FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_CONTAINER="messages_queue"
+FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER="internal_events_queue"
+FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER="external_events_queue"
+FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER="wait_queue"
+FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_TTL=120     
+FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_TTL=120
+FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL=120
+FILE_SYSTEM_QUEUE_WAIT_QUEUE_TTL=120
+
+# ====================================================
+# BACKEND QUEUE - Azure Blob Storage Queue Configuration
+# ====================================================
+#AZURE_BLOB_STORAGE_QUEUE_CONNECTION_STRING="Blob storage connection string"
+#AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER="messages-queue"
+#AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER="internal-events-queue"
+#AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER="external-events-queue"
+#AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER="wait-queue"
+#AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_TTL=120
+#AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_TTL=120
+#AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL=120
+#AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_TTL=120
 
 # ====================================================
 # USER INTERACTIONS - INSTANT MESSAGING (SLACK) CONFIGURATION
@@ -104,6 +135,20 @@ SLACK_AUTHORIZE_DIRECT_MESSAGE=True  # Allow direct messages to the bot
 # TEAMS_FEEDBACK_BOT_ID="your_teams_feedback_bot_id"  # Teams feedback bot ID
 # TEAMS_INTERNAL_CHANNEL="your_teams_internal_channel"  # Teams internal channel ID
 # TEAMS_WORKSPACE_NAME="your_teams_workspace_name"  # Teams workspace name
+
+# ====================================================
+# GENAI INTERACTIONS - TEXT (OPENAI ChatGPT)
+# ====================================================
+OPENAI_CHATGPT_API_KEY="<YOUR OPENAI API KEY>"  # OpenAI API key
+OPENAI_CHATGPT_MODEL_NAME="gpt-4-turbo" #  Model name for OpenAI ChatGPT
+OPENAI_CHATGPT_VISION_MODEL_NAME="gpt-4o" # Model name for vision capabilities in OpenAI ChatGPT
+
+OPENAI_CHATGPT_INPUT_TOKEN_PRICE="0.0025"
+OPENAI_CHATGPT_OUTPUT_TOKEN_PRICE="0.01"
+
+# Assistant settings (if using an assistant with OpenAI, otherwise leave empty)
+OPENAI_CHATGPT_IS_ASSISTANT=False
+OPENAI_CHATGPT_ASSISTANT_ID="" 
 
 # ====================================================
 # GENAI INTERACTIONS - TEXT (Azure ChatGPT)
@@ -191,3 +236,8 @@ OPENAI_FILE_SEARCH_INDEX_NAME="your_index_name"  # Name of the search index
 #AZURE_AISEARCH_TOPN_DOCUMENT=5  # Number of top documents to retrieve
 #AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME="your_gpt_deployment_name"  # Model name for text completion
 #AZURE_AISEARCH_PROMPT="You are a helpful assistant that provides vector search results"  # Prompt for AI search interactions
+
+# ====================================================
+# BING SEARCH
+# ====================================================
+BING_SEARCH_SUBSCRIPTION_KEY="<BINGSEARCH API KEY>" # Bing Search subscription key

@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from azure.storage.blob import BlobServiceClient
 
 from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
@@ -62,7 +61,7 @@ def mock_utils():
             LOCAL_LOGGING=LocalLogging(
                 PLUGIN_NAME="local_logging",
                 LEVEL="DEBUG",
-                LOCAL_LOGGING_FILE_PATH="log.txt"  # Ajoutez ce champ requis
+                LOCAL_LOGGING_FILE_PATH="log.txt"
             ),
             AZURE_LOGGING=AzureLogging(
                 PLUGIN_NAME="azure_logging",
@@ -79,7 +78,21 @@ def mock_plugins():
             CUSTOM={"custom_action_interaction": Plugin(PLUGIN_NAME="plugin name")}
         ),
         BACKEND=Backend(
-            INTERNAL_DATA_PROCESSING={"some key": "some value"}
+            INTERNAL_DATA_PROCESSING={"some key": "some value"},
+            INTERNAL_QUEUE_PROCESSING={
+                "AZURE_SERVICE_BUS": {
+                    "PLUGIN_NAME": "azure_service_bus",
+                    "AZURE_SERVICE_BUS_CONNECTION_STRING": "fake-connection-string",
+                    "SERVICE_BUS_MESSAGES_QUEUE": "test-messages-queue",
+                    "SERVICE_BUS_INTERNAL_EVENTS_QUEUE": "test-internal-events-queue",
+                    "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE": "test-external-events-queue",
+                    "SERVICE_BUS_WAIT_QUEUE": "test-wait-queue",
+                    "SERVICE_BUS_MESSAGES_QUEUE_TTL": 3600,
+                    "SERVICE_BUS_INTERNAL_EVENTS_QUEUE_TTL": 1800,
+                    "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL": 7200,
+                    "SERVICE_BUS_WAIT_QUEUE_TTL": 600
+                }
+            }
         ),
         USER_INTERACTIONS=UserInteractions(
             INSTANT_MESSAGING={"some key": "some value"},
@@ -122,10 +135,14 @@ def mock_config_manager(mock_utils, mock_plugins):
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
-            LOAD_ACTIONS_FROM_BACKEND = False,
-            CLEARQUEUE_KEYWORD= '!CLEARQUEUE',
-            ACTIVATE_MESSAGE_QUEUING = False,
-            MESSAGE_QUEUING_TTL = 120
+            LOAD_ACTIONS_FROM_BACKEND=False,
+            CLEARQUEUE_KEYWORD='!CLEARQUEUE',
+            ACTIVATE_MESSAGE_QUEUING=False,
+            INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="internal_queue_processing_default_plugin_name",
+            LOAD_PROMPTS_FROM_BACKEND=False,
+            LOCAL_PROMPTS_PATH="local_prompts_path",
+            LOCAL_SUBPROMPTS_PATH="local_subprompts_path",
+            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -148,9 +165,6 @@ def mock_action_interactions_handler():
 def mock_prompt_manager():
     return MagicMock()
 
-def mock_from_connection_string(*args, **kwargs):
-    return MagicMock(spec=BlobServiceClient)
-
 @pytest.fixture
 def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_interactions_handler,
                         mock_action_interactions_handler, mock_prompt_manager):
@@ -163,14 +177,38 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.backend_internal_data_processing_dispatcher = AsyncMock()
     mock_global_manager.user_interactions_behavior_dispatcher = AsyncMock()
     mock_global_manager.genai_vectorsearch_dispatcher = AsyncMock()
+    mock_global_manager.session_manager = AsyncMock()
+    mock_global_manager.session_manager.get_or_create_session = AsyncMock(
+        return_value=MagicMock(messages=[{"role": "assistant"}])
+    )
     mock_global_manager.action_interactions_handler = mock_action_interactions_handler
     mock_global_manager.prompt_manager = mock_prompt_manager
     mock_global_manager.base_directory = Path('')
     mock_global_manager.available_actions = {}
+    mock_global_manager.interaction_queue_manager = AsyncMock()
     mock_global_manager.logger = MagicMock()
     mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
+    mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'
+
+    # Ensure the Azure Service Bus plugin is available
+    mock_global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {
+        "AZURE_SERVICE_BUS": {
+            "PLUGIN_NAME": "azure_service_bus",
+            "AZURE_SERVICE_BUS_CONNECTION_STRING": "fake-connection-string",
+            "SERVICE_BUS_MESSAGES_QUEUE": "test-messages-queue",
+            "SERVICE_BUS_INTERNAL_EVENTS_QUEUE": "test-internal-events-queue",
+            "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE": "test-external-events-queue",
+            "SERVICE_BUS_WAIT_QUEUE": "test-wait-queue",
+            "SERVICE_BUS_MESSAGES_QUEUE_TTL": 3600,
+            "SERVICE_BUS_INTERNAL_EVENTS_QUEUE_TTL": 1800,
+            "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL": 7200,
+            "SERVICE_BUS_WAIT_QUEUE_TTL": 600
+        }
+    }
+
     return mock_global_manager
+
 
 @pytest.fixture
 def mock_user_interactions_plugin():
@@ -224,6 +262,6 @@ def mock_incoming_notification_data_base():
         user_id="user_id",
         is_mention=True,
         text="text",
-        origin_plugin_name="plugin_name"  # Adding the mandatory field
+        origin_plugin_name="plugin_name"
     )
     return event_data

@@ -1,7 +1,7 @@
 import json
 import os
 from unittest.mock import AsyncMock, call, mock_open, patch
-import time
+
 import pytest
 
 from core.backend.pricing_data import PricingData
@@ -55,7 +55,6 @@ def test_file_system_properties(file_system_plugin):
     assert file_system_plugin.vectors == file_system_plugin.vectors_container
     assert file_system_plugin.custom_actions == file_system_plugin.custom_actions_container
     assert file_system_plugin.subprompts == file_system_plugin.subprompts_container
-    assert file_system_plugin.messages_queue == file_system_plugin.message_queue_container
 
 def test_init_shares_permission_error(file_system_plugin):
     with patch("os.makedirs", side_effect=OSError("Permission denied")), pytest.raises(OSError):
@@ -101,7 +100,7 @@ async def test_remove_data_content_file_not_exists(file_system_plugin):
 @patch('os.makedirs')
 def test_init_shares(mock_makedirs, file_system_plugin):
     file_system_plugin.init_shares()
-    assert mock_makedirs.call_count == 11
+    assert mock_makedirs.call_count == 10
 
 
 pytest.mark.asyncio
@@ -214,14 +213,6 @@ async def test_update_session_existing_file(file_system_plugin):
         ]
         assert json.loads(written_content) == expected_content
 
-def test_validate_request_raises_not_implemented(file_system_plugin):
-    with pytest.raises(NotImplementedError):
-        file_system_plugin.validate_request(None)
-
-def test_handle_request_raises_not_implemented(file_system_plugin):
-    with pytest.raises(NotImplementedError):
-        file_system_plugin.handle_request(None)
-
 @patch("os.makedirs", side_effect=OSError("Permission denied"))
 def test_init_shares_error(mock_makedirs, mock_global_manager, file_system_plugin):
     with pytest.raises(OSError, match="Permission denied"):
@@ -272,78 +263,6 @@ async def test_update_pricing_file_not_exists(file_system_plugin):
         mock_dump.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_enqueue_message_io_error(file_system_plugin):
-    # Simulate an IOError when writing the message to the queue
-    m = mock_open()
-    m.side_effect = IOError("Write error")
-    with patch("builtins.open", m), patch("os.path.join", return_value="/mocked/path"):
-        with patch.object(file_system_plugin.logger, 'error') as mock_logger_error:
-            await file_system_plugin.enqueue_message('channel', 'thread', 'message_id', 'message')
-            mock_logger_error.assert_called_once_with("Failed to enqueue the message for channel 'channel', thread 'thread': Write error")
-
-
-@pytest.mark.asyncio
-async def test_get_next_message_no_files(file_system_plugin):
-    # Simulate no files found in the container
-    with patch("os.listdir", return_value=[]):
-        next_message_id, message_content = await file_system_plugin.get_next_message('channel', 'thread', 'current_id')
-        assert next_message_id is None
-        assert message_content is None
-
-@pytest.mark.asyncio
-async def test_get_all_messages_empty(file_system_plugin):
-    # Simulate an empty container
-    with patch("os.listdir", return_value=[]):
-        messages = await file_system_plugin.get_all_messages('channel', 'thread')
-        assert messages == []
-
-@pytest.mark.asyncio
-async def test_get_next_message_no_match(file_system_plugin):
-    # Simulate finding files but no match for the next message
-    with patch("os.listdir", return_value=["channel_1_100.txt", "channel_1_200.txt"]), patch("os.path.exists", return_value=True):
-        next_message_id, message_content = await file_system_plugin.get_next_message('channel', 'thread', '300')
-        assert next_message_id is None
-        assert message_content is None
-
-@pytest.mark.asyncio
-async def test_clear_messages_queue_no_path(file_system_plugin):
-    # Simulate the queue directory not existing
-    with patch("os.path.exists", return_value=False):
-        await file_system_plugin.clear_messages_queue('channel', 'thread')
-
-import os
-import pytest
-from unittest.mock import patch
-
-@pytest.mark.asyncio
-async def test_clear_messages_queue_error_deleting(file_system_plugin):
-    # Simule une erreur lors de la suppression d'un fichier
-    with patch("os.path.exists", return_value=True), patch("os.listdir", return_value=["channel_thread_1.txt"]), patch("os.remove", side_effect=OSError("Delete error")):
-        with patch.object(file_system_plugin.logger, 'error') as mock_logger_error:
-            await file_system_plugin.clear_messages_queue('channel', 'thread')
-            
-            # Générer le chemin attendu en utilisant os.path.join
-            expected_path = os.path.join("/test_directory", "messages_queue", "channel_thread_1.txt")
-            
-            # Normaliser le chemin attendu
-            normalized_expected_path = os.path.normpath(expected_path)
-            
-            # Construire le message de log attendu
-            expected_log_message = f"Failed to delete message file '{normalized_expected_path}': Delete error"
-            
-            # Normaliser les séparateurs dans le message attendu
-            normalized_expected_log_message = expected_log_message.replace('\\', os.path.sep).replace('/', os.path.sep)
-
-            # Capturer le message de log appelé
-            actual_call_args = mock_logger_error.call_args[0][0]
-            
-            # Normaliser le message capturé
-            normalized_actual_log_message = actual_call_args.replace('\\', os.path.sep).replace('/', os.path.sep)
-
-            # Vérifier que les deux messages normalisés sont égaux
-            assert normalized_actual_log_message == normalized_expected_log_message
-
-@pytest.mark.asyncio
 async def test_read_data_content_io_error(file_system_plugin):
     m = mock_open()
     m.side_effect = IOError("File read error")
@@ -390,8 +309,6 @@ async def test_write_read_remove_data_integration(file_system_plugin):
     content_after_removal = await file_system_plugin.read_data_content('container', 'file')
     assert content_after_removal is None
 
-
-
 @pytest.mark.asyncio
 async def test_update_session_invalid_json(file_system_plugin):
     m = mock_open(read_data="invalid_json")
@@ -399,240 +316,3 @@ async def test_update_session_invalid_json(file_system_plugin):
         await file_system_plugin.update_session("container", "file", "user", "new_content")
         # Vérifie que rien n'est écrit dans le fichier en cas de JSON invalide
         m().write.assert_not_called()
-
-async def has_older_messages(self, channel_id: str, thread_id: str) -> bool:
-    self.logger.info(f"Checking for older messages in channel '{channel_id}', thread '{thread_id}'")
-    try:
-        current_time = int(time.time())
-        queue_path = os.path.join(self.root_directory, self.message_queue_container)
-        files = os.listdir(queue_path)
-
-        # Filtrer les fichiers pour le channel_id et thread_id spécifique
-        filtered_files = [f for f in files if f.startswith(f"{channel_id}_{thread_id}")]
-        self.logger.info(f"Found {len(filtered_files)} messages for channel '{channel_id}', thread '{thread_id}'")
-
-        if not filtered_files:
-            self.logger.info(f"No pending messages found for channel '{channel_id}', thread '{thread_id}'.")
-            return False
-
-        message_ttl = self.global_manager.bot_config.MESSAGE_QUEUING_TTL
-
-        # Check for messages older than message_ttl
-        for file_name in filtered_files:
-            try:
-                # Extract the message_id (timestamp) from the filename
-                message_id = file_name.split('_')[-1].split('.')[0]
-                timestamp = float(message_id)
-                time_difference = current_time - timestamp
-
-                self.logger.info(f"Message '{file_name}' has a timestamp of {timestamp}. Time difference: {time_difference} seconds.")
-
-                if time_difference > message_ttl:
-                    self.logger.info(f"Message '{file_name}' is older than TTL, dequeuing...")
-                    await self.dequeue_message(channel_id=channel_id, thread_id=thread_id, message_id=message_id)
-                    return True
-            except ValueError:
-                self.logger.error(f"Invalid message file format: {file_name}, skipping.")
-
-        return False
-
-    except Exception as e:
-        self.logger.error(f"Failed to check for older messages: {str(e)}")
-        return False
-
-@pytest.mark.asyncio
-async def test_get_next_message(file_system_plugin, mocker):
-    mocker.patch("os.listdir", return_value=["channel_thread_5341351.5343.txt", "channel_thread_5341352.5344.txt"])
-    mocker.patch("os.path.exists", return_value=True)
-
-    # Mock to open and return simulated content
-    mock_open_file = mock_open(read_data='{"content": "test message"}')
-    with patch("builtins.open", mock_open_file):
-        # Ensure the 5341352.5344 file is processed after 5341351.5343
-        next_message_id, message_content = await file_system_plugin.get_next_message('channel', 'thread', '5341351.5343')
-
-        # Assert the correct next message ID and content
-        assert next_message_id == "5341352.5344", f"Expected next_message_id to be '5341352.5344', but got {next_message_id}"
-        assert message_content == '{"content": "test message"}'
-
-@pytest.mark.asyncio
-async def test_get_next_message_no_match(file_system_plugin, mocker):
-    mocker.patch("os.listdir", return_value=["channel_1_999999.txt"])
-    mocker.patch("os.path.exists", return_value=True)
-
-    next_message_id, message_content = await file_system_plugin.get_next_message('channel', 'thread', '999999')
-    assert next_message_id is None
-    assert message_content is None
-
-@pytest.mark.asyncio
-async def test_get_next_message_exception(file_system_plugin, mocker):
-    mocker.patch("os.listdir", side_effect=OSError("Directory not found"))
-
-    next_message_id, message_content = await file_system_plugin.get_next_message('channel', 'thread', '999999')
-    assert next_message_id is None
-    assert message_content is None
-
-@pytest.mark.asyncio
-async def test_dequeue_message(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=True)
-    mock_remove = mocker.patch("os.remove")
-
-    await file_system_plugin.dequeue_message('channel', 'thread', 'message_id')
-    mock_remove.assert_called_once_with(os.path.join(file_system_plugin.root_directory, 'messages_queue', 'channel_thread_message_id.txt'))
-
-@pytest.mark.asyncio
-async def test_dequeue_message_file_not_found(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=False)
-    mock_remove = mocker.patch("os.remove")
-
-    await file_system_plugin.dequeue_message('channel', 'thread', 'message_id')
-    mock_remove.assert_not_called()
-
-@pytest.mark.asyncio
-async def test_dequeue_message_exception(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=True)
-    mock_remove = mocker.patch("os.remove", side_effect=OSError("Permission denied"))
-
-    with patch.object(file_system_plugin.logger, 'error') as mock_logger_error:
-        await file_system_plugin.dequeue_message('channel', 'thread', 'message_id')
-        mock_logger_error.assert_called_once_with("Failed to remove message 'message_id' from the queue: Permission denied")
-
-@pytest.mark.asyncio
-async def test_get_all_messages(file_system_plugin, mocker):
-    # Mock the directory listing to return two files
-    mocker.patch("os.listdir", return_value=["channel_thread_message_1.txt", "channel_thread_message_2.txt"])
-    
-    # Mock the file reading process with "message content"
-    mock_open_file = mock_open(read_data="message content")
-    
-    with patch("builtins.open", mock_open_file):
-        # Call the get_all_messages function
-        messages = await file_system_plugin.get_all_messages('channel', 'thread')
-        
-        # Verify that two messages were read
-        assert len(messages) == 2, f"Expected 2 messages, but got {len(messages)}"
-        
-        # Verify that both messages have the correct content
-        assert messages[0] == "message content"
-        assert messages[1] == "message content"
-
-@pytest.mark.asyncio
-async def test_get_all_messages_empty(file_system_plugin, mocker):
-    mocker.patch("os.listdir", return_value=[])
-    messages = await file_system_plugin.get_all_messages('channel', 'thread')
-    assert messages == []
-
-@pytest.mark.asyncio
-async def test_get_all_messages_exception(file_system_plugin, mocker):
-    mocker.patch("os.listdir", side_effect=OSError("Directory not found"))
-
-    with patch.object(file_system_plugin.logger, 'error') as mock_logger_error:
-        messages = await file_system_plugin.get_all_messages('channel', 'thread')
-        assert messages == []
-        mock_logger_error.assert_called_once_with("Failed to retrieve all messages for channel 'channel', thread 'thread': Directory not found")
-
-@pytest.mark.asyncio
-async def test_clear_messages_queue(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=True)
-    mocker.patch("os.listdir", return_value=["channel_thread_1.txt"])
-    mock_remove = mocker.patch("os.remove")
-
-    await file_system_plugin.clear_messages_queue('channel', 'thread')
-    mock_remove.assert_called_once_with(os.path.join(file_system_plugin.root_directory, 'messages_queue', 'channel_thread_1.txt'))
-
-@pytest.mark.asyncio
-async def test_clear_messages_queue_directory_not_exists(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=False)
-
-    await file_system_plugin.clear_messages_queue('channel', 'thread')
-
-    assert True  # Success if no exception is raised
-
-@pytest.mark.asyncio
-async def test_clear_messages_queue_exception(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=True)
-    mocker.patch("os.listdir", return_value=["channel_thread_1.txt"])
-    mock_remove = mocker.patch("os.remove", side_effect=OSError("Permission denied"))
-
-    with patch.object(file_system_plugin.logger, 'error') as mock_logger_error:
-        await file_system_plugin.clear_messages_queue('channel', 'thread')
-
-        # Normalisation des chemins pour éviter les erreurs dues aux séparateurs
-        expected_path = os.path.normpath("/test_directory/messages_queue/channel_thread_1.txt")
-        expected_log_message = f"Failed to delete message file '{expected_path}': Permission denied"
-        
-        # Normaliser le message de log réel
-        actual_log_message = mock_logger_error.call_args[0][0]
-        assert os.path.normpath(actual_log_message) == expected_log_message
-
-@pytest.mark.asyncio
-async def test_has_older_messages(file_system_plugin, mocker):
-    # Get the current time in Unix timestamp format
-    current_time = time.time()
-    
-    # Create two timestamps: one older than the TTL and one newer
-    old_timestamp = current_time - 200  # 200 seconds ago (older than the TTL)
-    new_timestamp = current_time - 50   # 50 seconds ago (newer than the TTL)
-    
-    # Format the timestamps with full decimal precision
-    old_timestamp_str = f"{old_timestamp:.6f}"
-    new_timestamp_str = f"{new_timestamp:.6f}"
-    
-    # Mock current time to be fixed at `current_time`
-    mocker.patch("time.time", return_value=current_time)
-    
-    # Mock file listing with Unix timestamps in the message filenames
-    mocker.patch("os.listdir", return_value=[
-        f"channel_thread_{old_timestamp_str}.txt",  # This file is older than TTL
-        f"channel_thread_{new_timestamp_str}.txt",  # This file is newer than TTL
-    ])
-    
-    # Mock file existence check
-    mocker.patch("os.path.exists", return_value=True)
-    
-    # Mock the dequeue message method (for the older message)
-    mock_dequeue = mocker.patch.object(file_system_plugin, 'dequeue_message', new_callable=AsyncMock)
-    
-    # Set the message TTL to 100 seconds
-    file_system_plugin.global_manager.bot_config.MESSAGE_QUEUING_TTL = 100
-    
-    # Call the function to test whether older messages are found and dequeued
-    result = await file_system_plugin.has_older_messages('channel', 'thread')
-  
-    # Assert that the result is True because there is still one valid message (newer one)
-    assert result is True, f"Expected result to be True, but got {result}"
-
-
-@pytest.mark.asyncio
-async def test_get_next_message_no_match(file_system_plugin, mocker):
-    mocker.patch("os.listdir", return_value=["channel_1_999999.txt"])
-    mocker.patch("os.path.exists", return_value=True)
-
-    next_message_id, message_content = await file_system_plugin.get_next_message('channel', 'thread', '999999')
-    
-    assert next_message_id is None
-    assert message_content is None
-
-@pytest.mark.asyncio
-async def test_dequeue_message(file_system_plugin, mocker):
-    mocker.patch("os.path.exists", return_value=True)
-    mock_remove = mocker.patch("os.remove")
-
-    await file_system_plugin.dequeue_message('channel', 'thread', 'message_id')
-    
-    # Vérification de l'appel à la suppression
-    mock_remove.assert_called_once_with(os.path.join(file_system_plugin.root_directory, 'messages_queue', 'channel_thread_message_id.txt'))
-
-@pytest.mark.asyncio
-async def test_has_older_messages_no_old_message(file_system_plugin, mocker):
-    mocker.patch("time.time", return_value=1000000)
-    mocker.patch("os.listdir", return_value=["channel_thread_1000.txt", "channel_thread_1001.txt"])
-    mocker.patch("os.path.exists", return_value=True)
-
-    # Configurer le TTL pour simuler un message récent
-    file_system_plugin.global_manager.bot_config.MESSAGE_QUEUING_TTL = 100
-    
-    result = await file_system_plugin.has_older_messages('channel', 'thread')
-
-    # Vérification qu'aucun message n'est supprimé
-    assert result is False

@@ -25,7 +25,7 @@ class GenAIInteractionsTextPluginBase(GenAIInteractionsPluginBase, ABC):
         self._genai_cost_base = value
 
     @abstractmethod
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
+    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output: bool):
         pass
 
     @abstractmethod

@@ -49,14 +49,14 @@ async def test_user_interaction_execute(mock_global_manager):
     # Execute the action
     await user_interaction_action.execute(action_input, event)
 
-    # Assert that send_message was called correctly
+    # Assert that send_message was called correctly with action_ref
     mock_global_manager.user_interactions_dispatcher.send_message.assert_called_once_with(
         event=event,
         message='Test message',
-        message_type=MessageType.TEXT
+        message_type=MessageType.TEXT,
+        action_ref='user_interaction'  # Include action_ref
     )
 
-    # Supprimer la vérification de l'appel pour le message interne
 
 @pytest.mark.asyncio
 async def test_user_interaction_execute_empty_message(mock_global_manager):

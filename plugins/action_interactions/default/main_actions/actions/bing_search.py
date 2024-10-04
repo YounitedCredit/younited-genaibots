@@ -30,7 +30,7 @@ class BingSearch(ActionBase):
         self.search_url = "https://api.bing.microsoft.com/v7.0/search"
 
     async def execute(self, action_input: ActionInput, event: IncomingNotificationDataBase):
-        await self.user_interactions_dispatcher.send_message(event=event, message="Looking for more info on the web please wait...", message_type=MessageType.COMMENT, is_internal=False)
+        await self.user_interactions_dispatcher.send_message(event=event, message="Looking for more info on the web please wait...", message_type=MessageType.COMMENT, is_internal=False, action_ref="bing_search")
 
         query, result_number, from_snippet, user_input, urls = self.extract_parameters(action_input)
 
@@ -71,14 +71,21 @@ class BingSearch(ActionBase):
             return None
 
     async def handle_search_error(self, error, event):
-        if isinstance(error, requests.exceptions.HTTPError) and error.response.status_code == 403:
-            message = f"403 Forbidden error for URL: {self.search_url}. Skipping this URL."
+        message = "An unknown error occurred."
+        if isinstance(error, requests.exceptions.HTTPError):
+            if error.response.status_code == 403:
+                message = f"403 Forbidden error for URL: {self.search_url}. Skipping this URL."
+            elif error.response.status_code == 401:
+                message = f"401 Unauthorized error for URL: {self.search_url}. Permission denied."
+            else:
+                message = f"HTTPError for URL: {self.search_url}. Status code: {error.response.status_code}."
         elif isinstance(error, requests.exceptions.ConnectionError):
             message = f"ConnectionError for URL: {self.search_url}. Could not connect to the server."
         elif isinstance(error, requests.exceptions.Timeout):
             raise error
         self.logger.error(message)
         await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.COMMENT, is_internal=True)
+        await self.user_interactions_dispatcher.send_message(event=event, message=f"Oops something goes wrong! {message}", message_type=MessageType.COMMENT, is_internal=False, action_ref="bing_search")
 
     async def process_search_results(self, search_results, event, result_number, from_snippet, user_input):
         if 'webPages' in search_results and 'value' in search_results['webPages']:
@@ -97,7 +104,7 @@ class BingSearch(ActionBase):
         urls = urls.split(',')
         for url in urls:
             if not self.is_valid_url(url):
-                await self.user_interactions_dispatcher.send_message(event=event, message=f"Sorry the url {url} is not valid", message_type=MessageType.COMMENT, is_internal=True)
+                await self.user_interactions_dispatcher.send_message(event=event, message=f"Sorry the url {url} is not valid", message_type=MessageType.COMMENT, is_internal=False, action_ref="bing_search")
                 return
             else:
                 page_content = await self.get_page_content(url)
@@ -164,7 +171,8 @@ class BingSearch(ActionBase):
                 event=event,
                 message="Sorry, we couldn't find a solution to your problem. Please try rephrasing your request.",
                 message_type=MessageType.COMMENT,
-                is_internal=False
+                is_internal=False,
+                action_ref="bing_search"
             )
             return
         else:

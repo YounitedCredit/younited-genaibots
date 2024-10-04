@@ -1,0 +1,3 @@
+# SUBPROMPT: test sub prompt
+
+You are reading a subprompt explain this to the user and add a userinteraction with a joke.

@@ -3,6 +3,7 @@ import copy
 import inspect
 import json
 import traceback
+from datetime import datetime
 from typing import Any
 
 from openai import AsyncAzureOpenAI
@@ -47,6 +48,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.azure_chatgpt_config = AzureChatGptConfig(**azure_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
+        self.session_manager = global_manager.session_manager
 
         # Dispatchers
         self.user_interaction_dispatcher = None
@@ -77,6 +79,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.azure_openai_endpoint = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_ENDPOINT
         self.openai_api_version = self.azure_chatgpt_config.AZURE_CHATGPT_OPENAI_API_VERSION
         self.model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
+        self.plugin_name = self.azure_chatgpt_config.PLUGIN_NAME
         self.input_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_chatgpt_config.AZURE_CHATGPT_OUTPUT_TOKEN_PRICE
         self.is_assistant = self.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT
@@ -150,54 +153,106 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             )
             return None
 
-    async def handle_action(self, action_input:ActionInput, event:IncomingNotificationDataBase):
+    async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
+            # Extract parameters from the action input
             parameters = action_input.parameters
             input_param: str = parameters.get('input', '')
+            messages = parameters.get('messages', [])
             main_prompt = parameters.get('main_prompt', '')
             context = parameters.get('context', '')
+            model_name = parameters.get('model_name', '')
             conversation_data = parameters.get('conversation_data', '')
 
+            # Retrieve or create a session for this thread
+            session = await self.global_manager.session_manager.get_or_create_session(
+                channel_id=event.channel_id,
+                thread_id=event.thread_id or event.timestamp,  # Use timestamp if thread_id is None
+                enriched=True
+            )
+
+            # Capture the action invocation time
+            action_start_time = datetime.now()
+
+            # Add the automated user message to the session (with is_automated=True)
+            automated_user_event = {
+                'role': 'user',
+                'content': input_param,
+                'is_automated': True,
+                'timestamp': action_start_time.isoformat()
+            }
+            session.messages.append(automated_user_event)  # Append the automated message to the session
+
+            # Prepare the system message for the assistant
             if main_prompt:
-                self.logger.debug(f"Main prompt: {main_prompt}")
-                init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.backend_internal_data_processing_dispatcher.prompts, data_file=f"{main_prompt}.txt")
-                if init_prompt is None:
-                    self.logger.warning("No specific instructions")
-
-                messages = [{"role": "system", "content": init_prompt}]
+                init_prompt = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                    data_container=self.backend_internal_data_processing_dispatcher.prompts,
+                    data_file=f"{main_prompt}.txt"
+                )
+                if init_prompt:
+                    messages.insert(0, {"role": "system", "content": init_prompt})
             else:
-                messages = [{"role": "system", "content": "No specific instruction provided."}]
+                messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
 
+            # Append context and conversation data
             if context:
-                context_content = f"Here is aditionnal context relevant to the following request: {context}"
-                messages.append({"role": "user", "content": context_content})
-
+                messages.append({"role": "user", "content": f"Here is additional context: {context}"})
             if conversation_data:
-                conversation_content = f"Here is the conversation that led to the following request: {conversation_data}"
-                messages.append({"role": "user", "content": conversation_content})
+                messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
 
-            user_content = input_param
-            messages.append({"role": "user", "content": user_content})
+            # Append the user input
+            messages.append({"role": "user", "content": input_param})
 
-            self.logger.info(f"GENERATE TEXT CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
-            completion, genai_cost_base = await self.generate_completion(messages, event)
+            # Call the model to generate the completion
+            self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {model_name}..")
+            generation_start_time = datetime.now()
+            completion, genai_cost_base = await self.generate_completion(messages, event, raw_output=True)
+            generation_end_time = datetime.now()
 
-            # Update the costs
-            costs = self.backend_internal_data_processing_dispatcher.costs
-            original_msg_ts = event.thread_id if event.thread_id else event.timestamp
-            blob_name = f"{event.channel_id}-{original_msg_ts}.txt"
-            await self.input_handler.calculate_and_update_costs(genai_cost_base, costs, blob_name, event)
+            # Calculate the generation time
+            generation_time_ms = (generation_end_time - generation_start_time).total_seconds() * 1000
 
-            # Update the session with the completion
-            sessions = self.backend_internal_data_processing_dispatcher.sessions
-            messages = json.loads(await self.backend_internal_data_processing_dispatcher.read_data_content(sessions, blob_name) or "[]")
-            messages.append({"role": "assistant", "content": completion})
-            completion_json = json.dumps(messages)
-            await self.backend_internal_data_processing_dispatcher.write_data_content(sessions, blob_name, completion_json)
+            # Process the completion response and costs
+            input_cost = (genai_cost_base.prompt_tk / 1000) * genai_cost_base.input_token_price
+            output_cost = (genai_cost_base.completion_tk / 1000) * genai_cost_base.output_token_price
+            total_cost = input_cost + output_cost
+
+            # Add the assistant's response to the session
+            assistant_message = {
+                "role": "assistant",
+                "content": completion,  # Strip markers if needed
+                "timestamp": generation_end_time.isoformat(),
+                "cost": {
+                    "total_tokens": genai_cost_base.total_tk,
+                    "prompt_tokens": genai_cost_base.prompt_tk,
+                    "completion_tokens": genai_cost_base.completion_tk,
+                    "input_cost": input_cost,
+                    "output_cost": output_cost,
+                    "total_cost": total_cost
+                },
+                "plugin_name": self.plugin_name,
+                "model_name": self.model_name,
+                "generation_time_ms": generation_time_ms,
+                "from_action": True,  # Indicate that the message comes from an action
+                "action_payload": messages  # Include the messages that were sent to the model
+            }
+
+            # Add the assistant message to the session
+            session.messages.append(assistant_message)
+
+            # Update the total generation time in the session
+            if not hasattr(session, 'total_time_ms'):
+                session.total_time_ms = 0.0
+            session.total_time_ms += generation_time_ms
+
+            # Save the updated session
+            await self.global_manager.session_manager.save_session(session)
+
             return completion
 
         except Exception as e:
-            self.logger.error(f"An error occurred: {e}\n{traceback.format_exc()}")
+            self.logger.error(f"Error in handle_action: {e}")
+            raise
 
     async def generate_completion_assistant(self, messages, event_data: IncomingNotificationDataBase):
         try:
@@ -365,7 +420,28 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             )
             raise
 
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase):
+    async def filter_messages(self, messages):
+        filtered_messages = []
+        for message in messages:
+            # Si le message provient de l'utilisateur et que son contenu est une liste, nous filtrons le contenu 'image_url'
+            if message['role'] == 'user' and isinstance(message['content'], list):
+                filtered_content = [content for content in message['content'] if content['type'] != 'image_url']
+                message['content'] = filtered_content
+            filtered_messages.append(message)
+        return filtered_messages
+
+    async def filter_images(self, messages):
+        filtered_messages = []
+        for message in messages:
+            # If the message is from the user and its content is a list, we filter out 'image_url' content.
+            # This is because the GenAI model currently only supports text inputs, not images.
+            if message['role'] == 'user' and isinstance(message['content'], list):
+                filtered_content = [content for content in message['content'] if content['type'] != 'image_url']
+                message['content'] = filtered_content
+            filtered_messages.append(message)
+        return filtered_messages
+
+    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output= False):
         # Check if we should use the assistant
         self.logger.info("Generate completion triggered...")
         if self.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT:
@@ -373,6 +449,10 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
         # If not using an assistant, proceed with the standard completion
         model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
+
+        # Filter out messages content from the metadata
+
+        messages =  [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
 
         if event_data.images:
             if not self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME:
@@ -382,7 +462,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             model_name = self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME
         else:
             model_name = self.azure_chatgpt_config.AZURE_CHATGPT_MODEL_NAME
-            messages = await self.input_handler.filter_messages(messages)
+            messages = await self.filter_images(messages)
 
         try:
             completion = await self.gpt_client.chat.completions.create(
@@ -396,37 +476,39 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             # Extract the full response between the markers
             response = completion.choices[0].message.content
-            start_marker = "[BEGINIMDETECT]"
-            end_marker = "[ENDIMDETECT]"
+            if raw_output == False:
+                start_marker = "[BEGINIMDETECT]"
+                end_marker = "[ENDIMDETECT]"
 
-            # Ensure that the markers exist in the response
-            if start_marker in response and end_marker in response:
-                # Extract the JSON content between the markers
-                json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
+                # Ensure that the markers exist in the response
+                if start_marker in response and end_marker in response:
+                    # Extract the JSON content between the markers
+                    json_content = response.split(start_marker)[1].split(end_marker)[0].strip()
 
-                # Load the JSON content
-                try:
-                    response_dict = json.loads(json_content)
-                    normalized_response_dict = self.normalize_keys(response_dict)
+                    # Load the JSON content
+                    try:
+                        response_dict = json.loads(json_content)
+                        normalized_response_dict = self.normalize_keys(response_dict)
 
-                    # Locate the "UserInteraction" action and replace escape sequences
-                    for action in normalized_response_dict.get("response", []):
-                        if action["Action"]["ActionName"] == "UserInteraction":
-                            value = action["Action"]["Parameters"]["value"]
+                        # Locate the "UserInteraction" action and replace escape sequences
+                        for action in normalized_response_dict.get("response", []):
+                            if action["Action"]["ActionName"] == "UserInteraction":
+                                value = action["Action"]["Parameters"]["value"]
 
-                            # Replace the escape sequences (\\n) with real newlines (\n)
-                            formatted_value = value.replace("\\n", "\n")
-                            action["Action"]["Parameters"]["value"] = formatted_value
+                                # Replace the escape sequences (\\n) with real newlines (\n)
+                                formatted_value = value.replace("\\n", "\n")
+                                action["Action"]["Parameters"]["value"] = formatted_value
 
-                    # Rebuild the formatted JSON with indentation
-                    formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
-                    response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
+                        # Rebuild the formatted JSON with indentation
+                        formatted_json_content = json.dumps(response_dict, ensure_ascii=False, indent=2)
+                        response = f"{start_marker}\n{formatted_json_content}\n{end_marker}"
 
-                except json.JSONDecodeError as e:
-                    # Log error if JSON parsing fails
-                    self.logger.error(f"Error decoding JSON: {e}")
-            else:
-                self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
+                    except json.JSONDecodeError as e:
+                        # Log error if JSON parsing fails
+                        self.logger.error(f"Error decoding JSON: {e}")
+                else:
+                    self.logger.error("Missing [BEGINIMDETECT] or [ENDIMDETECT] markers in the response.")
+
             # Extract the GPT response and token usage details
             self.genai_cost_base = GenAICostBase()
             self.genai_cost_base.total_tk = completion.usage.total_tokens

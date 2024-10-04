@@ -35,15 +35,15 @@ class GenerateImage(ActionBase):
                         extracted_message = match.group(1)
                     else:
                         extracted_message = url
-                    await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: {extracted_message}")
+                    await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: {extracted_message}", action_ref="generate_image")
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: {url}", is_internal=True)
                 elif self.is_valid_url(url):  # Check if the returned value is a valid URL
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"<{url}|Image>")
                 else:
-                    await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: Invalid URL {url}")
+                    await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: Invalid URL {url}", action_ref="generate_image")
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: Invalid URL {url}", is_internal=True)
             else:
-                await self.user_interaction_dispatcher.send_message(event=event, message="Image generation failed")
+                await self.user_interaction_dispatcher.send_message(event=event, message="Image generation failed", action_ref="generate_image")
                 await self.user_interaction_dispatcher.send_message(event=event, message="Image generation failed", is_internal=True)
 
         except Exception as e:

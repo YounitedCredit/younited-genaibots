@@ -44,7 +44,11 @@ def test_bot_config():
         "LOAD_ACTIONS_FROM_BACKEND": True,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": False,
         "ACTIVATE_MESSAGE_QUEUING": False,
-        "MESSAGE_QUEUING_TTL" : 120
+        "INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME": "default_queue_plugin",
+        "LOAD_PROMPTS_FROM_BACKEND": True,
+        "LOCAL_PROMPTS_PATH": "local_prompts_path",
+        "LOCAL_SUBPROMPTS_PATH": "local_subprompts_path",
+        "ACTIVATE_USER_INTERACTION_EVENTS_QUEUING": True
     }
     bot_config = BotConfig(**valid_data)
     assert bot_config.CORE_PROMPT == "core_prompt"
@@ -87,7 +91,10 @@ def test_plugins():
     # Test valid Plugins
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
     action_interactions = ActionInteractions(DEFAULT={"default_plugin": Plugin(**plugin_data)})
-    backend = Backend(INTERNAL_DATA_PROCESSING={"key": "value"})
+    backend = Backend(
+        INTERNAL_DATA_PROCESSING={"key": "value"},
+        INTERNAL_QUEUE_PROCESSING={"key": "value"}
+    )
     user_interactions = UserInteractions(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
     genai_interactions = GenaiInteractions(TEXT={"key": "value"}, IMAGE={"key": "value"}, VECTOR_SEARCH={"key": "value"})
     user_interactions_behaviors = UserInteractionsBehaviors(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
@@ -127,8 +134,12 @@ def test_config_model():
         "CLEARQUEUE_KEYWORD": '!CLEARQUEUE',
         "LOAD_ACTIONS_FROM_BACKEND": False,
         "GET_ALL_THREAD_FROM_MESSAGE_LINKS": True,
-        "MESSAGE_QUEUING_TTL" : 120,
-        "ACTIVATE_MESSAGE_QUEUING": True
+        "ACTIVATE_MESSAGE_QUEUING": True,
+        "INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME": "default_queue_plugin",
+        "LOAD_PROMPTS_FROM_BACKEND": True,
+        "LOCAL_PROMPTS_PATH": "local_prompts_path",
+        "LOCAL_SUBPROMPTS_PATH": "local_subprompts_path",
+        "ACTIVATE_USER_INTERACTION_EVENTS_QUEUING": True
     }
     file_data = {"PLUGIN_NAME": "file_plugin", "LOCAL_LOGGING_FILE_PATH": "path/to/log"}
 
@@ -138,7 +149,10 @@ def test_config_model():
 
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
     action_interactions = ActionInteractions(DEFAULT={"default_plugin": Plugin(**plugin_data)})
-    backend = Backend(INTERNAL_DATA_PROCESSING={"key": "value"})
+    backend = Backend(
+        INTERNAL_DATA_PROCESSING={"key": "value"},
+        INTERNAL_QUEUE_PROCESSING={"key": "value"}
+    )
     user_interactions = UserInteractions(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
     genai_interactions = GenaiInteractions(TEXT={"key": "value"}, IMAGE={"key": "value"}, VECTOR_SEARCH={"key": "value"})
     user_interactions_behaviors = UserInteractionsBehaviors(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
