@@ -87,6 +87,14 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for custom actions data.
         """
         raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def chainofthoughts(self):
+        """
+        Property for chainofthoughts data.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def append_data(self, container_name: str, data_identifier: str, data: str) -> None:

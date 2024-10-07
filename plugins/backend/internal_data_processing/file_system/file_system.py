@@ -24,6 +24,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_VECTORS_CONTAINER: str
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
     FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
+    FILE_SYSTEM_CHAINOFTHOUGHTS_CONTAINER: str
 
 
 class FileSystemPlugin(InternalDataProcessingBase):
@@ -48,6 +49,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.vectors_container = None
         self.custom_actions_container = None
         self.subprompts_container = None
+        self.chainofthoughts_container = None
 
     @property
     def plugin_name(self):
@@ -96,6 +98,10 @@ class FileSystemPlugin(InternalDataProcessingBase):
     @property
     def subprompts(self):
         return self.subprompts_container
+    
+    @property
+    def chainofthoughts(self):
+        return self.chainofthoughts_container
 
     def initialize(self):
         try:
@@ -111,6 +117,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
+            self.chainofthoughts_container = self.file_system_config.FILE_SYSTEM_CHAINOFTHOUGHTS_CONTAINER
 
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
@@ -128,7 +135,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.abort_container,
             self.vectors_container,
             self.custom_actions_container,
-            self.subprompts_container
+            self.subprompts_container,
+            self.chainofthoughts_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -158,10 +166,13 @@ class FileSystemPlugin(InternalDataProcessingBase):
         file_path = os.path.join(self.root_directory, data_container, data_file)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                with open(file_path, 'r', encoding='utf-8') as file:
                     data = file.read()
                 self.logger.debug("Data successfully read")
                 return data
+            except UnicodeDecodeError as e:
+                self.logger.error(f"Failed to read file due to encoding error: {str(e)}")
+                return None
             except Exception as e:
                 self.logger.error(f"Failed to read file: {str(e)}")
                 return None

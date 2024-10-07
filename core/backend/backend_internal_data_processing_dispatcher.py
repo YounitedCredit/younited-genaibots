@@ -107,6 +107,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def custom_actions(self, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.custom_actions
+    
+    @property
+    def chainofthoughts(self, plugin_name=None):
+        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.chainofthoughts
 
     async def read_data_content(self, data_container, data_file, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
