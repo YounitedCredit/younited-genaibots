@@ -227,9 +227,10 @@ class InteractionQueueManager:
 
     async def process_internal_queue(self, queue_key):
         """
-        Process events from the internal queue for a specific channel/thread.
+        Process events from the internal queue for a specific channel/thread in batches to ensure order.
         """
         try:
+            batch = []
             while True:
                 event_data = await self.internal_queues[queue_key].get()
 
@@ -237,45 +238,33 @@ class InteractionQueueManager:
                     event_type = event_data['event_type']
                     method_params = event_data['method_params']
 
-                    # Rebuild the event object from the stored dictionary
-                    if 'event' in method_params:
-                        event_dict = method_params['event']
-                        method_params['event'] = IncomingNotificationDataBase.from_dict(event_dict)
+                    # Add event to batch for batch processing (up to batch size or break)
+                    batch.append(event_data)
+                    if len(batch) >= 10 or self.internal_queues[queue_key].empty():
+                        await self.process_event_batch(batch, internal=True)
+                        batch = []  # Reset batch
 
-                    if 'message_type' in method_params:
-                        method_params['message_type'] = MessageType(method_params['message_type'])
-
-                    dispatcher = self.user_interaction_dispatcher
-
-                    # Replay the stored method with the appropriate parameters
-                    if event_type == "send_message":
-                        await dispatcher.send_message(**method_params, is_replayed=True)
-                    elif event_type == "upload_file":
-                        await dispatcher.upload_file(**method_params, is_replayed=True)
-                    elif event_type == "add_reaction":
-                        await dispatcher.add_reaction(**method_params, is_replayed=True)
-                    elif event_type == "remove_reaction":
-                        await dispatcher.remove_reaction(**method_params, is_replayed=True)
-                    elif event_type == "remove_reaction_from_thread":
-                        await dispatcher.remove_reaction_from_thread(**method_params, is_replayed=True)
-
-                    # Mark the event as processed and remove it from the backend
-                    await self.mark_event_processed(event_data, internal=True)
-                except Exception as e:
-                    self.logger.error(f"Error processing internal event: {e}")
-                finally:
+                    # Mark as done after processing
                     self.internal_queues[queue_key].task_done()
 
-                if self.internal_queues[queue_key].empty():
-                    break
-        finally:
-            del self.internal_processing_tasks[queue_key]
+                    if self.internal_queues[queue_key].empty():
+                        break
+                except Exception as e:
+                    self.logger.error(f"Error processing internal event: {e}")
+                    self.internal_queues[queue_key].task_done()
+
+            if queue_key in self.internal_processing_tasks:
+                del self.internal_processing_tasks[queue_key]
+        except Exception as e:
+            self.logger.error(f"Error in internal queue processing: {e}")
+
 
     async def process_external_queue(self, queue_key):
         """
-        Process events from the external queue for a specific channel/thread.
+        Process events from the external queue for a specific channel/thread in batches.
         """
         try:
+            batch = []
             while True:
                 event_data = await self.external_queues[queue_key].get()
 
@@ -283,36 +272,56 @@ class InteractionQueueManager:
                     event_type = event_data['event_type']
                     method_params = event_data['method_params']
 
-                    # Rebuild the event object from the stored dictionary
-                    if 'event' in method_params:
-                        event_dict = method_params['event']
-                        method_params['event'] = IncomingNotificationDataBase.from_dict(event_dict)
+                    # Add event to batch
+                    batch.append(event_data)
+                    if len(batch) >= 10 or self.external_queues[queue_key].empty():
+                        await self.process_event_batch(batch, internal=False)
+                        batch = []  # Reset batch
 
-                    if 'message_type' in method_params:
-                        method_params['message_type'] = MessageType(method_params['message_type'])
-
-                    dispatcher = self.user_interaction_dispatcher
-
-                    # Replay the stored method with the appropriate parameters
-                    if event_type == "send_message":
-                        await dispatcher.send_message(**method_params, is_replayed=True)
-                    elif event_type == "upload_file":
-                        await dispatcher.upload_file(**method_params, is_replayed=True)
-                    elif event_type == "add_reaction":
-                        await dispatcher.add_reaction(**method_params, is_replayed=True)
-                    elif event_type == "remove_reaction":
-                        await dispatcher.remove_reaction(**method_params, is_replayed=True)
-                    elif event_type == "remove_reaction_from_thread":
-                        await dispatcher.remove_reaction_from_thread(**method_params, is_replayed=True)
-
-                    # Mark the event as processed and remove it from the backend
-                    await self.mark_event_processed(event_data, internal=False)
-                except Exception as e:
-                    self.logger.error(f"Error processing external event: {e}")
-                finally:
+                    # Mark as done after processing
                     self.external_queues[queue_key].task_done()
 
-                if self.external_queues[queue_key].empty():
-                    break
-        finally:
-            del self.external_processing_tasks[queue_key]
+                    if self.external_queues[queue_key].empty():
+                        break
+                except Exception as e:
+                    self.logger.error(f"Error processing external event: {e}")
+                    self.external_queues[queue_key].task_done()
+
+            if queue_key in self.external_processing_tasks:
+                del self.external_processing_tasks[queue_key]
+        except Exception as e:
+            self.logger.error(f"Error in external queue processing: {e}")
+
+    async def process_event_batch(self, batch, internal):
+        """
+        Process a batch of events from either internal or external queues.
+        """
+        try:
+            for event_data in batch:
+                event_type = event_data['event_type']
+                method_params = event_data['method_params']
+
+                # Rebuild event object if necessary
+                if 'event' in method_params:
+                    event_dict = method_params['event']
+                    method_params['event'] = IncomingNotificationDataBase.from_dict(event_dict)
+
+                if 'message_type' in method_params:
+                    method_params['message_type'] = MessageType(method_params['message_type'])
+
+                dispatcher = self.user_interaction_dispatcher
+
+                # Replay the event based on its type
+                if event_type == "send_message":
+                    await dispatcher.send_message(**method_params, is_replayed=True)
+                elif event_type == "upload_file":
+                    await dispatcher.upload_file(**method_params, is_replayed=True)
+                elif event_type == "add_reaction":
+                    await dispatcher.add_reaction(**method_params, is_replayed=True)
+                elif event_type == "remove_reaction":
+                    await dispatcher.remove_reaction(**method_params, is_replayed=True)
+
+                # Mark the event as processed
+                await self.mark_event_processed(event_data, internal)
+        except Exception as e:
+            self.logger.error(f"Error processing event batch: {e}")

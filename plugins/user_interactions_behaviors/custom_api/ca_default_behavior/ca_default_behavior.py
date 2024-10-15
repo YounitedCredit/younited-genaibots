@@ -40,7 +40,7 @@ class CaDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
 
     @property
     def plugin_name(self):
-        return "im_default_behavior"
+        return "ca_default_behavior"
 
     @plugin_name.setter
     def plugin_name(self, value):

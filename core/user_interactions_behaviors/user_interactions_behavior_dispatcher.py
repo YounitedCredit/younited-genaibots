@@ -44,16 +44,24 @@ class UserInteractionsBehaviorsDispatcher(UserInteractionsBehaviorBase):
         if plugin_name is None:
             plugin_name = self.default_plugin_name
 
-        for plugins_in_category in self.plugins.values():
-            for plugin in plugins_in_category:
-                if plugin.plugin_name == plugin_name:
-                    return plugin
+        # Flatten the list of plugins
+        all_plugins = [plugin for plugins_in_category in self.plugins.values() for plugin in plugins_in_category]
+
+        # Iterate over the flattened list to find the plugin
+        for plugin in all_plugins:
+            if plugin.plugin_name == plugin_name:
+                return plugin
 
         self.logger.error(f"UserInteractionsInstantMessagingDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
 
-    def set_default_plugin(self, plugin_name):
-        self.default_plugin_name = plugin_name
-        self.default_plugin = self.get_plugin(plugin_name)
+        if self.default_plugin is None:
+            self.logger.error("No default plugin set. Unable to proceed without a valid plugin.")
+            raise RuntimeError("No default plugin set. Unable to proceed without a valid plugin.")
+
+        return self.default_plugin
+        def set_default_plugin(self, plugin_name):
+            self.default_plugin_name = plugin_name
+            self.default_plugin = self.get_plugin(plugin_name)
 
     @property
     def plugins(self) -> List[UserInteractionsPluginBase]:

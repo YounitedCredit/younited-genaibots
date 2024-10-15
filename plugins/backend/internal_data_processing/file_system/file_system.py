@@ -184,7 +184,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.logger.debug(f"Writing data content to {data_file} in {data_container}")
         file_path = os.path.join(self.root_directory, data_container, data_file)
         try:
-            with open(file_path, 'w') as file:
+            with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(data)
             self.logger.debug("Data successfully written to file")
         except Exception:
