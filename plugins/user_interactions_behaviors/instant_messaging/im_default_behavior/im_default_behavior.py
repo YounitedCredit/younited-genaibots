@@ -12,7 +12,6 @@ from core.user_interactions_behaviors.user_interactions_behavior_base import (
 )
 from utils.config_manager.config_model import BotConfig
 
-
 class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
@@ -89,6 +88,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             break_keyword = self.global_manager.bot_config.BREAK_KEYWORD
             start_keyword = self.global_manager.bot_config.START_KEYWORD
             clear_keyword = self.global_manager.bot_config.CLEARQUEUE_KEYWORD
+            
 
             # Check if the message contains a keyword to interrupt the processing
             if event.event_label == "thread_message":

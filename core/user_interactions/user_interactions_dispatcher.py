@@ -330,3 +330,11 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                 # Process the event directly
                 plugin = self.get_plugin(plugin_name)
                 return await plugin.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
+            
+    async def add_reactions(self, reactions):
+        for reaction in reactions:
+            await self.add_reaction(**reaction)
+
+    async def remove_reactions(self, reactions):
+        for reaction in reactions:
+            await self.remove_reaction(**reaction)
