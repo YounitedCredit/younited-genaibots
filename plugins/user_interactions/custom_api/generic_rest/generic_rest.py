@@ -226,7 +226,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             return notification_data
 
     def format_trigger_genai_message(self, message):
-        bot_id = self.global_manager.bot_config.get_bot_id()
+        bot_id = self.rest_config.GENERIC_REST_BOT_ID
         formatted_message = f"<@{bot_id}> {message}"
         return formatted_message
 
@@ -257,4 +257,3 @@ class GenericRestPlugin(UserInteractionsPluginBase):
 
     def get_bot_id(self) -> str:
         return self.rest_config.GENERIC_REST_BOT_ID
-        pass
