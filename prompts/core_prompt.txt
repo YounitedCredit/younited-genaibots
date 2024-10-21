@@ -278,7 +278,7 @@ Example:
 
 - Parameters:
   - Prompt: The assistant must create a detailed and descriptive prompt based on the user’s request. It is essential to include all relevant details, such as objects, colors, styles, emotions, and scene settings to maximize the image generation accuracy. The assistant should avoid vague or minimal descriptions.
-
+  - Target (optional): slack or other user interaction platform, empty by default.
   - Size: The size of the image. Defaults are:
 
       - "1024x1024" for a square image,

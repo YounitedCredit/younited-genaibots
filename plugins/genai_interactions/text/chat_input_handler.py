@@ -385,7 +385,7 @@ class ChatInputHandler():
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
         # Étape 2 : Enregistrer la réponse brute de GenAI pour le débogage
-        await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response YAML", is_internal=True)
+        await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response file", is_internal=True)
 
         try:
             # Étape 3 : Gestion de la conversion JSON ou YAML

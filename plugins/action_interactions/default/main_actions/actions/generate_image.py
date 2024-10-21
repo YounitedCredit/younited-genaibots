@@ -25,7 +25,7 @@ class GenerateImage(ActionBase):
     async def execute(self, action_input: ActionInput , event: IncomingNotificationDataBase):
         try:
             await self.user_interaction_dispatcher.send_message(event=event, message="Generating your image please wait...", message_type=MessageType.COMMENT, is_internal=False)
-
+            target = action_input.parameters.get('target', '')
             url = await self.genai_image_generator_dispatcher.handle_action(action_input)
             if url:
                 if "Error" in url:  # Check if the returned value is an error message
@@ -38,7 +38,10 @@ class GenerateImage(ActionBase):
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: {extracted_message}", action_ref="generate_image")
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: {url}", is_internal=True)
                 elif self.is_valid_url(url):  # Check if the returned value is a valid URL
-                    await self.user_interaction_dispatcher.send_message(event=event, message=f"<{url}|Image>")
+                    if (target == "slack"):
+                        await self.user_interaction_dispatcher.send_message(event=event, message=f"<{url}|Image>")
+                    else:
+                        await self.user_interaction_dispatcher.send_message(event=event, message=f"{url}")
                 else:
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: Invalid URL {url}", action_ref="generate_image")
                     await self.user_interaction_dispatcher.send_message(event=event, message=f"Image generation failed: Invalid URL {url}", is_internal=True)
