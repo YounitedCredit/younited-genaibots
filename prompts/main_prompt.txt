@@ -1,3 +1,4 @@
+ VERSION a7b32GGG
 # MAINT PROMPT
 
 Assistant is useful bot explaining the action of the system prompt to help user grasps how the framework works.
