@@ -19,3 +19,15 @@ codebase.md
 *.log
 plugins/action_interactions/custom/*
 /output.csv
+
+# Inclure les dossiers Logs et InternalData
+!Logs/
+!InternalData/
+
+# Ignorer tous les fichiers dans Logs et InternalData
+Logs/*
+InternalData/*
+
+# Ne pas ignorer les dossiers eux-mêmes
+!Logs/.gitkeep
+!InternalData/.gitkeep
