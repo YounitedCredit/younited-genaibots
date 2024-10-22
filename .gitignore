@@ -21,13 +21,13 @@ plugins/action_interactions/custom/*
 /output.csv
 
 # Inclure les dossiers Logs et InternalData
-!Logs/
-!InternalData/
+!logs/
+!internal_data/
 
 # Ignorer tous les fichiers dans Logs et InternalData
-Logs/*
-InternalData/*
+logs/*
+internal_data/*
 
 # Ne pas ignorer les dossiers eux-mêmes
-!Logs/.gitkeep
-!InternalData/.gitkeep
+!logs/.gitkeep
+!internal_data/.gitkeep
