@@ -89,13 +89,24 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         raise NotImplementedError
 
     @abstractmethod
-    def append_data(self, container_name: str, data_identifier: str, data: str) -> None:
+    async def append_data(self, container_name: str, data_identifier: str, data: str) -> None:
         """
         Append data to the data container.
 
         :param container_name: Name of the data container
         :param data_identifier: Identifier for the data
         :param data: The data to append
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def remove_data(self, container_name: str, datafile_name: str, data: str) -> None:
+        """
+        Remove data to the data container.
+
+        :param container_name: Name of the data container
+        :param datafile_name: Name of the file in the container
+        :param data: The data to find in order to remove the data
         """
         raise NotImplementedError
 

@@ -166,6 +166,25 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(f"Failed to append data to blob: {str(e)}")
             self.logger.error(traceback.format_exc())
 
+    async def remove_data(self, container_name: str, datafile_name: str, data: str) -> None:
+        self.logger.debug(f"Removing data to blob {datafile_name} in container {container_name}")
+        try:
+            data_lower = data.lower()
+            existing_content = self.read_data_content(container_name, datafile_name)
+            if existing_content is None or existing_content=="":
+                self.logger.info(f"Data successfully Nothing to remove to blob {datafile_name}")
+            else:    
+                if data_lower in existing_content.lower():
+                    new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
+                if new_content == "":
+                    new_content = " " 
+                await self.remove_data_content(data_container=container_name, data_file=datafile_name)
+                await self.write_data_content(data_container=container_name, data_file=datafile_name, data=new_content)
+                self.logger.info(f"Data successfully removed to blob {datafile_name}")
+        except Exception as e:
+            self.logger.error(f"Failed to remove data to blob: {str(e)}")
+            self.logger.error(traceback.format_exc())
+
     async def read_data_content(self, data_container, data_file: str):
         self.logger.debug(f"Reading data content from {data_file} in {data_container}")
         blob_client = self.blob_service_client.get_blob_client(container=data_container, blob=data_file)

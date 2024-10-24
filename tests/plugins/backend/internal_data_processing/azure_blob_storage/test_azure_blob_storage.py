@@ -153,6 +153,17 @@ async def test_update_pricing(azure_blob_storage_plugin):
 
         mock_write.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_remove_data(azure_blob_storage_plugin):
+    with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read, \
+         patch.object(azure_blob_storage_plugin, 'write_data_content', new_callable=AsyncMock) as mock_write:
+
+        mock_read.return_value = "toto value"
+
+        remove_data = await azure_blob_storage_plugin.remove_data("container", "datafile.txt", "toto")
+        
+        mock_write.assert_called_once()
+
 class AsyncIterator:
     def __init__(self, items):
         self._items = items
