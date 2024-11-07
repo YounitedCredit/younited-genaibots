@@ -123,6 +123,25 @@ async def test_append_data(file_system_plugin, mocker):
         m().write.assert_has_calls([call('data'), call('\n')])
 
 @pytest.mark.asyncio
+async def test_remove_data(file_system_plugin, mocker, mock_global_manager):
+    # Simule l'ouverture du fichier en mode append ('a')
+    m = mock_open()
+
+    # Patch 'os.path.join' pour s'assurer qu'il renvoie un chemin cohérent
+    mocker.patch("os.path.join", return_value="/mocked/root/container/file")
+    # Mock methods
+    mock_global_manager.backend_internal_data_processing_dispatcher.feedbacks = "mock_feedbacks_container"
+    mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="value")
+    mock_global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
+     # Patch 'open' pour utiliser notre mock_open
+    with patch("builtins.open", m):
+        # Appel à la méthode append_data avec les nouvelles données
+        await file_system_plugin.remove_data('container', 'file', 'data')
+        # Vérifie que les données ont bien été écrites dans le fichier en deux appels
+        m().read.assert_has_calls([call('value')])
+        m().write.assert_has_calls([call('value')])
+
+@pytest.mark.asyncio
 async def test_update_pricing(file_system_plugin):
     m = mock_open(read_data='{"total_tokens": 100, "prompt_tokens": 50, "completion_tokens": 50, "total_cost": 1.0, "input_cost": 0.5, "output_cost": 0.5}')
     with patch("builtins.open", m), patch("os.path.exists", return_value=True), patch("json.dump") as mock_dump:

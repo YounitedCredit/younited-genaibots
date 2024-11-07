@@ -146,7 +146,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
                 raise
 
-    async def append_data(self, container_name: str, data_identifier: str, data: str) -> NoReturn:
+    async def append_data(self, container_name: str, data_identifier: str, data: str):
         """
         Adds data to a specified container file.
         """
@@ -159,6 +159,26 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.info(f"Data successfully appended to {file_path}.")
         except IOError as e:
             self.logger.error(f"Failed to append data to the file {file_path}: {e}")
+            raise e
+        
+    async def remove_data(self, container_name: str, datafile_name: str, data: str):
+        """
+        Remove data to a specified container file.
+        """
+        file_path = os.path.join(self.root_directory, container_name, datafile_name)
+
+        try:
+            data_lower = data.lower()
+            existing_content = await self.read_data_content(container_name, datafile_name)
+            if data_lower in existing_content.lower():
+                new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
+            if new_content == "":
+                new_content = " " 
+            await self.remove_data_content(data_container=container_name, data_file=datafile_name)
+            await self.write_data_content(data_container=container_name, data_file=datafile_name, data=new_content)
+            self.logger.info(f"Data successfully removed to {file_path}.")
+        except IOError as e:
+            self.logger.error(f"Failed to remove data to the file {file_path}: {e}")
             raise e
 
     async def read_data_content(self, data_container, data_file):

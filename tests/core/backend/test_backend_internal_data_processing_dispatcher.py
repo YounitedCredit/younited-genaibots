@@ -59,6 +59,13 @@ async def test_append_data(dispatcher, mock_plugin):
     mock_plugin.append_data.assert_called_with('container_name', 'data_id', 'data')
 
 @pytest.mark.asyncio
+async def test_remove_data(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin  # Définir manuellement le default_plugin
+    dispatcher.remove_data('container_name', 'data_id', 'data')
+    mock_plugin.remove_data.assert_called_with('container_name', 'data_id', 'data')
+
+@pytest.mark.asyncio
 async def test_read_data_content(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
     dispatcher.default_plugin = mock_plugin  # Définir manuellement le default_plugin

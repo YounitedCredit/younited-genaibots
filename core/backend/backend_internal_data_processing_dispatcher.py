@@ -141,6 +141,10 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.list_container_files(container_name=container_name)
 
-    def append_data(self, container_name: str, data_identifier: str, data: str = None):
+    async def remove_data(self, container_name, datafile_name, data, plugin_name=None):
+        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return await plugin.remove_data(container_name=container_name, datafile_name=datafile_name, data=data)
+
+    async def append_data(self, container_name: str, data_identifier: str, data: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(container_name)
-        plugin.append_data(container_name, data_identifier, data)
+        return await plugin.append_data(container_name, data_identifier, data)
