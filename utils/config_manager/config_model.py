@@ -46,6 +46,9 @@ class BotConfig(BaseModel):
     # The default plugin for instant messaging behavior, which defines how the bot behaves in IM platforms (e.g., Slack or Teams).
     USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: str
 
+    # The default plugin for session management 
+    SESSION_MANAGER_DEFAULT_PLUGIN_NAME: str
+
     # The default plugin for text generation (e.g., Azure OpenAI for text-based AI interactions).
     GENAI_TEXT_DEFAULT_PLUGIN_NAME: str
 
@@ -111,6 +114,7 @@ class ActionInteractions(BaseModel):
 class Backend(BaseModel):
     INTERNAL_DATA_PROCESSING: Dict[str, Any]
     INTERNAL_QUEUE_PROCESSING: Dict[str, Any]
+    SESSION_MANAGERS: Dict[str, Any]
 
 class UserInteractions(BaseModel):
     INSTANT_MESSAGING: Dict[str, Any]

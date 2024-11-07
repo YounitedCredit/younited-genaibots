@@ -80,7 +80,7 @@ class GenerateText(ActionBase):
 
             # Handle conversation history if requested
             if conversation:
-                session = await self.global_manager.session_manager.get_or_create_session(
+                session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                     channel_id=event.channel_id,
                     thread_id=event.thread_id or event.timestamp,  # Use timestamp if thread_id is None
                     enriched=True

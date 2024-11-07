@@ -59,7 +59,7 @@ class ChatInputHandler():
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Récupérer ou créer la session
-            session = await self.global_manager.session_manager.get_or_create_session(
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                 channel_id=event_data.channel_id,
                 thread_id=event_data.thread_id or event_data.timestamp,  # Utiliser timestamp si thread_id est None
                 enriched=True
@@ -115,7 +115,7 @@ class ChatInputHandler():
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return await self.generate_response(event_data, session)
         except Exception as e:
@@ -141,7 +141,7 @@ class ChatInputHandler():
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Récupérer ou créer la session
-            session = await self.global_manager.session_manager.get_or_create_session(
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                 channel_id=event_data.channel_id,
                 thread_id=event_data.thread_id,
                 enriched=True
@@ -180,7 +180,7 @@ class ChatInputHandler():
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return await self.generate_response(event_data, session)
         except Exception as e:
@@ -241,7 +241,7 @@ class ChatInputHandler():
                 converted_messages.sort(key=lambda x: float(x.get('timestamp', datetime.now().timestamp())))
                 # Ajouter aux messages de la session
                 session.messages.extend(converted_messages)
-                await self.global_manager.session_manager.save_session(session)
+                await self.global_manager.session_manager_dispatcher.save_session(session)
             except Exception as e:
                 self.logger.error(f"Error converting events to messages: {e}")
 
@@ -332,7 +332,7 @@ class ChatInputHandler():
             session.total_time_ms += generation_time_ms
 
             # Sauvegarder la session après mise à jour du temps total
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return completion
         except Exception as e:
@@ -445,7 +445,7 @@ class ChatInputHandler():
         session.total_ms += generation_time_ms
 
         # Sauvegarder la session mise à jour
-        await self.global_manager.session_manager.save_session(session)
+        await self.global_manager.session_manager_dispatcher.save_session(session)
 
         return response_json
 
@@ -626,7 +626,7 @@ class ChatInputHandler():
             })
 
             # Sauvegarder la session pour mettre à jour total_cost
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             cost_update_msg = (
                 f"🔹 Last: {total_tk} tk {total_cost:.4f}$ "

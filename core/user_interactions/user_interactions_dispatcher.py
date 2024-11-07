@@ -187,7 +187,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             if event is not None:
                 if is_replayed == False:
                     # Get the session
-                    session = await self.global_manager.session_manager.get_or_create_session(
+                    session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                         event.channel_id, event.thread_id, enriched=True
                     )
 
@@ -214,7 +214,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                             session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
 
                     # Save the session after adding the interaction
-                    await self.global_manager.session_manager.save_session(session)
+                    await self.global_manager.session_manager_dispatcher.save_session(session)
 
                 plugin_name = event.origin_plugin_name
                 self.logger.debug(f"Event provided with origin_plugin_name: {plugin_name}")

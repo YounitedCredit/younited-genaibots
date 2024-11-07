@@ -44,7 +44,6 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.openai_chatgpt_config = OpenAIChatGptConfig(**openai_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
-        self.session_manager = self.global_manager.session_manager
 
         # Dispatchers
         self.user_interaction_dispatcher = None
@@ -137,7 +136,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             conversation_data = parameters.get('conversation_data', '')
 
             # Retrieve or create a session for this thread
-            session = await self.global_manager.session_manager.get_or_create_session(
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                 channel_id=event.channel_id,
                 thread_id=event.thread_id or event.timestamp,  # Use timestamp if thread_id is None
                 enriched=True
@@ -218,7 +217,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             session.total_time_ms += generation_time_ms
 
             # Save the updated session
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return completion
 

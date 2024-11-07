@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.sessions.enriched_session import EnrichedSession
+from core.backend.enriched_session import EnrichedSession
 
 
 # Example of a reusable fixture to mock a global manager or config

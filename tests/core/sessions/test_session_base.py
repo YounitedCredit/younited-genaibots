@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from unittest.mock import patch
 
-from core.sessions.session_base import SessionBase
+from core.backend.session_manager_plugin_base import SessionBase
 
 
 def test_session_base_initialization():

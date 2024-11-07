@@ -2,20 +2,28 @@ import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Optional
 
-from core.sessions.enriched_session import EnrichedSession
-from core.sessions.session_base import SessionBase
+from core.backend.enriched_session import EnrichedSession
+from core.backend.session_manager_plugin_base import SessionManagerPluginBase
 
 if TYPE_CHECKING:
     from core.global_manager import (
         GlobalManager,  # Forward reference to avoid circular import
     )
 
-class SessionManager:
+class DefaultSessionManagerPlugin(SessionManagerPluginBase):
     def __init__(self, global_manager: 'GlobalManager'):
         self.global_manager = global_manager
         self.backend_dispatcher = None
         self.logger = global_manager.logger
         self.sessions = {}  # Initialize the sessions dictionary
+
+    @property
+    def plugin_name(self):
+        return "default_session_manager"
+
+    @plugin_name.setter
+    def plugin_name(self, value):
+        self._plugin_name = value
 
     def initialize(self):
         """
@@ -31,7 +39,7 @@ class SessionManager:
         if enriched:
             return EnrichedSession(session_id, start_time)
         else:
-            return SessionBase(session_id, start_time)
+            return SessionManagerPluginBase(session_id, start_time)
 
     async def load_session(self, session_id: str) -> Optional[EnrichedSession]:
         session_json = await self.backend_dispatcher.read_data_content(

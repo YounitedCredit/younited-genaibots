@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from core.sessions.session_base import SessionBase
+from core.backend.session_base import SessionBase
 
 
 class EnrichedSession(SessionBase):

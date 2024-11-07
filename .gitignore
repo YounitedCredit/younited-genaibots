@@ -20,14 +20,26 @@ codebase.md
 plugins/action_interactions/custom/*
 /output.csv
 
-# Inclure les dossiers Logs et InternalData
+# Include the Logs and InternalData directories
 !logs/
 !internal_data/
 
-# Ignorer tous les fichiers dans Logs et InternalData
+# Ignore all files in Logs and InternalData
 logs/*
 internal_data/*
 
-# Ne pas ignorer les dossiers eux-mêmes
+# Do not ignore the directories themselves
 !logs/.gitkeep
 !internal_data/.gitkeep
+
+# Ignore everything in plugins/backend/session_managers
+plugins/backend/session_managers/*
+
+# Do not ignore the default_session_manager directory
+!plugins/backend/session_managers/default_session_manager
+
+# Do not ignore the contents of the default_session_manager directory
+!plugins/backend/session_managers/default_session_manager/**
+
+# Do not ignore the __init__.py file in session_managers
+!plugins/backend/session_managers/__init__.py

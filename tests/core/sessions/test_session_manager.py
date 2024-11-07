@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from core.sessions.enriched_session import EnrichedSession
-from core.sessions.session_base import SessionBase
-from core.sessions.session_manager import SessionManager
+from core.backend.enriched_session import EnrichedSession
+from core.backend.session_manager_plugin_base import SessionBase
+from core.backend.session_manager import SessionManager
 
 
 @pytest.fixture

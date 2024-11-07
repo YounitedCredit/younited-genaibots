@@ -41,6 +41,7 @@ BOT_CONFIG:
   GENAI_IMAGE_DEFAULT_PLUGIN_NAME: "$(GENAI_IMAGE_DEFAULT_PLUGIN_NAME)"
   GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME: "$(GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME)"
   INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME: "$(INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME)"
+  SESSION_MANAGER_DEFAULT_PLUGIN_NAME: "$(SESSION_MANAGER_DEFAULT_PLUGIN_NAME)"
 
 UTILS:
   LOGGING:
@@ -128,17 +129,21 @@ PLUGINS:
       #  AZURE_SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL: "$(AZURE_SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL)"
       #  AZURE_SERVICE_BUS_WAIT_QUEUE_TTL: "$(AZURE_SERVICE_BUS_WAIT_QUEUE_TTL)"
 
+    SESSION_MANAGERS:
+      DEFAULT_SESSION_MANAGER:
+        PLUGIN_NAME: "default_session_manager"
+
   USER_INTERACTIONS:
     CUSTOM_API:
-      #{}
-      GENERIC_REST:
-        PLUGIN_NAME: "generic_rest"
-        GENERIC_REST_ROUTE_PATH: "/api/get_generic_rest_notification"
-        GENERIC_REST_ROUTE_METHODS: ["POST"]
-        GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
-        GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message"
-        GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message"
-        GENERIC_REST_BOT_ID: "GenaiBotDebugger"
+      {}
+      #GENERIC_REST:
+      #  PLUGIN_NAME: "generic_rest"
+      #  GENERIC_REST_ROUTE_PATH: "/api/get_generic_rest_notification"
+      #  GENERIC_REST_ROUTE_METHODS: ["POST"]
+      #  GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
+      #  GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message"
+      #  GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message"
+      #  GENERIC_REST_BOT_ID: "GenaiBotDebugger"
 
     INSTANT_MESSAGING:
       SLACK:
