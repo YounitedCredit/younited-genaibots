@@ -138,7 +138,12 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             # Add the automated user message to the session (with is_automated=True)
             automated_user_event = {
                 'role': 'user',
-                'content': input_param,
+                'content': [
+                        {
+                            'type': 'text',
+                            'text': input_param
+                        }
+                    ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
@@ -186,7 +191,12 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             # Add the assistant's response to the session
             assistant_message = {
                 "role": "assistant",
-                "content": completion,  # Strip markers if needed
+                "content": [
+                        {
+                            "type": "text",
+                            "text": completion
+                        }
+                    ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,

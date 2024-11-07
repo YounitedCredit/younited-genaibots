@@ -162,6 +162,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             context = parameters.get('context', '')
             model_name = parameters.get('model_name', '')
             conversation_data = parameters.get('conversation_data', '')
+            target_messages = []
 
             # Retrieve or create a session for this thread
             session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
@@ -176,7 +177,12 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             # Add the automated user message to the session (with is_automated=True)
             automated_user_event = {
                 'role': 'user',
-                'content': input_param,
+                'content': [
+                        {
+                            'type': 'text',
+                            'text': input_param
+                        }
+                    ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
@@ -189,23 +195,23 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                     data_file=f"{main_prompt}.txt"
                 )
                 if init_prompt:
-                    messages.insert(0, {"role": "system", "content": init_prompt})
+                    target_messages.insert(0, {"role": "system", "content": init_prompt})
             else:
-                messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
+                target_messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
 
             # Append context and conversation data
             if context:
-                messages.append({"role": "user", "content": f"Here is additional context: {context}"})
+                target_messages.append({"role": "user", "content": f"Here is additional context: {context}"})
             if conversation_data:
-                messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
+                target_messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
 
             # Append the user input
-            messages.append({"role": "user", "content": input_param})
+            target_messages.append({"role": "user", "content": input_param})
 
             # Call the model to generate the completion
             self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {model_name}..")
             generation_start_time = datetime.now()
-            completion, genai_cost_base = await self.generate_completion(messages, event, raw_output=True)
+            completion, genai_cost_base = await self.generate_completion(target_messages, event, raw_output=True)
             generation_end_time = datetime.now()
 
             # Calculate the generation time
@@ -219,7 +225,12 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             # Add the assistant's response to the session
             assistant_message = {
                 "role": "assistant",
-                "content": completion,  # Strip markers if needed
+                "content": [
+                        {
+                            "type": "text",
+                            "text": completion
+                        }
+                    ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,

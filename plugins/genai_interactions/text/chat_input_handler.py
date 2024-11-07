@@ -176,7 +176,12 @@ class ChatInputHandler():
                     init_prompt += f"\nAlso take into account these previous general behavior feedbacks: {str(general_behavior_content)}"
 
                 # Ajouter le message système aux messages
-                system_message = {"role": "system", "content": init_prompt}
+                system_message = {"role": "system", "content": [
+                        {
+                            "type": "text",
+                            "text": init_prompt
+                        }
+                    ]}
                 messages.insert(0, system_message)
 
             # Construire le message utilisateur
