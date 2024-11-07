@@ -253,7 +253,8 @@ class ChatInputHandler():
                 # Trier les messages par timestamp
                 converted_messages.sort(key=lambda x: float(x.get('timestamp', datetime.now().timestamp())))
                 # Ajouter aux messages de la session
-                session.messages.extend(converted_messages)
+                for message in converted_messages:
+                    self.global_manager.session_manager_dispatcher.append_messages(session.messages, message)
                 await self.global_manager.session_manager_dispatcher.save_session(session)
             except Exception as e:
                 self.logger.error(f"Error converting events to messages: {e}")
