@@ -96,7 +96,12 @@ class ChatInputHandler():
                 # Créer le message système avec les nouvelles données de prompt et les versions
                 system_message = {
                     "role": "system",
-                    "content": system_content,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_content
+                        }
+                    ],
                     "core_prompt_name": core_prompt_name,
                     "core_prompt": core_prompt,
                     "core_prompt_version": core_prompt_version,
@@ -420,7 +425,12 @@ class ChatInputHandler():
         # Mettre à jour les messages de la session avec la réponse de l'assistant
         assistant_message = {
             "role": "assistant",
-            "content": completion,
+            "content": [
+                {
+                    "type": "text",
+                    "text": completion
+                }
+            ],
             "timestamp": datetime.now().isoformat(),
             "actions": self.extract_actions(response_json),
             "cost": {
