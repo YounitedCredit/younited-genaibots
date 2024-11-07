@@ -15,6 +15,8 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
+
 from core.user_interactions.message_type import MessageType
 from utils.config_manager.config_model import BotConfig
 from utils.plugin_manager.plugin_manager import PluginManager
@@ -31,6 +33,7 @@ class ChatInputHandler():
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.session_manager_dispatcher = self.global_manager.session_manager_dispatcher
 
     def initialize(self):
         self.genai_client = {}
@@ -112,11 +115,11 @@ class ChatInputHandler():
                 }
 
                 # Ajouter le message système aux messages de la session
-                messages.append(system_message)
+                self.session_manager_dispatcher.append_messages(messages, system_message)
 
             # Construire le message utilisateur
             constructed_message = self.construct_message(event_data)
-            messages.append(constructed_message)
+            self.session_manager_dispatcher.append_messages(messages, constructed_message)
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
@@ -186,7 +189,7 @@ class ChatInputHandler():
 
             # Construire le message utilisateur
             constructed_message = self.construct_message(event_data)
-            messages.append(constructed_message)
+            self.session_manager_dispatcher.append_messages(messages, constructed_message)
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
@@ -268,8 +271,8 @@ class ChatInputHandler():
     def convert_events_to_messages(self, events):
         # Convertir les événements de l'historique de conversation en format de message approprié
         messages = []
-        for event in events:
-            messages.append(self.construct_message(event))
+        for event in events:            
+            self.session_manager_dispatcher.append_messages(messages, self.construct_message(event))
         return messages
 
     def construct_message(self, event_data):
@@ -452,7 +455,7 @@ class ChatInputHandler():
             "from_action": False
         }
 
-        session.messages.append(assistant_message)
+        self.session_manager_dispatcher.append_messages(session.messages, assistant_message)
 
         # Mettre à jour le temps total de génération dans la session
         if not hasattr(session, 'total_ms'):

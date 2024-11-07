@@ -93,3 +93,7 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
     async def get_or_create_session(self, channel_id: str, thread_id: str, enriched: bool = False, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         return await plugin.get_or_create_session(channel_id, thread_id, enriched)
+    
+    def append_messages(self, messages: List[Dict], message: Dict, plugin_name=None):
+        plugin: SessionManagerPluginBase = self.get_plugin()
+        plugin.append_messages(messages, message)

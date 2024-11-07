@@ -24,7 +24,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
-
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 
 class AzureMistralConfig(BaseModel):
     PLUGIN_NAME: str
@@ -85,6 +85,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher : BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.session_manager_dispatcher : SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
 
     def load_client(self):
         try:
@@ -126,6 +127,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
             main_prompt = parameters.get('main_prompt', 'No specific instruction provided.')
             context = parameters.get('context', '')
             conversation_data = parameters.get('conversation_data', '')
+            target_messages = []
 
             # Retrieve or create a session for this thread
             session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
@@ -149,7 +151,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
-            session.messages.append(automated_user_event)  # Append the automated message to the session
+            self.session_manager_dispatcher.append_messages(session.messages, automated_user_event)
 
             # Prepare the system message for the assistant
             if main_prompt:
@@ -158,20 +160,20 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
                     data_file=f"{main_prompt}.txt"
                 )
                 if init_prompt:
-                    messages.insert(0, {"role": "system", "content": init_prompt})
+                    target_messages.insert(0, {"role": "system", "content": init_prompt})
                 else:
-                    messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
+                    target_messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
             else:
-                messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
+                target_messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
 
             # Append context and conversation data
             if context:
-                messages.append({"role": "user", "content": f"Here is additional context: {context}"})
+                target_messages.append({"role": "user", "content": f"Here is additional context: {context}"})
             if conversation_data:
-                messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
+                target_messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
 
             # Append the user input
-            messages.append({"role": "user", "content": input_param})
+            target_messages.append({"role": "user", "content": input_param})
 
             # Call the model to generate the completion
             self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
@@ -216,7 +218,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
             }
 
             # Add the assistant message to the session
-            session.messages.append(assistant_message)
+            self.session_manager_dispatcher.append_messages(session.messages, assistant_message)
 
             # Update the total generation time in the session
             if not hasattr(session, 'total_time_ms'):

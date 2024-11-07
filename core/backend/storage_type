@@ -1,7 +1,0 @@
-from enum import Enum
-
-class StorageType(Enum):
-    FEEDBACKS = "feedbacks"
-    SESSIONS = "sessions"
-    MESSAGES = "messages"
-    

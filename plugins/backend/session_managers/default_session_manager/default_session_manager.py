@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, List
 
 from core.backend.enriched_session import EnrichedSession
 from core.backend.session_manager_plugin_base import SessionManagerPluginBase
@@ -84,3 +84,10 @@ class DefaultSessionManagerPlugin(SessionManagerPluginBase):
                 session = await self.create_session(channel_id, thread_id, start_time, enriched)
                 self.sessions[session_id] = session
                 return session
+
+
+    def append_messages(self, messages: List[Dict], message: Dict):
+        """
+        Updates the list of messages with a new message.
+        """
+        messages.append(message)

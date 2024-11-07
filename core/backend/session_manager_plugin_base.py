@@ -22,3 +22,6 @@ class SessionManagerPluginBase(PluginBase):
 
     async def get_or_create_session(self, channel_id: str, thread_id: str, enriched: bool = False):
         raise NotImplementedError("This method should be implemented by subclasses")
+    
+    def append_messages(self, messages: List[Dict], message: Dict):
+        raise NotImplementedError("This method should be implemented by subclasses")    

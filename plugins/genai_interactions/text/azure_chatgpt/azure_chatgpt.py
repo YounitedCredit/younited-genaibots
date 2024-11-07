@@ -18,6 +18,7 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
@@ -92,6 +93,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.session_manager_dispatcher = self.global_manager.session_manager_dispatcher
 
     def load_client(self):
         try:
@@ -186,7 +188,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
-            session.messages.append(automated_user_event)  # Append the automated message to the session
+            self.session_manager_dispatcher.append_messages(session.messages, automated_user_event)
 
             # Prepare the system message for the assistant
             if main_prompt:
@@ -248,7 +250,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             }
 
             # Add the assistant message to the session
-            session.messages.append(assistant_message)
+            self.session_manager_dispatcher.append_messages(session.messages, assistant_message)
 
             # Update the total generation time in the session
             if not hasattr(session, 'total_time_ms'):
