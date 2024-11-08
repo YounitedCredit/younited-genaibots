@@ -422,3 +422,14 @@ class AzureBlobStorageQueuePlugin(InternalQueueProcessingBase):
 
         except Exception as e:
             self.logger.error(f"{LOG_PREFIX} Failed to clear queue: {str(e)}")
+
+    async def create_container(self, data_container):
+        try:
+            container_client = self.blob_service_client.get_container_client(data_container)
+            if not container_client.exists():
+                container_client.create_container()
+                self.logger.info(f"Created container: {data_container}")
+            else:
+                self.logger.info(f"Container already exists: {data_container}")
+        except Exception as e:
+            self.logger.error(f"Failed to create container {data_container}: {str(e)}")

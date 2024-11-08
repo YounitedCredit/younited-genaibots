@@ -166,3 +166,10 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Asynchronously list the files in a specified container.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    async def create_container(self, data_container: str) -> None:
+        """
+        Creates a new container for storing messages.
+        """
+        raise NotImplementedError

@@ -327,3 +327,11 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.debug("Session update completed")
         except Exception as e:
             self.logger.error(f"Failed to write to file: {str(e)}")
+
+    async def create_container(self, data_container):
+        directory_path = os.path.join(self.root_directory, data_container)
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+        except OSError as e:
+            self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
+            raise
