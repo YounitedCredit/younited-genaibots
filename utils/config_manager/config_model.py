@@ -4,6 +4,10 @@ from pydantic import BaseModel
 
 
 class BotConfig(BaseModel):
+
+    # The unique identifier for the bot.
+    BOT_UNIQUE_ID: str
+    
     # The name of the core prompt file (e.g., core_prompt.txt).
     CORE_PROMPT: str
 
