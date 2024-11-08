@@ -94,6 +94,6 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         return await plugin.get_or_create_session(channel_id, thread_id, enriched)
     
-    def append_messages(self, messages: List[Dict], message: Dict, plugin_name=None):
+    def append_messages(self, messages: List[Dict], message: Dict, session_id: str, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin()
-        plugin.append_messages(messages, message)
+        plugin.append_messages(messages, message, session_id)

@@ -152,7 +152,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
-            self.session_manager_dispatcher.append_messages(session.messages, automated_user_event)
+            self.session_manager_dispatcher.append_messages(session.messages, automated_user_event, session.session_id)
 
             # Prepare the system message for the assistant
             if main_prompt:
@@ -219,7 +219,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             }
 
             # Add the assistant message to the session
-            self.session_manager_dispatcher.append_messages(session.messages, assistant_message)
+            self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
 
             # Update the total generation time in the session
             if not hasattr(session, 'total_time_ms'):

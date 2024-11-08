@@ -114,11 +114,11 @@ class ChatInputHandler():
                 }
 
                 # Ajouter le message système aux messages de la session
-                self.session_manager_dispatcher.append_messages(messages, system_message)
+                self.session_manager_dispatcher.append_messages(messages, system_message, session.session_id)
 
             # Construire le message utilisateur
             constructed_message = self.construct_message(event_data)
-            self.session_manager_dispatcher.append_messages(messages, constructed_message)
+            self.session_manager_dispatcher.append_messages(messages, constructed_message, session.session_id)
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
@@ -188,7 +188,7 @@ class ChatInputHandler():
 
             # Construire le message utilisateur
             constructed_message = self.construct_message(event_data)
-            self.session_manager_dispatcher.append_messages(messages, constructed_message)
+            self.session_manager_dispatcher.append_messages(messages, constructed_message, session.session_id)
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
@@ -253,7 +253,7 @@ class ChatInputHandler():
                 converted_messages.sort(key=lambda x: float(x.get('timestamp', datetime.now().timestamp())))
                 # Ajouter aux messages de la session
                 for message in converted_messages:
-                    self.global_manager.session_manager_dispatcher.append_messages(session.messages, message)
+                    self.global_manager.session_manager_dispatcher.append_messages(session.messages, message, session.session_id)
                 await self.global_manager.session_manager_dispatcher.save_session(session)
             except Exception as e:
                 self.logger.error(f"Error converting events to messages: {e}")
@@ -455,7 +455,7 @@ class ChatInputHandler():
             "from_action": False
         }
 
-        self.session_manager_dispatcher.append_messages(session.messages, assistant_message)
+        self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
 
         # Mettre à jour le temps total de génération dans la session
         if not hasattr(session, 'total_ms'):
