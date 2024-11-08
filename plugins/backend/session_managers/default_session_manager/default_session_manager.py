@@ -32,7 +32,8 @@ class DefaultSessionManagerPlugin(SessionManagerPluginBase):
         self.backend_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
     def generate_session_id(self, channel_id: str, thread_id: str) -> str:
-        return f"{channel_id}_{thread_id}.json"
+        bot_id = self.global_manager.bot_config.BOT_UNIQUE_ID
+        return f"{bot_id}_{channel_id}_{thread_id}.json"
 
     async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None, enriched: bool = False):
         session_id = self.generate_session_id(channel_id, thread_id)

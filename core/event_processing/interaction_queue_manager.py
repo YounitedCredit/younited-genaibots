@@ -370,7 +370,6 @@ class InteractionQueueManager:
             if queue_key in self.external_processing_tasks:  
                 del self.external_processing_tasks[queue_key]  
 
-
     async def process_external_reactions(self, queue_key):  
         try:  
             while True:  
