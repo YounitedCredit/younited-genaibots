@@ -86,7 +86,6 @@ class DefaultSessionManagerPlugin(SessionManagerPluginBase):
                 self.sessions[session_id] = session
                 return session
 
-
     def append_messages(self, messages: List[Dict], message: Dict, session_id = None):
         """
         Updates the list of messages with a new message.
