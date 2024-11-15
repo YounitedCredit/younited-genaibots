@@ -25,11 +25,10 @@ from core.user_interactions.user_interactions_dispatcher import (
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
-from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
+from plugins.user_interactions.custom_api.generic_rest.utils.generic_rest_reactions import (
     GenericRestReactions,
 )
 from utils.plugin_manager.plugin_manager import PluginManager
-
 
 class RestConfig(BaseModel):
     PLUGIN_NAME: str

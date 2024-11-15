@@ -18,7 +18,7 @@ from plugins.user_interactions.custom_api.generic_rest.generic_rest import (
     GenericRestPlugin,
     RestConfig,
 )
-from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
+from plugins.user_interactions.custom_api.generic_rest.utils.generic_rest_reactions import (
     GenericRestReactions,
 )
 

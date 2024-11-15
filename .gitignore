@@ -43,3 +43,10 @@ plugins/backend/session_managers/*
 
 # Do not ignore the __init__.py file in session_managers
 !plugins/backend/session_managers/__init__.py
+
+# Ignore all directories in plugins/user_interactions/custom_api
+plugins/user_interactions/custom_api/*
+
+# Do not ignore the generic_rest directory and its contents
+!plugins/user_interactions/custom_api/generic_rest
+!plugins/user_interactions/custom_api/generic_rest/**
