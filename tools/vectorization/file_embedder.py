@@ -55,6 +55,9 @@ Arguments:
   --wiki_url           : The base URL of your Azure DevOps Wiki.
                          This is required if you select 'azure_devops_wiki' as the source type.
                          Example: https://your-domain.visualstudio.com/your-project/_wiki/wikis/your-project.wiki
+  --wiki_subfolder     : The relative path of the subfolder inside the wiki repository (optional, default: '').
+                         This is used to adjust file paths in Azure DevOps Wiki URLs. If your wiki files are organized in subfolders,
+                         you can specify the subfolder path to correctly generate the URLs.
 
 Examples:
 1. Basic usage - Process a single file and output as CSV:
@@ -83,6 +86,16 @@ Examples:
 
 9. Process a directory, limit tokens, use custom model and specific API version, output to JSON:
    python file_embedder.py --input /path/to/docs --output /path/to/output --output_format json --max_tokens 300 --model_name "text-embedding-2" --openai_api_version 2023-01-15 --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
+
+10. Process a directory from an Azure DevOps Wiki with a subfolder:
+    This example demonstrates how to use the --wiki_subfolder parameter to correctly generate URLs for files located in a subfolder within your Azure DevOps Wiki.
+
+    python file_embedder.py --input /path/to/docs --output /path/to/output --source_type azure_devops_wiki --wiki_url https://your-domain.visualstudio.com/your-project/_wiki/wikis/your-project.wiki --wiki_subfolder /path/to/subfolder --openai_key YOUR_API_KEY --openai_endpoint YOUR_ENDPOINT
+
+    In this example, the --wiki_subfolder parameter is used to specify the relative path of the subfolder inside the wiki repository. This ensures that the generated URLs correctly reflect the structure of your wiki, including the specified subfolder.
+
+    For example, if you have a document located at /path/to/docs/Projects/Specs/Design.md, your index is created only on the Projects/Specs directory and you specify --wiki_subfolder /Projects/Specs, the generated URL will be:
+    https://your-domain.visualstudio.com/your-project/_wiki/wikis/your-project.wiki?wikiVersion=GBwikiMaster&pagePath=/Projects/Specs/Design.md
 """
 
 colorama.init(autoreset=True)
@@ -148,33 +161,35 @@ def create_wiki_url(wiki_base_url, local_file_path, input_dir, subfolder=''):
 
     # Get the relative path from the input directory
     relative_path = os.path.relpath(local_file_path, input_dir)
-    #logging.info(f"Relative path before processing: {relative_path}")
+    logging.info(f"Relative path before processing: {relative_path}")
 
     # Replace backslashes with forward slashes for Windows paths
     relative_path = relative_path.replace('\\', '/')
-    #logging.info(f"Relative path after backslash replacement: {relative_path}")
+    logging.info(f"Relative path after backslash replacement: {relative_path}")
 
     # Remove the .md extension if present
     if relative_path.lower().endswith('.md'):
         relative_path = os.path.splitext(relative_path)[0]
-    #logging.info(f"Relative path after removing .md: {relative_path}")
+    logging.info(f"Relative path after removing .md: {relative_path}")
 
     # 1. Replace hyphens used as spaces with %20
     relative_path = relative_path.replace('-', '%20')
-    #logging.info(f"Path after handling hyphens for spaces: {relative_path}")
+    logging.info(f"Path after handling hyphens for spaces: {relative_path}")
 
     # 2.  Replace %2D with %252D (this was the missing piece!)
     relative_path = relative_path.replace('%2D', '%252D')
-    #logging.info(f"Path after handling encoded hyphens: {relative_path}")
+    logging.info(f"Path after handling encoded hyphens: {relative_path}")
 
     # 3. Encode the path, preserving already encoded characters and spaces
     final_path = urllib.parse.quote(relative_path, safe='%20/')
-    #logging.info(f"Final encoded path: {final_path}")
+    logging.info(f"Final encoded path: {final_path}")
 
     # Add the subfolder to the final path
     if subfolder:
+        # Ensure the subfolder does not start or end with a slash
+        subfolder = subfolder.strip('/')
         final_path = f"{subfolder}/{final_path}"
-    #logging.info(f"Final path with subfolder: {final_path}")
+    logging.info(f"Final path with subfolder: {final_path}")
 
     # Construct the final URL
     final_url = f"{wiki_base_url}?wikiVersion=GBwikiMaster&pagePath=/{final_path}"
