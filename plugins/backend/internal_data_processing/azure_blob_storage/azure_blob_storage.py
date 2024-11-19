@@ -341,3 +341,21 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
                 self.logger.info(f"Container already exists: {data_container}")
         except Exception as e:
             self.logger.error(f"Failed to create container {data_container}: {str(e)}")
+
+    def create_container_sync(self, data_container):
+        try:
+            container_client = self.blob_service_client.get_container_client(data_container)
+            if not container_client.exists():
+                container_client.create_container()
+                self.logger.info(f"Created container: {data_container}")
+            else:
+                self.logger.info(f"Container already exists: {data_container}")
+        except Exception as e:
+            self.logger.error(f"Failed to create container {data_container}: {str(e)}")
+
+    async def file_exists(self, container_name: str, file_name: str) -> bool:
+        """
+        Check if a file exists in the specified container.
+        """
+        file_path = os.path.join(self.root_directory, container_name, file_name)
+        return os.path.exists(file_path)

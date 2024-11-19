@@ -151,4 +151,12 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     
     async def create_container(self, data_container, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return await plugin.append_data(data_container)
+        return await plugin.create_container(data_container)
+    
+    def create_container_sync(self, data_container, plugin_name=None):
+        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.create_container_sync(data_container)
+
+    async def file_exists(self, container_name, file_name, plugin_name=None):
+        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return await plugin.file_exists(container_name, file_name)

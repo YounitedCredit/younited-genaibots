@@ -173,3 +173,17 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Creates a new container for storing messages.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    def create_container_sync(self, data_container: str) -> None:
+        """
+        Creates a new container for storing messages.
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def file_exists(self, container_name: str, file_name: str) -> bool:
+        """
+        Checks if a file exists in a container.
+        """
+        raise NotImplementedError
