@@ -1,5 +1,5 @@
 import copy
-
+import uuid
 from core.action_interactions.action_base import ActionBase
 from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
@@ -83,6 +83,7 @@ class LongText(ActionBase):
                     ],
                 "timestamp": datetime.now().isoformat(),  
                 "from_action": True,  # Indicate that the message comes from an action
+                "assistant_message_guid": str(uuid.uuid4()) 
             }
 
             self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
