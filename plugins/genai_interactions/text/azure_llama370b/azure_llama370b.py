@@ -4,7 +4,7 @@ import json
 import traceback
 from datetime import datetime
 from typing import Any
-
+import uuid
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -212,7 +212,8 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
                 "model_name": self.azure_llama370b_modelname,
                 "generation_time_ms": generation_time_ms,
                 "from_action": True,  # Indicate that the message comes from an action
-                "action_payload": messages  # Include the messages that were sent to the model
+                "action_payload": messages,  # Include the messages that were sent to the model
+                "assistant_message_guid": str(uuid.uuid4())
             }
 
             # Add the assistant message to the session

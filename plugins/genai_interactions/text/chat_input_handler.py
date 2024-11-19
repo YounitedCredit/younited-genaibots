@@ -3,7 +3,7 @@ import datetime
 import json
 import traceback
 from datetime import datetime, timezone
-
+import uuid
 import yaml
 
 from core.backend.pricing_data import PricingData
@@ -452,7 +452,8 @@ class ChatInputHandler():
             "plugin_name": self.chat_plugin.plugin_name,
             "model_name": self.chat_plugin.model_name,
             "generation_time_ms": generation_time_ms,
-            "from_action": False
+            "from_action": False,
+            "assistant_message_guid": str(uuid.uuid4())
         }
 
         self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
