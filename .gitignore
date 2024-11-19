@@ -50,3 +50,12 @@ plugins/user_interactions/custom_api/*
 # Do not ignore the generic_rest directory and its contents
 !plugins/user_interactions/custom_api/generic_rest
 !plugins/user_interactions/custom_api/generic_rest/**
+
+# Ignore all directories in plugins/user_interactions_behaviors/custom_api
+plugins/user_interactions_behaviors/custom_api/*
+
+# Do not ignore the ca_default_behavior directory and its contents
+!plugins/user_interactions_behaviors/custom_api/ca_default_behavior
+!plugins/user_interactions_behaviors/custom_api/ca_default_behavior/**
+
+plugins/user_interactions_behaviors/custom_api/**/__pycache__/

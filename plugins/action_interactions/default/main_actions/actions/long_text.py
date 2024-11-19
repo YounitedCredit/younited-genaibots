@@ -5,8 +5,8 @@ from core.action_interactions.action_input import ActionInput
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-
-
+from datetime import datetime
+from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
 class LongText(ActionBase):
     REQUIRED_PARAMETERS = ['value','is_finished']
     def __init__(self, global_manager):
@@ -15,9 +15,10 @@ class LongText(ActionBase):
         self.user_interactions_text_plugin = None
         self.logger = self.global_manager.logger
         # Dispatchers
-        self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
+        self.user_interaction_dispatcher: UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.session_manager_dispatcher = self.global_manager.session_manager_dispatcher
 
     async def execute(self, action_input: ActionInput, event: IncomingNotificationDataBase):
         try:
@@ -65,7 +66,28 @@ class LongText(ActionBase):
             concatenated_content = await self.backend_internal_data_processing_dispatcher.read_data_content(self.concatenate_folder, blob_name)
             complete_content = f"{concatenated_content or ''} \n\n{value}".strip()
 
-            await self.backend_internal_data_processing_dispatcher.update_session(self.sessions_folder, blob_name, "assistant", complete_content)
+            # await self.backend_internal_data_processing_dispatcher.update_session(self.sessions_folder, blob_name, "assistant", complete_content)
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
+                channel_id=event.channel_id,
+                thread_id=event.thread_id or event.timestamp,  # Utiliser timestamp si thread_id est None
+                enriched=True
+            )
+
+            assistant_message = {
+                "role": "assistant",
+                "content": [
+                        {
+                            "type": "text",
+                            "text": complete_content
+                        }
+                    ],
+                "timestamp": datetime.now().isoformat(),  
+                "from_action": True,  # Indicate that the message comes from an action
+            }
+
+            self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
+
             await self.backend_internal_data_processing_dispatcher.remove_data_content(self.concatenate_folder, blob_name)
 
             if not event.thread_id:
