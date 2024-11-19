@@ -368,7 +368,22 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         try:
             async for blob in container_client.list_blobs():
                 blob_client = container_client.get_blob_client(blob)
-                await blob_client.delete_blob()
+                blob_client.delete_blob()
+                self.logger.info(f"Blob {blob.name} successfully deleted.")
+            self.logger.info(f"All contents of container {container_name} have been cleared.")
+        except Exception as e:
+            self.logger.error(f"Failed to clear container {container_name}: {str(e)}")
+            raise
+
+    def clear_container_sync(self, container_name: str):
+        """
+        Clear all contents of the specified container in Azure Blob Storage.
+        """
+        container_client = self.blob_service_client.get_container_client(container_name)
+        try:
+            for blob in container_client.list_blobs():
+                blob_client = container_client.get_blob_client(blob)
+                blob_client.delete_blob()
                 self.logger.info(f"Blob {blob.name} successfully deleted.")
             self.logger.info(f"All contents of container {container_name} have been cleared.")
         except Exception as e:

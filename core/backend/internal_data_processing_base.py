@@ -194,3 +194,10 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Asynchronously clear all contents of the specified container.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    def clear_container_sync(self, container_name: str) -> None:
+        """
+        Asynchronously clear all contents of the specified container.
+        """
+        raise NotImplementedError

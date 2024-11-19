@@ -718,3 +718,25 @@ class FileSystemPlugin(InternalDataProcessingBase):
                 raise
         else:
             self.logger.warning(f"Container {container_name} does not exist.")
+
+    def clear_container_sync(self, container_name: str):
+        """
+        Clear all contents of the specified container.
+        """
+        container_path = os.path.join(self.root_directory, container_name)
+        if os.path.exists(container_path):
+            try:
+                for filename in os.listdir(container_path):
+                    file_path = os.path.join(container_path, filename)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        self.logger.info(f"File {file_path} successfully deleted.")
+                    elif os.path.isdir(file_path):
+                        os.rmdir(file_path)
+                        self.logger.info(f"Directory {file_path} successfully deleted.")
+                self.logger.info(f"All contents of container {container_name} have been cleared.")
+            except Exception as e:
+                self.logger.error(f"Failed to clear container {container_name}: {str(e)}")
+                raise
+        else:
+            self.logger.warning(f"Container {container_name} does not exist.")

@@ -164,3 +164,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     async def clear_container(self, container_name: str, plugin_name: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.clear_container(container_name)
+    
+    def clear_container_sync(self, container_name: str, plugin_name: str = None):
+        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return plugin.clear_container_sync(container_name)
