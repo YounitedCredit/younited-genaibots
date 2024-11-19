@@ -24,4 +24,18 @@ class SessionManagerPluginBase(PluginBase):
         raise NotImplementedError("This method should be implemented by subclasses")
     
     def append_messages(self, messages: List[Dict], message: Dict, session_id: str):
-        raise NotImplementedError("This method should be implemented by subclasses")    
+        raise NotImplementedError("This method should be implemented by subclasses")
+    
+    async def add_mind_interaction_to_message(self, session, message_index: int, interaction: Dict) -> None:
+        """
+        Add a mind interaction to a specific assistant message by index.
+        This interaction is stored inside the specific assistant message.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses")
+
+    async def add_user_interaction_to_message(self, session, message_index: int, interaction: Dict) -> None:
+        """
+        Add a user interaction to a specific assistant message by index.
+        This interaction is stored inside the specific assistant message.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses")

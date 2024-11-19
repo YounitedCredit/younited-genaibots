@@ -86,10 +86,6 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         await plugin.save_session(session)
 
-    async def add_user_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict, plugin_name=None):
-        plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
-        await plugin.add_user_interaction_to_message(session, message_index, interaction)
-
     async def get_or_create_session(self, channel_id: str, thread_id: str, enriched: bool = False, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         return await plugin.get_or_create_session(channel_id, thread_id, enriched)
@@ -97,3 +93,11 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
     def append_messages(self, messages: List[Dict], message: Dict, session_id: str, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin()
         plugin.append_messages(messages, message, session_id)
+
+    async def add_user_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict, plugin_name=None):
+        plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
+        await plugin.add_user_interaction_to_message(session, message_index, interaction)
+
+    async def add_mind_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict, plugin_name=None):
+        plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
+        await plugin.add_mind_interaction_to_message(session, message_index, interaction)

@@ -40,6 +40,8 @@ plugins/backend/session_managers/*
 
 # Do not ignore the contents of the default_session_manager directory
 !plugins/backend/session_managers/default_session_manager/**
+# Ignore __pycache__ directories in default_session_manager
+plugins/backend/session_managers/default_session_manager/**/__pycache__/
 
 # Do not ignore the __init__.py file in session_managers
 !plugins/backend/session_managers/__init__.py

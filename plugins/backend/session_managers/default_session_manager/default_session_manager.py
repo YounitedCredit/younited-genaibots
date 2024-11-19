@@ -91,3 +91,48 @@ class DefaultSessionManagerPlugin(SessionManagerPluginBase):
         Updates the list of messages with a new message.
         """
         messages.append(message)
+
+    async def add_mind_interaction_to_message(self, session, message_index: int, interaction: Dict) -> None:
+        """
+        Add a mind interaction to a specific assistant message by index.
+        This interaction is stored inside the specific assistant message.
+        """
+        if message_index < len(session.messages):
+            message = session.messages[message_index]
+            if message.get("role") == "assistant":
+                # Sanitize the interaction content before storing it
+                interaction["message"] = self.sanitize_message(interaction["message"])
+
+                # Add mind_interactions key if not present
+                if "mind_interactions" not in message:
+                    message["mind_interactions"] = []
+                message["mind_interactions"].append(interaction)
+
+    async def add_user_interaction_to_message(self, session, message_index: int, interaction: Dict) -> None:
+        """
+        Add a user interaction to a specific assistant message by index.
+        This interaction is stored inside the specific assistant message.
+        """
+        if message_index < len(session.messages):
+            message = session.messages[message_index]
+            if message.get("role") == "assistant":
+                # Sanitize the message content before storing it
+                interaction["message"] = self.sanitize_message(interaction["message"])
+
+                # Add user_interactions key if not present
+                if "user_interactions" not in message:
+                    message["user_interactions"] = []
+                message["user_interactions"].append(interaction)
+
+    def sanitize_message(self, message: str) -> str:
+        """
+        Sanitizes the message to ensure it is safe for JSON encoding.
+        This will escape any illegal characters for JSON without altering the content.
+        """
+        try:
+            # Attempt to serialize to JSON and back to ensure it is JSON-safe
+            safe_message = json.dumps(message)
+            return json.loads(safe_message)  # This will return the string content back safely escaped
+        except (TypeError, ValueError) as e:
+            self.logger.error(f"Error sanitizing message: {e}")
+            return message  # If there's an issue, return the original message unmodified

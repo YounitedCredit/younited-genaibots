@@ -12,7 +12,7 @@ from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
 from utils.config_manager.config_model import BotConfig
-
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 
 class UserInteractionsDispatcher(UserInteractionsPluginBase):
     def __init__(self, global_manager):
@@ -34,6 +34,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             return
 
         self.plugins = plugins
+        self.session_manager_dispatcher : SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
 
     def get_plugin(self, plugin_name=None):
         if plugin_name is None:
@@ -208,10 +209,10 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                     if message_index is not None:
                         if is_internal:
                             # Add the interaction to mind_interactions in the correct assistant message
-                            session.add_mind_interaction_to_message(message_index=message_index, interaction=interaction)
+                            await self.session_manager_dispatcher.add_mind_interaction_to_message(session=session, message_index=message_index, interaction=interaction)
                         else:
                             # Add the interaction to user_interactions in the correct assistant message
-                            session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
+                            await self.session_manager_dispatcher.add_user_interaction_to_message(session=session, message_index=message_index, interaction=interaction)
 
                     # Save the session after adding the interaction
                     await self.global_manager.session_manager_dispatcher.save_session(session)
