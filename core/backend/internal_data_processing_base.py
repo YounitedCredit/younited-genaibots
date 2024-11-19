@@ -187,3 +187,10 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Checks if a file exists in a container.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    async def clear_container(self, container_name: str) -> None:
+        """
+        Asynchronously clear all contents of the specified container.
+        """
+        raise NotImplementedError

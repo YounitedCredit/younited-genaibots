@@ -160,3 +160,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     async def file_exists(self, container_name, file_name, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.file_exists(container_name, file_name)
+    
+    async def clear_container(self, container_name: str, plugin_name: str = None):
+        plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
+        return await plugin.clear_container(container_name)
