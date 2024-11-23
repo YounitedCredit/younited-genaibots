@@ -1,6 +1,7 @@
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
-
+from unittest.mock import MagicMock, Mock, PropertyMock, patch, AsyncMock
+import pytest
+from core.global_manager import GlobalManager
 
 @patch('core.global_manager.GlobalManager')
 def test_global_manager_initialization(mock_global_manager):
@@ -58,3 +59,84 @@ def test_get_action(mock_global_manager):
     # Call the method and check the result
     result = mock_global_manager.get_action(action_name)
     assert result == action_class
+
+@pytest.mark.asyncio
+async def test_dispatcher_initializations(mock_global_manager):
+    plugins = {
+        ('USER_INTERACTIONS',None): [MagicMock()],
+        ('GENAI_INTERACTIONS','TEXT'): [MagicMock()],
+        ('GENAI_INTERACTIONS','IMAGE'): [MagicMock()],
+        ('GENAI_INTERACTIONS','VECTOR_SEARCH'): [MagicMock()],
+        ('BACKEND','INTERNAL_DATA_PROCESSING'): [MagicMock()],
+        ('BACKEND','INTERNAL_QUEUE_PROCESSING'): [MagicMock()],
+        ('BACKEND','SESSION_MANAGERS'): [MagicMock()],
+        ('USER_INTERACTIONS_BEHAVIORS',None): [MagicMock()]
+    }
+    
+    # Reset des mocks des dispatchers
+    mock_global_manager.user_interactions_dispatcher = MagicMock()
+    mock_global_manager.genai_interactions_text_dispatcher = MagicMock()
+    mock_global_manager.genai_image_generator_dispatcher = MagicMock()
+    mock_global_manager.genai_vectorsearch_dispatcher = MagicMock()
+    mock_global_manager.backend_internal_data_processing_dispatcher = MagicMock()
+    mock_global_manager.backend_internal_queue_processing_dispatcher = MagicMock()
+    mock_global_manager.session_manager_dispatcher = MagicMock()
+    mock_global_manager.user_interactions_behavior_dispatcher = MagicMock()
+
+    # Mock du plugin_manager et de ses méthodes
+    def mock_get_plugin(cat, sub=None):
+        return plugins.get((cat, sub), [])
+    mock_global_manager.plugin_manager.get_plugin_by_category.side_effect = mock_get_plugin
+
+    # Appel de la méthode d'initialisation des dispatchers
+    mock_global_manager.user_interactions_dispatcher.initialize(plugins[('USER_INTERACTIONS',None)])
+    mock_global_manager.genai_interactions_text_dispatcher.initialize(plugins[('GENAI_INTERACTIONS','TEXT')])
+    mock_global_manager.genai_image_generator_dispatcher.initialize(plugins[('GENAI_INTERACTIONS','IMAGE')])
+    mock_global_manager.genai_vectorsearch_dispatcher.initialize(plugins[('GENAI_INTERACTIONS','VECTOR_SEARCH')])
+    mock_global_manager.backend_internal_data_processing_dispatcher.initialize(plugins[('BACKEND','INTERNAL_DATA_PROCESSING')])
+    mock_global_manager.backend_internal_queue_processing_dispatcher.initialize(plugins[('BACKEND','INTERNAL_QUEUE_PROCESSING')])
+    mock_global_manager.session_manager_dispatcher.initialize(plugins[('BACKEND','SESSION_MANAGERS')])
+    mock_global_manager.user_interactions_behavior_dispatcher.initialize(plugins[('USER_INTERACTIONS_BEHAVIORS',None)])
+
+    # Vérifications
+    mock_global_manager.user_interactions_dispatcher.initialize.assert_called_once()
+    mock_global_manager.genai_interactions_text_dispatcher.initialize.assert_called_once()
+    mock_global_manager.genai_image_generator_dispatcher.initialize.assert_called_once()
+    mock_global_manager.genai_vectorsearch_dispatcher.initialize.assert_called_once()
+    mock_global_manager.backend_internal_data_processing_dispatcher.initialize.assert_called_once()
+    mock_global_manager.backend_internal_queue_processing_dispatcher.initialize.assert_called_once()
+    mock_global_manager.session_manager_dispatcher.initialize.assert_called_once()
+    mock_global_manager.user_interactions_behavior_dispatcher.initialize.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_queue_manager_activation(mock_global_manager):
+    with patch('core.event_processing.interaction_queue_manager.InteractionQueueManager') as queue_mock:
+        mock_global_manager.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING = True
+        
+        # Initialize queue manager
+        mock_global_manager.interaction_queue_manager = queue_mock.return_value
+        queue_mock.return_value.initialize = AsyncMock()
+        
+        # Execute
+        await mock_global_manager.interaction_queue_manager.initialize()
+        
+        # Verify
+        queue_mock.return_value.initialize.assert_called_once()
+
+def test_register_and_get_actions():
+    mock_global_manager = MagicMock()
+    actions = {'action1': MagicMock()}
+    
+    # Setup du comportement du GlobalManager
+    def side_effect(action_name):
+        return actions.get(action_name)
+        
+    mock_global_manager.get_action.side_effect = side_effect
+    mock_global_manager.available_actions = {'plugin1': actions}
+    
+    # Test l'enregistrement et la récupération
+    mock_global_manager.register_plugin_actions('plugin1', actions)
+    action = mock_global_manager.get_action('action1') 
+    
+    assert action == actions['action1']
+    assert mock_global_manager.get_action('invalid') is None

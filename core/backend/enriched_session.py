@@ -29,11 +29,15 @@ class EnrichedSession(SessionBase):
         Calculates the total time of the session in milliseconds.
         """
         try:
-            start = datetime.fromisoformat(self.start_time)
-            end = datetime.fromisoformat(self.end_time)
-            self.total_time_ms = int((end - start).total_seconds() * 1000)
+            if self.start_time is None or self.end_time is None:
+                self.total_time_ms = 0
+            else:
+                start = datetime.fromisoformat(self.start_time)
+                end = datetime.fromisoformat(self.end_time)
+                self.total_time_ms = int((end - start).total_seconds() * 1000)
         except Exception as e:
             print(f"Error calculating total time: {e}")
+            self.total_time_ms = 0
 
     def accumulate_cost(self, cost: Dict) -> None:
         """

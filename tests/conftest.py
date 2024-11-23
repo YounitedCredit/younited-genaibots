@@ -57,7 +57,8 @@ DEFAULT_ENV_VARS = {
     "GENAI_IMAGE_DEFAULT_PLUGIN_NAME": "azure_dalle",
     "GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME": "openai_file_search",
     "INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME": "file_system",
-    "INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME": "file_system_queue"
+    "INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME": "file_system_queue",
+    "SESSION_MANAGER_DEFAULT_PLUGIN_NAME": "default_session_manager"
 }
 
 @pytest.fixture(scope='session', autouse=True)
@@ -107,22 +108,23 @@ def mock_plugins():
                     "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL": 7200,
                     "SERVICE_BUS_WAIT_QUEUE_TTL": 600
                 }
-            }
-        ),
-        USER_INTERACTIONS=UserInteractions(
-            INSTANT_MESSAGING={"some key": "some value"},
-            CUSTOM_API={"custom_api": "some_custom_api"}
-        ),
-        GENAI_INTERACTIONS=GenaiInteractions(
-            TEXT={"some key": "some value"},
-            IMAGE={"some key": "some value"},
-            VECTOR_SEARCH={"some key": "some value"}
-        ),
-        USER_INTERACTIONS_BEHAVIORS=UserInteractionsBehaviors(
-            INSTANT_MESSAGING={"some key": "some value"},
-            CUSTOM_API={"some key": "some value"}
-        )
-    )
+            },
+            SESSION_MANAGERS={"DEFAULT_SESSION_MANAGER": Plugin(PLUGIN_NAME="default_session_manager")}
+         ),
+         USER_INTERACTIONS=UserInteractions(
+             INSTANT_MESSAGING={"some key": "some value"},
+             CUSTOM_API={"custom_api": "some_custom_api"}
+         ),
+         GENAI_INTERACTIONS=GenaiInteractions(
+             TEXT={"some key": "some value"},
+             IMAGE={"some key": "some value"},
+             VECTOR_SEARCH={"some key": "some value"}
+         ),
+         USER_INTERACTIONS_BEHAVIORS=UserInteractionsBehaviors(
+             INSTANT_MESSAGING={"some key": "some value"},
+             CUSTOM_API={"some key": "some value"}
+         )
+     )
 
 @pytest.fixture
 def mock_config_manager(mock_utils, mock_plugins):
@@ -147,6 +149,7 @@ def mock_config_manager(mock_utils, mock_plugins):
             GENAI_IMAGE_DEFAULT_PLUGIN_NAME="azure_dalle",
             USER_INTERACTIONS_INSTANT_MESSAGING_DEFAULT_PLUGIN_NAME="test_plugin",
             GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="openai_file_search",
+            SESSION_MANAGER_DEFAULT_PLUGIN_NAME="default_session_manager",
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
@@ -157,7 +160,8 @@ def mock_config_manager(mock_utils, mock_plugins):
             LOAD_PROMPTS_FROM_BACKEND=False,
             LOCAL_PROMPTS_PATH="local_prompts_path",
             LOCAL_SUBPROMPTS_PATH="local_subprompts_path",
-            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False
+            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False,
+            BOT_UNIQUE_ID="bot_unique_id"
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -205,6 +209,7 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'
+    mock_global_manager.session_manager_dispatcher = AsyncMock()  # Add this line
 
     # Ensure the Azure Service Bus plugin is available
     mock_global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {

@@ -1,6 +1,6 @@
 # tests/plugins/action_interactions/default/main_actions/actions/test_long_text.py
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
 
@@ -92,12 +92,17 @@ async def test_process_continuation(mock_global_manager):
 @pytest.mark.asyncio
 async def test_process_end_of_conversation(mock_global_manager):
     long_text_action = LongText(global_manager=mock_global_manager)
-    # Initialiser les attributs nécessaires
     long_text_action.concatenate_folder = "mock_concatenate_folder"
     long_text_action.sessions_folder = "mock_sessions_folder"
 
+    fake_session = MagicMock()
+    fake_session.messages = []
+    fake_session.session_id = "test_session_id"
+
+    mock_global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(return_value=fake_session)
+    mock_global_manager.session_manager_dispatcher.save_session = AsyncMock()
+    mock_global_manager.session_manager_dispatcher.append_messages = MagicMock()
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="Existing content")
-    mock_global_manager.backend_internal_data_processing_dispatcher.update_session = AsyncMock()
     mock_global_manager.backend_internal_data_processing_dispatcher.remove_data_content = AsyncMock()
     mock_global_manager.user_interactions_dispatcher.upload_file = AsyncMock()
 
@@ -116,12 +121,13 @@ async def test_process_end_of_conversation(mock_global_manager):
         files_content=[],
         origin_plugin_name='test_plugin'
     )
+
     result = await long_text_action._process_end_of_conversation("Final content", "channel_1-thread_123.txt", event)
 
     assert result is True
-    mock_global_manager.backend_internal_data_processing_dispatcher.update_session.assert_called_once_with(
-        "mock_sessions_folder", "channel_1-thread_123.txt", "assistant", "Existing content \n\nFinal content"
-    )
+    mock_global_manager.session_manager_dispatcher.get_or_create_session.assert_called_once()
+    mock_global_manager.session_manager_dispatcher.append_messages.assert_called_once()
+    mock_global_manager.session_manager_dispatcher.save_session.assert_called_once_with(fake_session)
     mock_global_manager.backend_internal_data_processing_dispatcher.remove_data_content.assert_called_once()
     assert mock_global_manager.user_interactions_dispatcher.upload_file.call_count == 2
 

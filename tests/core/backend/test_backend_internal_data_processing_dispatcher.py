@@ -55,15 +55,15 @@ def test_property_sessions(dispatcher, mock_plugin):
 async def test_append_data(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
     dispatcher.default_plugin = mock_plugin  # Définir manuellement le default_plugin
-    dispatcher.append_data('container_name', 'data_id', 'data')
+    await dispatcher.append_data('container_name', 'data_id', 'data')
     mock_plugin.append_data.assert_called_with('container_name', 'data_id', 'data')
 
 @pytest.mark.asyncio
 async def test_remove_data(dispatcher, mock_plugin):
     dispatcher.initialize([mock_plugin])
     dispatcher.default_plugin = mock_plugin  # Définir manuellement le default_plugin
-    dispatcher.remove_data('container_name', 'data_id', 'data')
-    mock_plugin.remove_data.assert_called_with('container_name', 'data_id', 'data')
+    await dispatcher.remove_data('container_name', 'data_id', 'data')
+    mock_plugin.remove_data.assert_called_with(container_name='container_name', datafile_name='data_id', data='data')
 
 @pytest.mark.asyncio
 async def test_read_data_content(dispatcher, mock_plugin):
@@ -182,3 +182,43 @@ def test_get_plugin_not_found_returns_default(dispatcher, mock_plugin):
 
     # Assert the default plugin is returned (which is 'mock_plugin' in this case)
     assert plugin == mock_plugin
+
+def test_get_plugin_invalid_name(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    plugin = dispatcher.get_plugin('invalid_plugin')
+    dispatcher.logger.error.assert_called_with("BackendInternalDataProcessingDispatcher: Plugin 'invalid_plugin' not found, returning default plugin")
+    assert plugin == mock_plugin
+
+@pytest.mark.asyncio
+async def test_create_container(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    await dispatcher.create_container('container_name')
+    mock_plugin.create_container.assert_called_with('container_name')
+
+def test_create_container_sync(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    dispatcher.create_container_sync('container_name')
+    mock_plugin.create_container_sync.assert_called_with('container_name')
+
+@pytest.mark.asyncio
+async def test_file_exists(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    await dispatcher.file_exists('container_name', 'file_name')
+    mock_plugin.file_exists.assert_called_with('container_name', 'file_name')
+
+@pytest.mark.asyncio
+async def test_clear_container(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    await dispatcher.clear_container('container_name')
+    mock_plugin.clear_container.assert_called_with('container_name')
+
+def test_clear_container_sync(dispatcher, mock_plugin):
+    dispatcher.initialize([mock_plugin])
+    dispatcher.default_plugin = mock_plugin
+    dispatcher.clear_container_sync('container_name')
+    mock_plugin.clear_container_sync.assert_called_with('container_name')

@@ -248,7 +248,7 @@ class ChatInputHandler():
 
             # Convertir les événements pertinents en messages et les ajouter aux messages de la session
             try:
-                converted_messages = self.convert_events_to_messages(relevant_events)
+                converted_messages = self.convert_events_to_messages(relevant_events, session.session_id)
                 # Trier les messages par timestamp
                 converted_messages.sort(key=lambda x: float(x.get('timestamp', datetime.now().timestamp())))
                 # Ajouter aux messages de la session
@@ -268,11 +268,11 @@ class ChatInputHandler():
                 return message.get("timestamp")
         return None
 
-    def convert_events_to_messages(self, events):
+    def convert_events_to_messages(self, events, session_id):
         # Convertir les événements de l'historique de conversation en format de message approprié
         messages = []
-        for event in events:            
-            self.session_manager_dispatcher.append_messages(messages, self.construct_message(event))
+        for event in events:
+            self.session_manager_dispatcher.append_messages(messages, self.construct_message(event), session_id)
         return messages
 
     def construct_message(self, event_data):

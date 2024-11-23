@@ -23,6 +23,10 @@ def mock_plugin():
         def initialize(self):
             pass
 
+        def create_container(self, *args, **kwargs):
+            # Mock implementation for abstract method
+            pass
+
         @property
         def plugin_name(self):
             return self._plugin_name
@@ -72,11 +76,9 @@ def mock_plugin():
             self._messages_queue = value
 
         async def enqueue_message(self, *args, **kwargs):
-            # Instead of adding 'message', track by 'message_id' for consistency
             self._messages_queue.append(kwargs['message_id'])
 
         async def dequeue_message(self, *args, **kwargs):
-            # Remove by 'message_id', which is how messages are tracked
             self._messages_queue.remove(kwargs['message_id'])
 
         async def get_next_message(self, *args, **kwargs):
@@ -98,7 +100,6 @@ def mock_plugin():
             self._wait_queue.clear()
 
         async def clean_all_queues(self):
-            # Mock implementation for abstract method
             self._messages_queue.clear()
             self._internal_events_queue.clear()
             self._external_events_queue.clear()

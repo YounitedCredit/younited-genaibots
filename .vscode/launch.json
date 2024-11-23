@@ -16,7 +16,8 @@
                 "1"
             ],
             "jinja": true,
-            "justMyCode": true
+            "justMyCode": true,
+            "preLaunchTask": "install-requirements"
         },
         {
             "name": "Docker: Python - Fastapi",
@@ -33,5 +34,16 @@
                 "projectType": "fastapi"
             }
         }
-    ]
+    ],
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "install-requirements",
+                "type": "shell",
+                "command": "python ${workspaceFolder}/install_requirements.py",
+                "problemMatcher": []
+            }
+        ]
+    }
 }

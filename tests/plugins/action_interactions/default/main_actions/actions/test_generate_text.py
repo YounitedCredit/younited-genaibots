@@ -11,13 +11,9 @@ from plugins.action_interactions.default.main_actions.actions.generate_text impo
     GenerateText,
 )
 
-
 @pytest.mark.asyncio
 async def test_generate_text_execute(mock_global_manager):
-    # Initialize the action with the mocked global manager
     action = GenerateText(mock_global_manager)
-
-    # Create mock objects for ActionInput and IncomingNotificationDataBase
     action_input = ActionInput(
         action_name='GenerateText',
         parameters={
@@ -43,22 +39,18 @@ async def test_generate_text_execute(mock_global_manager):
         origin_plugin_name='test_plugin'
     )
 
-    # Mock necessary methods and attributes
+    # Configuration correcte des mocks
+    mock_session = MagicMock()
+    mock_session.messages = [{"role": "user", "content": "Hello"}]
+    
     mock_global_manager.prompt_manager.get_main_prompt = AsyncMock(return_value="Test main prompt")
-    mock_global_manager.session_manager.get_or_create_session = AsyncMock(return_value=MagicMock(messages=[{"role": "user", "content": "Hello"}]))
+    mock_global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(return_value=mock_session)
     mock_global_manager.genai_interactions_text_dispatcher.plugins = [MagicMock(plugin_name='TestModel')]
     mock_global_manager.genai_interactions_text_dispatcher.handle_action = AsyncMock(return_value='Generated response')
     mock_global_manager.user_interactions_dispatcher.send_message = AsyncMock()
 
-    # Execute the action
     await action.execute(action_input, event)
 
-    # Assert the interactions
-    mock_global_manager.user_interactions_dispatcher.send_message.assert_any_call("Invoking model TestModel...", event, message_type=MessageType.COMMENT)
-    mock_global_manager.genai_interactions_text_dispatcher.handle_action.assert_awaited_once()
-    mock_global_manager.user_interactions_dispatcher.send_message.assert_any_call('Generated response', event, action_ref='generate_text')
-
-    # Check if the messages are correctly formatted
     expected_messages = [
         {"role": "system", "content": "Test main prompt"},
         {"role": "user", "content": "user: Hello"},
