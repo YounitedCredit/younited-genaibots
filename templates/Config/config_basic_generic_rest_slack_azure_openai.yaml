@@ -59,15 +59,14 @@ PLUGINS:
 
   USER_INTERACTIONS:
     CUSTOM_API:
-      {}
-      #GENERIC_REST:
-      #  PLUGIN_NAME: "generic_rest"
-      #  GENERIC_REST_ROUTE_PATH: "/api/get_generic_rest_notification"
-      #  GENERIC_REST_ROUTE_METHODS: ["POST"]
-      #  GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior"
-      #  GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message"
-      #  GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message"
-      #  GENERIC_REST_BOT_ID: "$(GENERIC_REST_BOT_ID)"
+      GENERIC_REST:
+        PLUGIN_NAME: "generic_rest" # Name of the generic REST plugin
+        GENERIC_REST_ROUTE_PATH: "/api/get_generic_rest_notification" # Route path for REST notifications
+        GENERIC_REST_ROUTE_METHODS: ["POST"] # HTTP methods allowed for the REST route
+        GENERIC_REST_BEHAVIOR_PLUGIN_NAME: "im_default_behavior" # Plugin name for REST behavior
+        GENERIC_REST_MESSAGE_URL: "http://localhost:8000/api/receive_message" # URL for receiving messages
+        GENERIC_REST_REACTION_URL: "http://localhost:8000/api/receive_message" # URL for receiving reactions
+        GENERIC_REST_BOT_ID: "GenaiBotDebugger" # Bot ID for generic REST interactions
 
     INSTANT_MESSAGING:
       SLACK:
@@ -105,9 +104,9 @@ PLUGINS:
         PLUGIN_NAME: "azure_chatgpt" # Name of the Azure ChatGPT plugin
         AZURE_CHATGPT_INPUT_TOKEN_PRICE: "$(AZURE_CHATGPT_INPUT_TOKEN_PRICE)" # Cost per input token
         AZURE_CHATGPT_OUTPUT_TOKEN_PRICE: "$(AZURE_CHATGPT_OUTPUT_TOKEN_PRICE)" # Cost per output token
-        AZURE_OPENAI_KEY: "$(AZURE_OPENAI_KEY)" # Azure OpenAI API key
-        AZURE_OPENAI_ENDPOINT: "$(AZURE_OPENAI_ENDPOINT)" # Azure OpenAI endpoint URL
-        OPENAI_API_VERSION: "2024-05-01-preview" # Azure OpenAI API version
+        AZURE_CHATGPT_OPENAI_KEY: "$(AZURE_CHATGPT_OPENAI_KEY)" # Azure OpenAI API key
+        AZURE_CHATGPT_OPENAI_ENDPOINT: "$(AZURE_CHATGPT_OPENAI_ENDPOINT)" # Azure OpenAI endpoint URL
+        AZURE_CHATGPT_OPENAI_API_VERSION: "2024-05-01-preview" # Azure OpenAI API version
         AZURE_CHATGPT_MODEL_NAME: "$(AZURE_CHATGPT_MODEL_NAME)" # Model name for Azure ChatGPT
         AZURE_CHATGPT_VISION_MODEL_NAME: "$(AZURE_CHATGPT_VISION_MODEL_NAME)" # Model name for vision capabilities
         AZURE_CHATGPT_IS_ASSISTANT: False # Indicates if the model acts as an assistant
@@ -116,12 +115,12 @@ PLUGINS:
     IMAGE:
       AZURE_DALLE:
         PLUGIN_NAME: "azure_dalle" # Name of the Azure DALL-E plugin
-        INPUT_TOKEN_PRICE: "0.01" # Cost per input token
-        OUTPUT_TOKEN_PRICE: "0.03" # Cost per output token
-        AZURE_OPENAI_KEY: "$(AZURE_OPENAI_KEY)" # Azure OpenAI API key
-        AZURE_OPENAI_ENDPOINT: "$(AZURE_OPENAI_ENDPOINT)" # Azure OpenAI endpoint URL
-        OPENAI_API_VERSION: "2023-12-01-preview" # Azure OpenAI API version for DALL-E
-        IMAGE_GENERATOR_MODEL_NAME: "dall-e-3" # Model name for image generation
+        AZURE_DALLE_INPUT_TOKEN_PRICE: "$(AZURE_DALLE_INPUT_TOKEN_PRICE)" # Cost per input token
+        AZURE_DALLE_OUTPUT_TOKEN_PRICE: "$(AZURE_DALLE_OUTPUT_TOKEN_PRICE)" # Cost per output token
+        AZURE_DALLE_OPENAI_KEY: "$(AZURE_DALLE_OPENAI_KEY)" # Azure OpenAI API key
+        AZURE_DALLE_OPENAI_ENDPOINT: "$(AZURE_DALLE_OPENAI_ENDPOINT)" # Azure OpenAI endpoint URL
+        AZURE_DALLE_OPENAI_API_VERSION: "2024-05-01-preview" # Azure OpenAI API version
+        AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME: "$(AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME)" # Model name for image generation
 
     VECTOR_SEARCH:
       OPENAI_FILE_SEARCH:
