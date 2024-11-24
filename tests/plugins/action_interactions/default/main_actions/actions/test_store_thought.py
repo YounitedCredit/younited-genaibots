@@ -1,9 +1,16 @@
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from plugins.action_interactions.default.main_actions.actions.store_thought import StoreThought
+from plugins.action_interactions.default.main_actions.actions.store_thought import (
+    StoreThought,
+)
+
 
 @pytest.fixture
 def store_thought(mock_global_manager):
@@ -32,16 +39,16 @@ async def test_execute_last_step(store_thought, sample_event):
             'laststep': True
         }
     )
-    
+
     stored_files = ["channel_1-thread_123-123456-1", "channel_1-thread_123-123456-2"]
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     store_thought.global_manager.backend_internal_data_processing_dispatcher.list_container_files = AsyncMock(return_value=stored_files)
     store_thought.global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="Step content")
     store_thought.global_manager.user_interactions_dispatcher.send_message = AsyncMock()
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is True
     assert store_thought.global_manager.user_interactions_dispatcher.send_message.call_count == 2
 
@@ -53,9 +60,9 @@ async def test_execute_missing_result(store_thought, sample_event):
             'step': '1'
         }
     )
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is False
     store_thought.global_manager.logger.error.assert_called_once()
 
@@ -67,9 +74,9 @@ async def test_execute_missing_step(store_thought, sample_event):
             'result': 'Test result'
         }
     )
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is False
     store_thought.global_manager.logger.error.assert_called_once()
 
@@ -82,11 +89,11 @@ async def test_execute_error_handling(store_thought, sample_event):
             'step': '1'
         }
     )
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock(side_effect=Exception("Test error"))
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is False
     store_thought.global_manager.logger.error.assert_called_once_with("Failed to store thought: Test error")
 
@@ -100,12 +107,12 @@ async def test_execute_success(store_thought, sample_event):
             'laststep': False
         }
     )
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     store_thought.global_manager.backend_internal_data_processing_dispatcher.chainofthoughts = "chainofthoughts"
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is True
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content.assert_called_once_with(
         data_container=store_thought.global_manager.backend_internal_data_processing_dispatcher.chainofthoughts,
@@ -123,13 +130,13 @@ async def test_execute_last_step_multiple_files(store_thought, sample_event):
             'laststep': True
         }
     )
-    
+
     stored_files = [
         "channel_1-thread_123-123456-1",
         "channel_1-thread_123-123456-2",
         "channel_1-thread_123-123456-3"
     ]
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     store_thought.global_manager.backend_internal_data_processing_dispatcher.list_container_files = AsyncMock(return_value=stored_files)
     store_thought.global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock()
@@ -146,12 +153,12 @@ async def test_execute_last_step_multiple_files(store_thought, sample_event):
         return step_contents[data_file]
 
     store_thought.global_manager.backend_internal_data_processing_dispatcher.read_data_content.side_effect = mock_read_content
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is True
     assert store_thought.global_manager.user_interactions_dispatcher.send_message.call_count == 3
-    
+
     for i, content in enumerate(["Step 1 content", "Step 2 content", "Step 3 content"], 1):
         store_thought.global_manager.user_interactions_dispatcher.send_message.assert_any_call(
             event=sample_event,
@@ -171,15 +178,15 @@ async def test_execute_error_during_file_listing(store_thought, sample_event):
             'laststep': True
         }
     )
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     store_thought.global_manager.backend_internal_data_processing_dispatcher.list_container_files = AsyncMock(
         side_effect=Exception("File listing error")
     )
     store_thought.global_manager.backend_internal_data_processing_dispatcher.chainofthoughts = "chainofthoughts"
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is False
     store_thought.global_manager.logger.error.assert_called_once_with(
         "Failed to store thought: File listing error"
@@ -195,18 +202,18 @@ async def test_execute_error_during_read(store_thought, sample_event):
             'laststep': True
         }
     )
-    
+
     stored_files = ["channel_1-thread_123-123456-1"]
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     store_thought.global_manager.backend_internal_data_processing_dispatcher.list_container_files = AsyncMock(return_value=stored_files)
     store_thought.global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(
         side_effect=Exception("Read error")
     )
     store_thought.global_manager.backend_internal_data_processing_dispatcher.chainofthoughts = "chainofthoughts"
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is False
     store_thought.global_manager.logger.error.assert_called_once_with(
         "Failed to store thought: Read error"
@@ -222,14 +229,14 @@ async def test_execute_no_matching_files(store_thought, sample_event):
             'laststep': True
         }
     )
-    
+
     stored_files = ["different-thread-id-123456-1"]
-    
+
     store_thought.global_manager.backend_internal_data_processing_dispatcher.write_data_content = AsyncMock()
     store_thought.global_manager.backend_internal_data_processing_dispatcher.list_container_files = AsyncMock(return_value=stored_files)
     store_thought.global_manager.backend_internal_data_processing_dispatcher.chainofthoughts = "chainofthoughts"
-    
+
     result = await store_thought.execute(action_input, sample_event)
-    
+
     assert result is True
     assert store_thought.global_manager.user_interactions_dispatcher.send_message.call_count == 0

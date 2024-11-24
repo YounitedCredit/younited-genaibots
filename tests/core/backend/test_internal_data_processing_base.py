@@ -1,10 +1,13 @@
-import pytest
 from abc import ABC
+
+import pytest
+
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
+
 
 class MinimalImplementation(InternalDataProcessingBase):
     """Minimal implementation of InternalDataProcessingBase for testing"""
-    
+
     def __init__(self):
         self._sessions_data = {}
         self._feedbacks_data = {}
@@ -18,10 +21,10 @@ class MinimalImplementation(InternalDataProcessingBase):
         self._custom_actions_data = {}
         self._chainofthoughts_data = {}
         self._initialized = False
-        
+
     async def initialize(self) -> None:
         self._initialized = True
-        
+
     @property
     def plugin_name(self) -> str:
         return "minimal_implementation"
@@ -65,7 +68,7 @@ class MinimalImplementation(InternalDataProcessingBase):
     @property
     def custom_actions(self):
         return self._custom_actions_data
-    
+
     @property
     def chainofthoughts(self):
         return self._chainofthoughts_data
@@ -114,7 +117,7 @@ class MinimalImplementation(InternalDataProcessingBase):
 
 
 class TestInternalDataProcessingBase:
-    
+
     def test_cannot_instantiate_abstract_class(self):
         """Test that we cannot instantiate the abstract class directly"""
         with pytest.raises(TypeError):
@@ -124,7 +127,7 @@ class TestInternalDataProcessingBase:
         """Test that all abstract methods must be implemented"""
         class IncompleteImplementation(InternalDataProcessingBase):
             pass
-            
+
         with pytest.raises(TypeError):
             IncompleteImplementation()
 
@@ -150,7 +153,7 @@ class TestInternalDataProcessingBase:
     def test_all_properties_exist(self):
         """Test that all required properties exist and are accessible"""
         impl = MinimalImplementation()
-        
+
         # Test all properties
         assert hasattr(impl, 'sessions')
         assert hasattr(impl, 'feedbacks')
@@ -168,7 +171,7 @@ class TestInternalDataProcessingBase:
     async def test_async_methods_exist(self):
         """Test that all async methods exist and are callable"""
         impl = MinimalImplementation()
-        
+
         # Test all async methods
         await impl.append_data("test", "test", "test")
         await impl.remove_data("test", "test", "test")
@@ -186,7 +189,7 @@ class TestInternalDataProcessingBase:
     def test_sync_methods_exist(self):
         """Test that all sync methods exist and are callable"""
         impl = MinimalImplementation()
-        
+
         impl.create_container_sync("test")
         impl.clear_container_sync("test")
 
@@ -194,10 +197,10 @@ class TestInternalDataProcessingBase:
         """Test proper inheritance from InternalDataPluginBase"""
         impl = MinimalImplementation()
         assert isinstance(impl, InternalDataProcessingBase)
-        
+
 class TestInternalDataProcessingBaseSignatures:
     """Tests to verify method signatures match the abstract base class"""
-    
+
     @pytest.mark.asyncio
     async def test_append_data_signature(self):
         impl = MinimalImplementation()

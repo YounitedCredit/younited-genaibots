@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from core.backend.enriched_session import EnrichedSession
 from core.backend.session_manager_plugin_base import SessionManagerPluginBase

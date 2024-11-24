@@ -2,8 +2,9 @@ import asyncio
 import datetime
 import json
 import traceback
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 import yaml
 
 from core.backend.pricing_data import PricingData
@@ -15,11 +16,10 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.backend.session_manager_dispatcher import SessionManagerDispatcher
-
 from core.user_interactions.message_type import MessageType
 from utils.config_manager.config_model import BotConfig
 from utils.plugin_manager.plugin_manager import PluginManager
+
 
 class ChatInputHandler():
     def __init__(self, global_manager: GlobalManager, chat_plugin: GenAIInteractionsTextPluginBase):

@@ -30,6 +30,7 @@ from plugins.user_interactions.custom_api.generic_rest.utils.generic_rest_reacti
 )
 from utils.plugin_manager.plugin_manager import PluginManager
 
+
 class RestConfig(BaseModel):
     PLUGIN_NAME: str
     GENERIC_REST_ROUTE_PATH: str

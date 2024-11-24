@@ -1,15 +1,17 @@
 import asyncio
 import json
 import re
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
+
 import vertexai
 from google.oauth2 import service_account
 from pydantic import BaseModel
 from vertexai.preview.generative_models import GenerativeModel
 
 from core.action_interactions.action_input import ActionInput
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 from core.genai_interactions.genai_cost_base import GenAICostBase
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
@@ -22,7 +24,7 @@ from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
-from core.backend.session_manager_dispatcher import SessionManagerDispatcher
+
 
 class VertexaiGeminiConfig(BaseModel):
     PLUGIN_NAME: str

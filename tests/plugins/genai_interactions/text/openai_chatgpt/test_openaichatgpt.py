@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -73,7 +73,7 @@ async def test_handle_action(openai_chatgpt_plugin):
         parameters={
             "input": "test input",
             "main_prompt": "test prompt",
-            "context": "test context", 
+            "context": "test context",
             "conversation_data": "test conversation",
         }
     )
@@ -104,9 +104,9 @@ async def test_handle_action(openai_chatgpt_plugin):
 
         def append_message(messages, message, session_id):
             messages.append(message)
-            
+
         mock_append_messages.side_effect = append_message
-        
+
         genai_cost_base = GenAICostBase(
             total_tk=100,
             prompt_tk=50,
@@ -228,7 +228,7 @@ async def test_handle_action_without_main_prompt(openai_chatgpt_plugin):
         action_name="generate_text",
         parameters={
             "input": "test input",
-            "context": "test context", 
+            "context": "test context",
             "conversation_data": "test conversation"
         }
     )
@@ -253,14 +253,14 @@ async def test_handle_action_without_main_prompt(openai_chatgpt_plugin):
 
         messages_list = []
         fake_session = MagicMock()
-        fake_session.session_id = "test_session" 
+        fake_session.session_id = "test_session"
         messages_property = PropertyMock(return_value=messages_list)
         type(fake_session).messages = messages_property
         mock_get_or_create_session.return_value = fake_session
 
         def append_message(messages_list, message, session_id):
             messages_list.append(message)
-            
+
         mock_append_messages.side_effect = append_message
 
         genai_cost_base = GenAICostBase(
@@ -314,7 +314,7 @@ async def test_handle_action_with_missing_parameters(openai_chatgpt_plugin):
 
         def append_message(messages_list, message, session_id):
             messages_list.append(message)
-            
+
         mock_append_messages.side_effect = append_message
 
         genai_cost_base = GenAICostBase(

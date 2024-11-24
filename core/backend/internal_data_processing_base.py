@@ -87,7 +87,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Property for custom actions data.
         """
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def chainofthoughts(self):
@@ -106,7 +106,7 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         :param data: The data to append
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def remove_data(self, container_name: str, datafile_name: str, data: str) -> None:
         """
@@ -166,35 +166,35 @@ class InternalDataProcessingBase(InternalDataPluginBase):
         Asynchronously list the files in a specified container.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def create_container(self, data_container: str) -> None:
         """
         Creates a new container for storing messages.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def create_container_sync(self, data_container: str) -> None:
         """
         Creates a new container for storing messages.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def file_exists(self, container_name: str, file_name: str) -> bool:
         """
         Checks if a file exists in a container.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def clear_container(self, container_name: str) -> None:
         """
         Asynchronously clear all contents of the specified container.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def clear_container_sync(self, container_name: str) -> None:
         """

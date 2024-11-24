@@ -1,9 +1,16 @@
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from plugins.action_interactions.default.main_actions.actions.chain_of_thoughts import ChainOfThoughts
+from plugins.action_interactions.default.main_actions.actions.chain_of_thoughts import (
+    ChainOfThoughts,
+)
+
 
 @pytest.fixture
 def chain_of_thoughts(mock_global_manager):
@@ -34,7 +41,7 @@ async def test_execute_success(chain_of_thoughts, sample_event):
             'plan': ['Step 1', 'Step 2']
         }
     )
-    
+
     chain_of_thoughts.user_interactions_dispatcher.send_message = AsyncMock()
     chain_of_thoughts.genai_interactions_text_dispatcher.trigger_genai = AsyncMock()
 
@@ -57,11 +64,11 @@ async def test_execute_missing_parameters(chain_of_thoughts, sample_event):
             'task': 'Test Task'
         }
     )
-    
+
     chain_of_thoughts.user_interactions_dispatcher.send_message = AsyncMock()
-    
+
     await chain_of_thoughts.execute(action_input, sample_event)
-    
+
     chain_of_thoughts.user_interactions_dispatcher.send_message.assert_called_once_with(
         event=sample_event,
         message="Error executing ChainOfThoughts: Missing 'task' or 'plan' in parameters",
@@ -79,16 +86,16 @@ async def test_event_copy_integrity(chain_of_thoughts, sample_event):
             'plan': ['Step 1']
         }
     )
-    
+
     original_event_dict = sample_event.to_dict()
-    
+
     chain_of_thoughts.user_interactions_dispatcher.send_message = AsyncMock()
     chain_of_thoughts.genai_interactions_text_dispatcher.trigger_genai = AsyncMock()
-    
+
     await chain_of_thoughts.execute(action_input, sample_event)
-    
+
     assert sample_event.to_dict() == original_event_dict
-    
+
     modified_event = chain_of_thoughts.event
     assert modified_event.text == 'Step 1'
     assert modified_event.files_content == []

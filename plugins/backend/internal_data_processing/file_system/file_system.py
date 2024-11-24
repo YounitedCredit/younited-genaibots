@@ -1,7 +1,6 @@
 import json
 import os
 import traceback
-from typing import NoReturn
 
 from pydantic import BaseModel
 
@@ -98,7 +97,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
     @property
     def subprompts(self):
         return self.subprompts_container
-    
+
     @property
     def chainofthoughts(self):
         return self.chainofthoughts_container
@@ -160,39 +159,39 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except IOError as e:
             self.logger.error(f"Failed to append data to the file {file_path}: {e}")
             raise e
-        
+
     async def remove_data(self, container_name: str, datafile_name: str, data: str):
         """
         Remove data from a specified container file.
         """
         file_path = os.path.join(self.root_directory, container_name, datafile_name)
         data_lower = data.lower()
-        
+
         # Lire le contenu existant
         existing_content = await self.read_data_content(container_name, datafile_name)
-        
+
         # Si pas de contenu, on arrête là
         if existing_content is None or existing_content == "":
             self.logger.debug(f"No content or empty file in {file_path}")
             return
-            
+
         try:
             new_content = existing_content  # Par défaut, on garde le contenu existant
-            
+
             # Si on trouve le texte à supprimer
             if data_lower in existing_content.lower():
-                new_content = '\n'.join([line for line in existing_content.split('\n') 
+                new_content = '\n'.join([line for line in existing_content.split('\n')
                                     if data_lower not in line.lower()])
-                
+
                 # Si le nouveau contenu est vide, on met un espace
                 if new_content.strip() == "":
                     new_content = " "
-                    
+
                 # Supprimer et réécrire le fichier
                 await self.remove_data_content(data_container=container_name, data_file=datafile_name)
                 await self.write_data_content(data_container=container_name, data_file=datafile_name, data=new_content)
                 self.logger.info(f"Data successfully removed from {file_path}")
-                
+
         except IOError as e:
             self.logger.error(f"Failed to remove data from file {file_path}: {e}")
             raise e
@@ -369,7 +368,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         """
         file_path = os.path.join(self.root_directory, container_name, file_name)
         return os.path.exists(file_path)
-    
+
     async def clear_container(self, container_name: str):
         """
         Clear all contents of the specified container.

@@ -1,10 +1,11 @@
 import asyncio
 import logging
 import sys
+from os import environ
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from os import environ
 
 from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (

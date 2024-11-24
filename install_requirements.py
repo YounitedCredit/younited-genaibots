@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+
 def install_requirements():
     for root, dirs, files in os.walk('.'):
         for file in files:

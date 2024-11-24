@@ -1,4 +1,3 @@
-import json
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -106,10 +105,10 @@ async def test_handle_action_with_empty_blob(azure_chatgpt_plugin):
 
             # Verify that append_messages was called twice (for user and assistant messages)
             assert mock_append_messages.call_count == 2
-            
+
             # Verify completion was called with correct messages
             assert mock_create.call_count == 1
-            
+
             # Verify session was saved
             mock_save_session.assert_called_once()
 
@@ -165,12 +164,12 @@ async def test_handle_action_with_existing_blob(azure_chatgpt_plugin):
         )
 
         result = await azure_chatgpt_plugin.handle_action(action_input, event)
-        
+
         assert result == "Generated response"
         mock_create.assert_called_once()
         mock_save_session.assert_called_once()
         assert mock_append_messages.call_count == 2  # One for user message, one for assistant response
-        
+
 def test_validate_request(azure_chatgpt_plugin):
     event = IncomingNotificationDataBase(
         channel_id="channel_id",

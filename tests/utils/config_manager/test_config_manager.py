@@ -2,12 +2,13 @@ import os
 from unittest.mock import mock_open, patch
 
 import pytest
+from pydantic import ValidationError
 
 from utils.config_manager.config_manager import ConfigManager
-from pydantic import ValidationError  
 
-def test_config_manager_initialization(mock_global_manager):  
-    # Setup: Create a ConfigManager instance using the mock_global_manager  
+
+def test_config_manager_initialization(mock_global_manager):
+    # Setup: Create a ConfigManager instance using the mock_global_manager
     with patch('builtins.open', mock_open(read_data="""  
     BOT_CONFIG:  
       LOG_DEBUG_LEVEL: 'DEBUG'  
@@ -177,11 +178,11 @@ def test_config_manager_initialization(mock_global_manager):
             OPENAI_FILE_SEARCH_MODEL_NAME: 'openai_file_search_model_name'  
             OPENAI_FILE_SEARCH_RESULT_COUNT: 10  
             OPENAI_FILE_SEARCH_INDEX_NAME: 'openai_file_search_index_name'  
-    """)):  
-        config_manager = ConfigManager(mock_global_manager)  
-        assert config_manager.config['BOT_CONFIG']['MAIN_PROMPT'] == 'main_prompt'  
-        assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS']['DEFAULT']['MAIN_ACTIONS']['PLUGIN_NAME'] == 'main_actions'  
-        assert config_manager.config['UTILS']['LOGGING']['LOCAL_LOGGING']['PLUGIN_NAME'] == 'local_logging'  
+    """)):
+        config_manager = ConfigManager(mock_global_manager)
+        assert config_manager.config['BOT_CONFIG']['MAIN_PROMPT'] == 'main_prompt'
+        assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS']['DEFAULT']['MAIN_ACTIONS']['PLUGIN_NAME'] == 'main_actions'
+        assert config_manager.config['UTILS']['LOGGING']['LOCAL_LOGGING']['PLUGIN_NAME'] == 'local_logging'
 
 def test_config_file_not_found(mock_global_manager):
     # Test handling of a missing configuration file
@@ -248,28 +249,28 @@ def test_load_action_interactions(mock_config_manager):
     # Test the load_action_interactions method
     assert isinstance(mock_config_manager.config_model.PLUGINS.ACTION_INTERACTIONS.CUSTOM, dict)
 
-def test_replace_env_vars_with_nested_structures(mock_global_manager):  
-    # Prepare a nested configuration with environment variables  
-    nested_config = {  
-        'level1': {  
-            'level2': {  
-                'value': '$(TEST_ENV_VAR)',  
-                'list': ['item1', '$(TEST_ENV_VAR)']  
-            }  
-        }  
-    }  
-    # Set the necessary environment variables, including those required by the ConfigManager  
-    with patch.dict(os.environ, {  
-        'TEST_ENV_VAR': 'env_value',  
-        'SLACK_AUTHORIZED_APPS': 'test_apps',  
-        'SLACK_AUTHORIZED_CHANNELS': 'test_channels',  
-        'SLACK_SIGNING_SECRET': 'test_signing_secret',  
-        'SLACK_BOT_TOKEN': 'test_bot_token',  
-        'SLACK_BOT_USER_TOKEN': 'test_bot_user_token',  
-        'SLACK_BOT_USER_ID': 'test_bot_user_id',  
-        # Add any other required environment variables if needed  
-    }):  
-        # Mock the 'open' function to return a complete configuration with all required fields  
+def test_replace_env_vars_with_nested_structures(mock_global_manager):
+    # Prepare a nested configuration with environment variables
+    nested_config = {
+        'level1': {
+            'level2': {
+                'value': '$(TEST_ENV_VAR)',
+                'list': ['item1', '$(TEST_ENV_VAR)']
+            }
+        }
+    }
+    # Set the necessary environment variables, including those required by the ConfigManager
+    with patch.dict(os.environ, {
+        'TEST_ENV_VAR': 'env_value',
+        'SLACK_AUTHORIZED_APPS': 'test_apps',
+        'SLACK_AUTHORIZED_CHANNELS': 'test_channels',
+        'SLACK_SIGNING_SECRET': 'test_signing_secret',
+        'SLACK_BOT_TOKEN': 'test_bot_token',
+        'SLACK_BOT_USER_TOKEN': 'test_bot_user_token',
+        'SLACK_BOT_USER_ID': 'test_bot_user_id',
+        # Add any other required environment variables if needed
+    }):
+        # Mock the 'open' function to return a complete configuration with all required fields
         full_config = """  
         BOT_CONFIG:  
           LOG_DEBUG_LEVEL: 'DEBUG'  
@@ -351,24 +352,24 @@ def test_replace_env_vars_with_nested_structures(mock_global_manager):
             VECTOR_SEARCH:  
               DEFAULT_VECTOR_SEARCH_PLUGIN:  
                 PLUGIN_NAME: 'default_genai_vector_search_plugin'  
-        """  
-        with patch('builtins.open', mock_open(read_data=full_config)):  
-            # Instantiate the ConfigManager and replace environment variables  
-            config_manager = ConfigManager(mock_global_manager)  
-            result = config_manager.replace_env_vars(nested_config)  
-            # Expected result after replacing env vars  
-            expected = {  
-                'level1': {  
-                    'level2': {  
-                        'value': 'env_value',  
-                        'list': ['item1', 'env_value']  
-                    }  
-                }  
-            }  
-            assert result == expected  
-  
-def test_get_config_with_missing_keys(mock_global_manager):  
-    # Mock the 'open' function to return a full configuration with all required fields  
+        """
+        with patch('builtins.open', mock_open(read_data=full_config)):
+            # Instantiate the ConfigManager and replace environment variables
+            config_manager = ConfigManager(mock_global_manager)
+            result = config_manager.replace_env_vars(nested_config)
+            # Expected result after replacing env vars
+            expected = {
+                'level1': {
+                    'level2': {
+                        'value': 'env_value',
+                        'list': ['item1', 'env_value']
+                    }
+                }
+            }
+            assert result == expected
+
+def test_get_config_with_missing_keys(mock_global_manager):
+    # Mock the 'open' function to return a full configuration with all required fields
     full_config = """  
     BOT_CONFIG:  
       LOG_DEBUG_LEVEL: 'DEBUG'  
@@ -450,34 +451,34 @@ def test_get_config_with_missing_keys(mock_global_manager):
         VECTOR_SEARCH:  
           DEFAULT_VECTOR_SEARCH_PLUGIN:  
             PLUGIN_NAME: 'default_genai_vector_search_plugin'  
-    """  
-    with patch('builtins.open', mock_open(read_data=full_config)):  
-        config_manager = ConfigManager(mock_global_manager)  
-          
-        # Test that a KeyError is raised when keys are missing at the top level  
-        with pytest.raises(KeyError, match=r"Key 'NON_EXISTENT_KEY' not found in configuration at NON_EXISTENT_KEY"):  
-            config_manager.get_config(['NON_EXISTENT_KEY'])  
-  
-        # Test that a KeyError is raised when a sub-key is missing  
-        with pytest.raises(KeyError, match=r"Key 'MISSING_SUB_KEY' not found in configuration at BOT_CONFIG.MISSING_SUB_KEY"):  
-            config_manager.get_config(['BOT_CONFIG', 'MISSING_SUB_KEY'])  
+    """
+    with patch('builtins.open', mock_open(read_data=full_config)):
+        config_manager = ConfigManager(mock_global_manager)
 
-def test_replace_env_vars_missing_env_var(mock_global_manager):  
-    # Prepare a configuration with a missing environment variable  
-    config_with_missing_env_var = {  
-        'value': '$(MISSING_ENV_VAR)'  
-    }  
-    # Set necessary environment variables for initialization  
-    with patch.dict(os.environ, {  
-        'SLACK_AUTHORIZED_APPS': 'test_apps',  
-        'SLACK_AUTHORIZED_CHANNELS': 'test_channels',  
-        'SLACK_SIGNING_SECRET': 'test_signing_secret',  
-        'SLACK_BOT_TOKEN': 'test_bot_token',  
-        'SLACK_BOT_USER_TOKEN': 'test_bot_user_token',  
-        'SLACK_BOT_USER_ID': 'test_bot_user_id',  
-        # Add any other required environment variables  
-    }):  
-        # Mock the 'open' function to return a full configuration with all required fields  
+        # Test that a KeyError is raised when keys are missing at the top level
+        with pytest.raises(KeyError, match=r"Key 'NON_EXISTENT_KEY' not found in configuration at NON_EXISTENT_KEY"):
+            config_manager.get_config(['NON_EXISTENT_KEY'])
+
+        # Test that a KeyError is raised when a sub-key is missing
+        with pytest.raises(KeyError, match=r"Key 'MISSING_SUB_KEY' not found in configuration at BOT_CONFIG.MISSING_SUB_KEY"):
+            config_manager.get_config(['BOT_CONFIG', 'MISSING_SUB_KEY'])
+
+def test_replace_env_vars_missing_env_var(mock_global_manager):
+    # Prepare a configuration with a missing environment variable
+    config_with_missing_env_var = {
+        'value': '$(MISSING_ENV_VAR)'
+    }
+    # Set necessary environment variables for initialization
+    with patch.dict(os.environ, {
+        'SLACK_AUTHORIZED_APPS': 'test_apps',
+        'SLACK_AUTHORIZED_CHANNELS': 'test_channels',
+        'SLACK_SIGNING_SECRET': 'test_signing_secret',
+        'SLACK_BOT_TOKEN': 'test_bot_token',
+        'SLACK_BOT_USER_TOKEN': 'test_bot_user_token',
+        'SLACK_BOT_USER_ID': 'test_bot_user_id',
+        # Add any other required environment variables
+    }):
+        # Mock the 'open' function to return a full configuration with all required fields
         full_config = """  
         BOT_CONFIG:  
           LOG_DEBUG_LEVEL: 'DEBUG'  
@@ -559,15 +560,15 @@ def test_replace_env_vars_missing_env_var(mock_global_manager):
             VECTOR_SEARCH:  
               DEFAULT_VECTOR_SEARCH_PLUGIN:  
                 PLUGIN_NAME: 'default_genai_vector_search_plugin'  
-        """  
-        with patch('builtins.open', mock_open(read_data=full_config)):  
-            config_manager = ConfigManager(mock_global_manager)  
-            # Test that a ValueError is raised when the environment variable is missing  
-            with pytest.raises(ValueError, match="Environment variable MISSING_ENV_VAR not found"):  
-                config_manager.replace_env_vars(config_with_missing_env_var)  
+        """
+        with patch('builtins.open', mock_open(read_data=full_config)):
+            config_manager = ConfigManager(mock_global_manager)
+            # Test that a ValueError is raised when the environment variable is missing
+            with pytest.raises(ValueError, match="Environment variable MISSING_ENV_VAR not found"):
+                config_manager.replace_env_vars(config_with_missing_env_var)
 
-def test_config_manager_partial_initialization(mock_global_manager):  
-    # Provide a configuration that includes all required fields but lacks optional sections  
+def test_config_manager_partial_initialization(mock_global_manager):
+    # Provide a configuration that includes all required fields but lacks optional sections
     partial_config = """  
     BOT_CONFIG:  
       LOG_DEBUG_LEVEL: 'DEBUG'  
@@ -598,14 +599,14 @@ def test_config_manager_partial_initialization(mock_global_manager):
       LOCAL_PROMPTS_PATH: 'local_prompts_path'  
       LOCAL_SUBPROMPTS_PATH: 'local_subprompts_path'  
       ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: true  
-    """  
-    with patch('builtins.open', mock_open(read_data=partial_config)):  
-        # Set necessary environment variables to avoid ValueError  
-        # Since no environment variables are referenced here, we can proceed without setting them  
-        # Instantiate the ConfigManager  
-        with pytest.raises(ValidationError) as exc_info:  
-            ConfigManager(mock_global_manager)  
-        # Check that the ValidationError is due to missing 'UTILS' and 'PLUGINS' sections  
-        missing_fields = [error['loc'] for error in exc_info.value.errors()]  
-        assert ('UTILS',) in missing_fields  
+    """
+    with patch('builtins.open', mock_open(read_data=partial_config)):
+        # Set necessary environment variables to avoid ValueError
+        # Since no environment variables are referenced here, we can proceed without setting them
+        # Instantiate the ConfigManager
+        with pytest.raises(ValidationError) as exc_info:
+            ConfigManager(mock_global_manager)
+        # Check that the ValidationError is due to missing 'UTILS' and 'PLUGINS' sections
+        missing_fields = [error['loc'] for error in exc_info.value.errors()]
+        assert ('UTILS',) in missing_fields
         assert ('PLUGINS',) in missing_fields

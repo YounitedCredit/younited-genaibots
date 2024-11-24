@@ -86,9 +86,9 @@ async def test_handle_action(azure_commandr_plugin):
         )
 
         result = await azure_commandr_plugin.handle_action(action_input, event)
-        
+
         assert result == "Generated response"
-        
+
         # Verify session interactions
         mock_get_or_create_session.assert_called_once()
         mock_append_messages.assert_called()
@@ -100,7 +100,7 @@ async def test_handle_action(azure_commandr_plugin):
         assert call_kwargs['temperature'] == 0.1
         assert call_kwargs['top_p'] == 0.1
         assert isinstance(call_kwargs['messages'], list)
-        
+
 @pytest.mark.asyncio
 async def test_generate_completion(azure_commandr_plugin):
     messages = [{"role": "user", "content": "Test message"}]

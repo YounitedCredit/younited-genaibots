@@ -1,8 +1,9 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from core.genai_interactions.genai_cost_base import GenAICostBase
+
 import pytest
 
+from core.genai_interactions.genai_cost_base import GenAICostBase
 from core.genai_interactions.genai_interactions_text_plugin_base import (
     GenAIInteractionsTextPluginBase,
 )
@@ -60,7 +61,7 @@ async def test_handle_message_event(mock_global_manager, mock_config_manager):
 
     mock_session = MagicMock()
     mock_session.messages = []
-    
+
     mock_prompt_manager = AsyncMock()
     mock_prompt_manager.initialize = AsyncMock()
     mock_prompt_manager.core_prompt = "Core Prompt"
@@ -74,7 +75,7 @@ async def test_handle_message_event(mock_global_manager, mock_config_manager):
 
     mock_global_manager.backend_internal_data_processing_dispatcher.feedbacks = 'mock_feedbacks_container'
     mock_global_manager.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value='{"feedback": "positive"}')
-    
+
     mock_global_manager.bot_config = MagicMock(
         FEEDBACK_GENERAL_BEHAVIOR='feedback_general_behavior',
         CORE_PROMPT='core_prompt_name',
@@ -244,7 +245,7 @@ async def test_handle_message_event_with_large_file_content(chat_input_handler):
         user_email="test@example.com", is_mention=True,
         text="Hello", images=[]
     )
-    
+
     messages = []
     mock_session = MagicMock()
     mock_session.messages = messages
@@ -315,29 +316,29 @@ async def test_yaml_to_json_error(chat_input_handler, incoming_notification):
         assert result is None
         mock_logger.error.assert_called()
 
-@pytest.mark.asyncio  
-async def test_handle_message_event_exception(chat_input_handler, incoming_notification):  
-    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(side_effect=Exception("Read content failed"))  
-    chat_input_handler.global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(side_effect=Exception("Read content failed"))  
-  
-    with pytest.raises(Exception, match="Read content failed"):  
-        await chat_input_handler.handle_message_event(incoming_notification)  
+@pytest.mark.asyncio
+async def test_handle_message_event_exception(chat_input_handler, incoming_notification):
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(side_effect=Exception("Read content failed"))
+    chat_input_handler.global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(side_effect=Exception("Read content failed"))
 
-@pytest.mark.asyncio  
-async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):  
-    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")  
-  
+    with pytest.raises(Exception, match="Read content failed"):
+        await chat_input_handler.handle_message_event(incoming_notification)
+
+@pytest.mark.asyncio
+async def test_handle_thread_message_event_no_messages(chat_input_handler, incoming_notification):
+    chat_input_handler.backend_internal_data_processing_dispatcher.read_data_content = AsyncMock(return_value="[]")
+
     with patch.object(chat_input_handler, 'process_conversation_history', new_callable=AsyncMock) as mock_process_conversation_history, \
          patch.object(chat_input_handler.global_manager.prompt_manager, 'initialize', new_callable=AsyncMock) as mock_initialize_prompt, \
-         patch.object(chat_input_handler.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:  
-  
-        mock_session = MagicMock()  
-        mock_session.messages = []  
-        mock_get_or_create_session.return_value = mock_session  
-  
-        result = await chat_input_handler.handle_thread_message_event(incoming_notification)  
-        assert result is None  
-        mock_initialize_prompt.assert_called_once()  
+         patch.object(chat_input_handler.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session:
+
+        mock_session = MagicMock()
+        mock_session.messages = []
+        mock_get_or_create_session.return_value = mock_session
+
+        result = await chat_input_handler.handle_thread_message_event(incoming_notification)
+        assert result is None
+        mock_initialize_prompt.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_calculate_and_update_costs(chat_input_handler, incoming_notification):
@@ -368,13 +369,13 @@ def test_convert_events_to_messages(chat_input_handler):
     msg_list = []
     events = [
         MagicMock(
-            user_name="User1", user_id="123", text="Hello", 
-            images=[], files_content=[], timestamp="1633090572.000200", 
+            user_name="User1", user_id="123", text="Hello",
+            images=[], files_content=[], timestamp="1633090572.000200",
             user_email="user1@test.com", is_mention=True
         ),
         MagicMock(
-            user_name="User2", user_id="456", text="Hi", 
-            images=[], files_content=[], timestamp="1633090573.000200", 
+            user_name="User2", user_id="456", text="Hi",
+            images=[], files_content=[], timestamp="1633090573.000200",
             user_email="user2@test.com", is_mention=True
         )
     ]
@@ -387,7 +388,7 @@ def test_convert_events_to_messages(chat_input_handler):
     chat_input_handler.session_manager_dispatcher = MagicMock()
     chat_input_handler.session_manager_dispatcher.append_messages.side_effect = append_mock
     result = chat_input_handler.convert_events_to_messages(events, 'test_session')
-    
+
     assert len(messages) == 2
     assert all(msg["role"] == "user" for msg in messages)
     assert "Hello" in messages[0]["content"][0]["text"]
@@ -462,32 +463,32 @@ async def test_process_conversation_history_no_history(chat_input_handler):
     chat_input_handler.logger.warning.assert_called_once()
     assert "No conversation history found" in chat_input_handler.logger.warning.call_args[0][0]
 
-@pytest.mark.asyncio  
-async def test_session_cost_accumulation(chat_input_handler, incoming_notification):  
-    initial_total_cost = 0.0  
-    session = MagicMock()  
-    session.total_cost = {'total_tokens': 0, 'total_cost': initial_total_cost}  
-  
-    # Define side effect for accumulate_cost  
-    def accumulate_cost_side_effect(cost_dict):  
-        session.total_cost['total_tokens'] += cost_dict['total_tokens']  
-        session.total_cost['total_cost'] += cost_dict['total_cost']  
-  
-    session.accumulate_cost = accumulate_cost_side_effect  
-  
-    chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock()  
-  
-    await chat_input_handler.calculate_and_update_costs(  
-        cost_params=GenAICostBase(  
-            total_tk=1000, prompt_tk=500, completion_tk=500,  
-            input_token_price=0.02, output_token_price=0.03  
-        ),  
-        costs_blob_container_name='costs_container',  
-        blob_name='blob_name',  
-        event=incoming_notification,  
-        session=session  
-    )  
-  
-    assert session.total_cost['total_cost'] > initial_total_cost  
-    assert session.total_cost['total_tokens'] == 1000  
-    assert session.total_cost['total_cost'] == 0.025  # Calculated total cost  
+@pytest.mark.asyncio
+async def test_session_cost_accumulation(chat_input_handler, incoming_notification):
+    initial_total_cost = 0.0
+    session = MagicMock()
+    session.total_cost = {'total_tokens': 0, 'total_cost': initial_total_cost}
+
+    # Define side effect for accumulate_cost
+    def accumulate_cost_side_effect(cost_dict):
+        session.total_cost['total_tokens'] += cost_dict['total_tokens']
+        session.total_cost['total_cost'] += cost_dict['total_cost']
+
+    session.accumulate_cost = accumulate_cost_side_effect
+
+    chat_input_handler.backend_internal_data_processing_dispatcher.update_pricing = AsyncMock()
+
+    await chat_input_handler.calculate_and_update_costs(
+        cost_params=GenAICostBase(
+            total_tk=1000, prompt_tk=500, completion_tk=500,
+            input_token_price=0.02, output_token_price=0.03
+        ),
+        costs_blob_container_name='costs_container',
+        blob_name='blob_name',
+        event=incoming_notification,
+        session=session
+    )
+
+    assert session.total_cost['total_cost'] > initial_total_cost
+    assert session.total_cost['total_tokens'] == 1000
+    assert session.total_cost['total_cost'] == 0.025  # Calculated total cost

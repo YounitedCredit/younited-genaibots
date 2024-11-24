@@ -1,13 +1,18 @@
 import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from core.user_interactions.message_type import MessageType
 
 import pytest
 
-from core.event_processing.interaction_queue_manager import InteractionQueueManager
-from core.event_processing.interaction_queue_manager import make_serializable, InteractionQueueManager
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.event_processing.interaction_queue_manager import (
+    InteractionQueueManager,
+    make_serializable,
+)
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
+from core.user_interactions.message_type import MessageType
+
 
 @pytest.fixture
 def mock_global_manager(mock_config_manager, mock_plugins):
@@ -28,7 +33,7 @@ async def cleanup_pending_tasks():
             await task
         except asyncio.CancelledError:
             pass
-        
+
 @pytest.fixture
 def interaction_queue_manager(mock_global_manager):
     return InteractionQueueManager(global_manager=mock_global_manager)
@@ -186,20 +191,20 @@ async def test_process_external_queue(interaction_queue_manager, mock_global_man
 async def test_clear_expired_messages_with_running_loop(interaction_queue_manager, mock_global_manager):
     # Set the backend_dispatcher explicitement
     interaction_queue_manager.backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
-    
+
     # Create a running event loop
     with patch('asyncio.get_event_loop') as mock_loop:
         mock_loop.return_value.is_running.return_value = True
-        
+
         # APRÈS avoir configuré le mock de get_event_loop, on met en place le mock de clean_all_queues
         mock_global_manager.backend_internal_queue_processing_dispatcher.clean_all_queues = AsyncMock(return_value=5)
-        
+
         # Call the method directly (sans initialize)
         interaction_queue_manager.clear_expired_messages()
-        
+
         # Attendre un tick pour permettre à la tâche async de s'exécuter
         await asyncio.sleep(0)
-        
+
         # Assert that clean_all_queues was scheduled
         mock_global_manager.backend_internal_queue_processing_dispatcher.clean_all_queues.assert_called_once()
 
@@ -223,14 +228,14 @@ async def test_save_event_to_backend_json_error(interaction_queue_manager, mock_
 async def test_process_internal_queue_different_event_types(interaction_queue_manager, mock_global_manager):
     dispatcher = mock_global_manager.user_interactions_dispatcher
     dispatcher.add_reaction = AsyncMock()
-    
+
     # Set up necessaire
     interaction_queue_manager.user_interaction_dispatcher = dispatcher
     interaction_queue_manager.backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
     interaction_queue_manager.backend_dispatcher.dequeue_message = AsyncMock()
-    
+
     queue_key = ('channel1', 'thread1')
-    
+
     # Test add_reaction event avec message_id et guid
     event_data_add = {
         'event_type': 'add_reaction',
@@ -238,19 +243,19 @@ async def test_process_internal_queue_different_event_types(interaction_queue_ma
         'message_id': '123',
         'guid': 'test-guid'
     }
-    
+
     # Initialize the processing tasks
     interaction_queue_manager.internal_processing_tasks = {queue_key: asyncio.create_task(asyncio.sleep(0))}
-    
+
     # Add event to the internal queue
     await interaction_queue_manager.internal_queues[queue_key].put(event_data_add)
-    
+
     # Attendre un tick
     await asyncio.sleep(0)
-    
+
     # Run the processor
     await interaction_queue_manager.process_internal_queue(queue_key)
-    
+
     # Assert the reaction was added
     dispatcher.add_reaction.assert_called_once_with(
         channel_id='channel1', thread_id='thread1', is_internal=True, is_replayed=True
@@ -264,7 +269,7 @@ async def test_process_external_reactions_batch(interaction_queue_manager, mock_
     interaction_queue_manager.user_interaction_dispatcher = dispatcher
     interaction_queue_manager.backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
     interaction_queue_manager.backend_dispatcher.dequeue_message = AsyncMock()
-    
+
     queue_key = ('channel1', 'thread1')
     reactions_actions = [
         {
@@ -278,7 +283,7 @@ async def test_process_external_reactions_batch(interaction_queue_manager, mock_
             }
         }
     ]
-    
+
     event_data = {
         'event_type': 'update_reactions_batch',
         'method_params': {
@@ -288,10 +293,10 @@ async def test_process_external_reactions_batch(interaction_queue_manager, mock_
         'message_id': '123456',
         'guid': 'test-guid'
     }
-    
+
     await interaction_queue_manager.external_queues[queue_key].put(event_data)
     await interaction_queue_manager.process_external_queue(queue_key)
-    
+
     # Verify batch update was called
     assert dispatcher.update_reactions_batch.called
     dispatcher.update_reactions_batch.assert_called_once_with(
@@ -303,13 +308,13 @@ async def test_process_external_reactions_batch(interaction_queue_manager, mock_
 async def test_mark_event_processed_error_handling(interaction_queue_manager, mock_global_manager):
     mock_backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
     mock_backend_dispatcher.dequeue_message = AsyncMock(side_effect=Exception("Test error"))
-    
+
     event_data = {
         'message_id': '123',
         'guid': 'abc',
         'method_params': {'channel_id': 'channel1', 'thread_id': 'thread1'}
     }
-    
+
     # Test that the error is caught and logged
     await interaction_queue_manager.mark_event_processed(event_data, internal=True)
     interaction_queue_manager.logger.error.assert_called()
@@ -317,7 +322,7 @@ async def test_mark_event_processed_error_handling(interaction_queue_manager, mo
 def test_generate_unique_event_id(interaction_queue_manager):
     id1 = interaction_queue_manager.generate_unique_event_id()
     id2 = interaction_queue_manager.generate_unique_event_id()
-    
+
     # Verify IDs are unique
     assert id1 != id2
     # Verify IDs are valid UUIDs
@@ -335,9 +340,9 @@ def test_make_serializable(interaction_queue_manager):
         'list': [1, 2, 3],
         'dict': {'nested': 'dict'},
     }
-    
+
     result = make_serializable(test_data)
-    
+
     # Vérifications basiques
     assert result['str'] == 'test'
     assert result['int'] == 123
@@ -346,7 +351,7 @@ def test_make_serializable(interaction_queue_manager):
     assert result['none'] is None
     assert result['list'] == [1, 2, 3]
     assert result['dict'] == {'nested': 'dict'}
-    
+
     # Vérifier que le résultat est JSON serializable
     serialized = json.dumps(result)
     assert isinstance(serialized, str)
@@ -367,7 +372,7 @@ async def test_add_to_queue_with_reactions(interaction_queue_manager, mock_globa
         'thread_id': 'test_thread',
         'timestamp': '123456'
     }
-    
+
     method_params = {
         'reactions': [{
             'event': reaction_event,
@@ -410,22 +415,22 @@ async def test_process_queue_with_message_type(interaction_queue_manager, mock_g
     interaction_queue_manager.backend_dispatcher.dequeue_message = AsyncMock()
     mock_enqueue = AsyncMock()
     interaction_queue_manager.backend_dispatcher.enqueue_message = mock_enqueue
-    
+
     # Setup dispatcher with proper mocks
     dispatcher = mock_global_manager.user_interactions_dispatcher
     mock_send = AsyncMock()
     dispatcher.send_message = mock_send
     interaction_queue_manager.user_interaction_dispatcher = dispatcher
-    
+
     # Initialize necessary containers
     interaction_queue_manager.internal_event_container = MagicMock()
     interaction_queue_manager.external_event_container = MagicMock()
-    
+
     # Setup processing tasks dict and queue
     queue_key = ('channel1', 'thread1')
     if queue_key not in interaction_queue_manager.internal_queues:
         interaction_queue_manager.internal_queues[queue_key] = asyncio.Queue()
-    
+
     # Create event data with TEXT message type
     event_data = {
         'event_type': 'send_message',
@@ -439,26 +444,26 @@ async def test_process_queue_with_message_type(interaction_queue_manager, mock_g
         'message_id': '123',
         'guid': 'test-guid'
     }
-    
+
     # Set up initial task state
     interaction_queue_manager.internal_processing_tasks = {
         queue_key: asyncio.create_task(asyncio.sleep(0))
     }
-    
+
     # Add to queue
     await interaction_queue_manager.internal_queues[queue_key].put(event_data)
-    
+
     # Process the queue and wait for completion
     await interaction_queue_manager.process_internal_queue(queue_key)
-    
+
     # Verify and await the async calls
     assert mock_send.called, "send_message was not called"
     await mock_send.wait_until_called()
-    
+
     # Get and verify the call arguments
     call_args = mock_send.call_args
     assert call_args is not None
-    
+
     kwargs = call_args.kwargs
     assert kwargs['channel_id'] == 'channel1'
     assert kwargs['thread_id'] == 'thread1'
@@ -467,7 +472,7 @@ async def test_process_queue_with_message_type(interaction_queue_manager, mock_g
     assert kwargs['content'] == 'test message'
     assert isinstance(kwargs['message_type'], MessageType)
     assert kwargs['message_type'] == MessageType.TEXT
-    
+
     # Clean up
     await interaction_queue_manager.internal_queues[queue_key].join()
 
@@ -475,11 +480,11 @@ async def test_process_queue_with_message_type(interaction_queue_manager, mock_g
 async def test_process_external_reactions_batch(interaction_queue_manager, mock_global_manager):
     # Fix: Initialize the external_reaction_tasks attribute
     interaction_queue_manager.external_reaction_tasks = {}
-    
+
     dispatcher = mock_global_manager.user_interactions_dispatcher
     dispatcher.add_reactions = AsyncMock()
     interaction_queue_manager.user_interaction_dispatcher = dispatcher
-    
+
     # Set up backend dispatcher
     interaction_queue_manager.backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
     interaction_queue_manager.backend_dispatcher.dequeue_message = AsyncMock()
@@ -514,25 +519,25 @@ async def test_clear_expired_messages_without_running_loop(interaction_queue_man
     mock_clean = AsyncMock(return_value=5)
     interaction_queue_manager.backend_dispatcher = mock_global_manager.backend_internal_queue_processing_dispatcher
     interaction_queue_manager.backend_dispatcher.clean_all_queues = mock_clean
-    
+
     with patch('asyncio.get_event_loop') as mock_loop:
         # Setup mock loop with proper async handling
         mock_loop_instance = MagicMock()
         mock_loop_instance.is_running.return_value = False
-        
+
         async def run_until_complete_mock(coro):
             return await coro
-            
+
         mock_loop_instance.run_until_complete = run_until_complete_mock
         mock_loop.return_value = mock_loop_instance
-        
+
         # Run the method
         interaction_queue_manager.clear_expired_messages()
-        
+
         # Wait for and verify the async call
         assert mock_clean.called
         await mock_clean.wait_until_called()
-        
+
         # Verify correct number of calls
         assert mock_clean.call_count == 1
 
@@ -541,7 +546,7 @@ def test_make_serializable_with_custom_objects(interaction_queue_manager):
     class CustomObject:
         def __init__(self):
             self.value = "test"
-            
+
     test_data = {
         'custom': CustomObject(),
         'nested': {
@@ -549,9 +554,9 @@ def test_make_serializable_with_custom_objects(interaction_queue_manager):
         },
         'list': [CustomObject(), CustomObject()]
     }
-    
+
     result = make_serializable(test_data)
-    
+
     # Verify all CustomObjects were converted to dicts
     assert isinstance(result['custom'], dict)
     assert result['custom']['value'] == "test"
@@ -593,13 +598,13 @@ async def test_process_queue_with_notification_data(interaction_queue_manager, m
 @pytest.mark.asyncio
 async def test_queue_processing_termination(interaction_queue_manager):
     queue_key = ('channel1', 'thread1')
-    
+
     # Create a processing task
     task = asyncio.create_task(interaction_queue_manager.process_internal_queue(queue_key))
-    
+
     # Wait briefly
     await asyncio.sleep(0.1)
-    
+
     # Verify task is removed when queue is empty
     assert queue_key not in interaction_queue_manager.internal_processing_tasks
 

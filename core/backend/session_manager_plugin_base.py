@@ -1,8 +1,8 @@
-import json
-from datetime import datetime
 from typing import Dict, List, Optional
-from core.plugin_base import PluginBase
+
 from core.backend.enriched_session import EnrichedSession
+from core.plugin_base import PluginBase
+
 
 class SessionManagerPluginBase(PluginBase):
     def generate_session_id(self, channel_id: str, thread_id: str) -> str:
@@ -22,10 +22,10 @@ class SessionManagerPluginBase(PluginBase):
 
     async def get_or_create_session(self, channel_id: str, thread_id: str, enriched: bool = False):
         raise NotImplementedError("This method should be implemented by subclasses")
-    
+
     def append_messages(self, messages: List[Dict], message: Dict, session_id: str):
         raise NotImplementedError("This method should be implemented by subclasses")
-    
+
     async def add_mind_interaction_to_message(self, session, message_index: int, interaction: Dict) -> None:
         """
         Add a mind interaction to a specific assistant message by index.

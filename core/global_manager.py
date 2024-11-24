@@ -11,6 +11,8 @@ from core.backend.backend_internal_queue_processing_dispatcher import (
     BackendInternalQueueProcessingDispatcher,
 )
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
+from core.backend.session_manager_plugin_base import SessionManagerPluginBase
 from core.event_processing.interaction_queue_manager import (
     InteractionQueueManager,
 )
@@ -24,7 +26,6 @@ from core.genai_interactions.genai_interactions_text_dispatcher import (
     GenaiInteractionsTextDispatcher,
 )
 from core.genai_interactions.genai_vectorsearch_dispatcher import GenaiVectorsearch
-from core.backend.session_manager_plugin_base import SessionManagerPluginBase
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
@@ -37,7 +38,6 @@ from core.user_interactions_behaviors.user_interactions_behavior_base import (
 from core.user_interactions_behaviors.user_interactions_behavior_dispatcher import (
     UserInteractionsBehaviorsDispatcher,
 )
-from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 from utils.config_manager.config_manager import ConfigManager
 from utils.config_manager.config_model import BotConfig
 from utils.logging.logger_loader import setup_logger_and_tracer
@@ -59,7 +59,7 @@ class GlobalManager:
 
         self.logger.info("Plugin manager and main handlers initialized.")
 
-        
+
 
         bot_config_dict = self.config_manager.config_model.BOT_CONFIG
         self.bot_config: BotConfig = bot_config_dict
@@ -123,7 +123,7 @@ class GlobalManager:
             self.logger.debug("Initializing interaction queue manager and Session manager...")
             self.interaction_queue_manager.initialize()
 
-        
+
 
         self.logger.debug("Creating routes...")
         self.plugin_manager.intialize_routes(app)

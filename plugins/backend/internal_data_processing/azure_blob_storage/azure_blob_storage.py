@@ -104,7 +104,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     @property
     def subprompts(self):
         return self.subprompts_container
-    
+
     @property
     def chainofthoughts(self):
         return self.chainofthoughts_container
@@ -180,7 +180,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             if existing_content is None or existing_content == "":
                 self.logger.info(f"Nothing to remove from blob {datafile_name}")
                 return
-                
+
             if data_lower in existing_content.lower():
                 new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
                 if new_content == "":
@@ -363,7 +363,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         """
         file_path = os.path.join(self.root_directory, container_name, file_name)
         return os.path.exists(file_path)
-    
+
     async def exists(self, container_name: str, file_name: str) -> bool:
         """
         Check if a file exists in the specified container.
@@ -381,7 +381,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         except Exception as e:
             self.logger.error(f"Error checking if file {file_name} exists in container {container_name}: {str(e)}")
             return False
-        
+
     async def clear_container(self, container_name: str):
         """
         Clear all contents of the specified container in Azure Blob Storage.

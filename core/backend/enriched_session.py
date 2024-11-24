@@ -59,7 +59,7 @@ class EnrichedSession(SessionBase):
             self.logger.error(f"Error sanitizing message: {e}")
             return message  # If there's an issue, return the original message unmodified
 
-    
+
 
     def to_dict(self) -> Dict:
         """

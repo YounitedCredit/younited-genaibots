@@ -1,9 +1,12 @@
-import os
+import asyncio
+
 from core.action_interactions.action_base import ActionBase
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-import asyncio
+
 
 class StoreThought(ActionBase):
     REQUIRED_PARAMETERS = ['result', 'step', 'laststep']
@@ -52,12 +55,12 @@ class StoreThought(ActionBase):
                 # Retrieve and send each stored thought as a separate UserInteraction
                 for filename in step_files_sorted:
                     filename_with_extension = f"{filename}.txt"
-    
+
                     stored_data = await self.global_manager.backend_internal_data_processing_dispatcher.read_data_content(
                         data_container=data_container,
                         data_file=filename_with_extension
                     )
-                    
+
                     step_number = filename.split('-')[-1].split('.')[0]
 
                     # Send the stored result of each step as a separate message

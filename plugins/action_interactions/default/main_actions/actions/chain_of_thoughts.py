@@ -1,9 +1,12 @@
+import copy
+
 from core.action_interactions.action_base import ActionBase
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
+from core.user_interactions.incoming_notification_data_base import (
+    IncomingNotificationDataBase,
+)
 from core.user_interactions.message_type import MessageType
-from core.genai_interactions.genai_interactions_text_dispatcher import GenaiInteractionsTextDispatcher
-import copy
+
 
 class ChainOfThoughts(ActionBase):
     REQUIRED_PARAMETERS = ['task', 'plan']

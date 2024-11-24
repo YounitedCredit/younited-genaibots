@@ -2,6 +2,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
@@ -10,8 +11,7 @@ from plugins.backend.internal_data_processing.azure_blob_storage.azure_blob_stor
     AZURE_BLOB_STORAGE,
     AzureBlobStoragePlugin,
 )
-import pytest
-from azure.core.exceptions import ResourceNotFoundError
+
 
 # Custom async iterator for list_blobs mock
 class AsyncIterator:
@@ -166,7 +166,7 @@ async def test_remove_data(azure_blob_storage_plugin):
         await azure_blob_storage_plugin.remove_data("container", "datafile.txt", "toto")
 
         mock_write.assert_called_once()
-        
+
 class AsyncIterator:
     def __init__(self, items):
         self._items = items
@@ -270,11 +270,11 @@ async def test_append_data(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.upload_blob = AsyncMock()
-        
+
         # La méthode append_data ne fait pas await sur upload_blob, c'est une erreur dans l'implémentation
         # On va tester le comportement actuel en attendant la correction
         await azure_blob_storage_plugin.append_data('container', 'file.txt', 'test data')
-        
+
         # On vérifie que upload_blob a été appelé avec les bons arguments, sans vérifier l'await
         mock_blob_client.upload_blob.assert_called_once_with('test data', overwrite=True)
 
@@ -283,7 +283,7 @@ async def test_append_data_error(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.upload_blob = AsyncMock(side_effect=Exception("Upload error"))
-        
+
         await azure_blob_storage_plugin.append_data('container', 'file.txt', 'test data')
         # Verify that the error is logged but doesn't raise exception
 
@@ -293,9 +293,9 @@ async def test_create_container(azure_blob_storage_plugin):
         mock_container_client = mock_get_container_client.return_value
         mock_container_client.exists = MagicMock(return_value=False)
         mock_container_client.create_container = MagicMock()
-        
+
         await azure_blob_storage_plugin.create_container("test_container")
-        
+
         mock_container_client.create_container.assert_called_once()
 
 @pytest.mark.asyncio
@@ -304,9 +304,9 @@ async def test_create_container_already_exists(azure_blob_storage_plugin):
         mock_container_client = mock_get_container_client.return_value
         mock_container_client.exists = MagicMock(return_value=True)
         mock_container_client.create_container = MagicMock()
-        
+
         await azure_blob_storage_plugin.create_container("test_container")
-        
+
         mock_container_client.create_container.assert_not_called()
 
 @pytest.mark.asyncio
@@ -314,7 +314,7 @@ async def test_create_container_error(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_container_client') as mock_get_container_client:
         mock_container_client = mock_get_container_client.return_value
         mock_container_client.exists = MagicMock(side_effect=Exception("Container error"))
-        
+
         await azure_blob_storage_plugin.create_container("test_container")
         # Verify that the error is logged but doesn't raise exception
 
@@ -323,9 +323,9 @@ def test_create_container_sync(azure_blob_storage_plugin):
         mock_container_client = mock_get_container_client.return_value
         mock_container_client.exists = MagicMock(return_value=False)
         mock_container_client.create_container = MagicMock()
-        
+
         azure_blob_storage_plugin.create_container_sync("test_container")
-        
+
         mock_container_client.create_container.assert_called_once()
 
 @pytest.mark.asyncio
@@ -334,9 +334,9 @@ async def test_update_session_empty_blob(azure_blob_storage_plugin):
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.exists = AsyncMock(return_value=False)
         mock_blob_client.upload_blob = AsyncMock()
-        
+
         await azure_blob_storage_plugin.update_session('container', 'file.txt', 'user', 'test message')
-        
+
         mock_blob_client.upload_blob.assert_awaited_once_with(
             '[{"role": "user", "content": "test message"}]',
             overwrite=True
@@ -364,7 +364,7 @@ async def test_update_prompt_system_message_error(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.download_blob = AsyncMock(side_effect=Exception("Download error"))
-        
+
         await azure_blob_storage_plugin.update_prompt_system_message("channel1", "thread1", "new message")
         # Verify that the error is logged but doesn't raise exception
 
@@ -378,9 +378,9 @@ async def test_clear_container(azure_blob_storage_plugin):
         mock_container_client.get_blob_client = MagicMock()
         mock_blob_client = mock_container_client.get_blob_client.return_value
         mock_blob_client.delete_blob = MagicMock()
-        
+
         await azure_blob_storage_plugin.clear_container("test_container")
-        
+
         assert mock_blob_client.delete_blob.call_count == 2
 
 @pytest.mark.asyncio
@@ -388,7 +388,7 @@ async def test_clear_container_error(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_container_client') as mock_get_container_client:
         mock_container_client = mock_get_container_client.return_value
         mock_container_client.list_blobs = MagicMock(side_effect=Exception("Clear error"))
-        
+
         with pytest.raises(Exception):
             await azure_blob_storage_plugin.clear_container("test_container")
 
@@ -401,9 +401,9 @@ def test_clear_container_sync(azure_blob_storage_plugin):
         mock_container_client.get_blob_client = MagicMock()
         mock_blob_client = mock_container_client.get_blob_client.return_value
         mock_blob_client.delete_blob = MagicMock()
-        
+
         azure_blob_storage_plugin.clear_container_sync("test_container")
-        
+
         assert mock_blob_client.delete_blob.call_count == 2
 
 @pytest.mark.asyncio
@@ -411,7 +411,7 @@ async def test_write_data_content_error(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.upload_blob = AsyncMock(side_effect=Exception("Write error"))
-        
+
         await azure_blob_storage_plugin.write_data_content('container', 'file.txt', 'test data')
         # Verify that the error is logged but doesn't raise exception
 
@@ -420,7 +420,7 @@ async def test_remove_data_content_not_found(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.delete_blob = AsyncMock(side_effect=ResourceNotFoundError("Not found"))
-        
+
         await azure_blob_storage_plugin.remove_data_content('container', 'file.txt')
         # Verify that warning is logged but doesn't raise exception
 
@@ -430,9 +430,9 @@ async def test_file_exists(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.exists = AsyncMock(return_value=True)
-        
+
         result = await azure_blob_storage_plugin.exists('container', 'file.txt')
-        
+
         assert result is True
         mock_blob_client.exists.assert_awaited_once()
 
@@ -442,9 +442,9 @@ async def test_file_does_not_exist(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.exists = AsyncMock(return_value=False)
-        
+
         result = await azure_blob_storage_plugin.exists('container', 'nonexistent.txt')
-        
+
         assert result is False
         mock_blob_client.exists.assert_awaited_once()
 
@@ -454,9 +454,9 @@ async def test_file_exists_error(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
         mock_blob_client = mock_get_blob_client.return_value
         mock_blob_client.exists = AsyncMock(side_effect=Exception("Storage error"))
-        
+
         result = await azure_blob_storage_plugin.exists('container', 'file.txt')
-        
+
         assert result is False
         mock_blob_client.exists.assert_awaited_once()
 
@@ -473,8 +473,8 @@ async def test_init_containers(azure_blob_storage_plugin):
         mock_container_client = mock_get_container_client.return_value
         mock_container_client.exists = MagicMock(return_value=False)
         mock_container_client.create_container = MagicMock()
-        
+
         azure_blob_storage_plugin.init_containers()
-        
+
         # Verify that create_container was called for each container
         assert mock_container_client.create_container.call_count == 10

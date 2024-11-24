@@ -1,9 +1,8 @@
-import pytest
-from fastapi.testclient import TestClient
-from fastapi import HTTPException
-from starlette.responses import JSONResponse
 import uvicorn
-from app import app, SpanEnrichingProcessor
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+
+from app import SpanEnrichingProcessor, app
 
 # Use a single client instance for all tests to speed things up
 client = TestClient(app)
@@ -28,7 +27,7 @@ def test_custom_exception_handler():
     @app.get("/custom-error")
     async def custom_error_endpoint():
         raise HTTPException(status_code=418, detail="I'm a teapot")
-    
+
     response = client.get("/custom-error")
     assert response.status_code == 418
     # Accept any error message format
@@ -44,7 +43,7 @@ def test_span_enriching_processor():
             return {"PostmanToken": "token", "AzureFdId": "fdid", "AzureAgId": "agid", "YucClientVersion": "1.0"}
         def set_attribute(self, key, value):
             self.attributes[key] = value
-    
+
     span = MockSpan()
     # Just verify it doesn't raise an exception
     processor.on_end(span)

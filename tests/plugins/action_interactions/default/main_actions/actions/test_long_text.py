@@ -1,6 +1,6 @@
 # tests/plugins/action_interactions/default/main_actions/actions/test_long_text.py
 
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

@@ -141,7 +141,7 @@ def test_get_plugin(mock_user_interactions_behaviors_dispatcher):
 
     assert mock_user_interactions_behaviors_dispatcher.get_plugin("plugin1") == mock_plugin1
     assert mock_user_interactions_behaviors_dispatcher.get_plugin("plugin2") == mock_plugin2
-    
+
     with pytest.raises(RuntimeError, match="No default plugin set. Unable to proceed without a valid plugin."):
         mock_user_interactions_behaviors_dispatcher.get_plugin("non_existent")
 

@@ -3,9 +3,10 @@ import copy
 import inspect
 import json
 import traceback
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
+
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel
 
@@ -18,7 +19,6 @@ from core.global_manager import GlobalManager
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
-from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 from core.user_interactions.message_type import MessageType
 from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager

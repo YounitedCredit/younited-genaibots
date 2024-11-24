@@ -107,7 +107,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     def custom_actions(self, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.custom_actions
-    
+
     @property
     def chainofthoughts(self, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
@@ -148,11 +148,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     async def append_data(self, container_name: str, data_identifier: str, data: str = None, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.append_data(container_name, data_identifier, data)
-    
+
     async def create_container(self, data_container, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.create_container(data_container)
-    
+
     def create_container_sync(self, data_container, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.create_container_sync(data_container)
@@ -160,11 +160,11 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     async def file_exists(self, container_name, file_name, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.file_exists(container_name, file_name)
-    
+
     async def clear_container(self, container_name: str, plugin_name: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return await plugin.clear_container(container_name)
-    
+
     def clear_container_sync(self, container_name: str, plugin_name: str = None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
         return plugin.clear_container_sync(container_name)

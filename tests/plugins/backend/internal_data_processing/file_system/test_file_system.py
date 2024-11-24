@@ -79,7 +79,7 @@ async def read_data_content(self, data_container, data_file):
     else:
         self.logger.debug(f"File not found: {data_file}")
         return None
-    
+
 @pytest.mark.asyncio
 async def test_read_data_content_file_not_exists(file_system_plugin):
     with patch("os.path.exists", return_value=False):
@@ -140,9 +140,9 @@ async def remove_data(self, container_name: str, datafile_name: str, data: str):
         existing_content = await self.read_data_content(container_name, datafile_name)
         if existing_content is None:
             return
-            
+
         if data_lower in existing_content.lower():
-            new_content = '\n'.join([line for line in existing_content.split('\n') 
+            new_content = '\n'.join([line for line in existing_content.split('\n')
                                    if data_lower not in line.lower()])
             if new_content == "":
                 new_content = " "
@@ -308,7 +308,7 @@ async def test_remove_data_content_logs_error(file_system_plugin):
             await file_system_plugin.remove_data_content('container', 'file')
             mock_logger_error.assert_called_once_with("Failed to delete file: Permission denied")
 
-@pytest.mark.asyncio 
+@pytest.mark.asyncio
 async def test_write_data_content_calls_open(file_system_plugin):
     m = mock_open()
     with patch("builtins.open", m):

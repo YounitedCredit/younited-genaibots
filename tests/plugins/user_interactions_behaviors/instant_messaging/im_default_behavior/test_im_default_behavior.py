@@ -483,225 +483,225 @@ async def test_process_interaction_exception(im_default_behavior_plugin):
 
     im_default_behavior_plugin.logger.error.assert_called()
 
-@pytest.mark.asyncio  
-async def test_process_interaction_pending_messages_no_queuing(im_default_behavior_plugin, global_manager):  
-    # Setup  
-    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = False  
-    event_data = IncomingNotificationDataBase(  
-        timestamp="1234567890.123456",  
-        event_label="message",  
-        channel_id="C123",  
-        thread_id=None,  
-        response_id=None,  
-        user_name="test_user",  
-        user_email="test@example.com",  
-        user_id="U123",  
-        is_mention=True,  
-        text="Hello",  
-        origin_plugin_name="origin_plugin_name"  
-    )  
-  
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.has_older_messages = AsyncMock(return_value=True)  
-    # Assume there are no messages in wait queue  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.get_all_messages = AsyncMock(return_value=[])  
-    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message = AsyncMock()  
-  
-    # Execute  
-    await im_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")  
-  
-    # Assert  
-    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch.assert_awaited()  
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited_once()  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_awaited_once()  
-    im_default_behavior_plugin.logger.info.assert_any_call(  
-        f"IM behavior: Message from channel {event_data.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False."  
-    )  
+@pytest.mark.asyncio
+async def test_process_interaction_pending_messages_no_queuing(im_default_behavior_plugin, global_manager):
+    # Setup
+    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = False
+    event_data = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="message",
+        channel_id="C123",
+        thread_id=None,
+        response_id=None,
+        user_name="test_user",
+        user_email="test@example.com",
+        user_id="U123",
+        is_mention=True,
+        text="Hello",
+        origin_plugin_name="origin_plugin_name"
+    )
 
-@pytest.mark.asyncio  
-async def test_process_incoming_notification_data_empty_genai_output(im_default_behavior_plugin, global_manager):  
-    # Setup  
-    event = IncomingNotificationDataBase(  
-        timestamp="1234567890.123456",  
-        event_label="message",  
-        channel_id="C123",  
-        thread_id=None,  
-        response_id=None,  
-        user_name="test_user",  
-        user_email="test_user@example.com",  
-        user_id="U123",  
-        is_mention=True,  
-        text="hello",  
-        origin_plugin_name="origin_plugin_name"  
-    )  
-  
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value="")  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch = AsyncMock()  
-  
-    # Add logging  
-    im_default_behavior_plugin.logger = MagicMock()  
-  
-    # Execute  
-    await im_default_behavior_plugin.process_incoming_notification_data(event)  
-  
-    # Assert  
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher = AsyncMock()
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.has_older_messages = AsyncMock(return_value=True)
+    # Assume there are no messages in wait queue
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.get_all_messages = AsyncMock(return_value=[])
+    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.send_message = AsyncMock()
+
+    # Execute
+    await im_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")
+
+    # Assert
+    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch.assert_awaited()
+    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited_once()
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_awaited_once()
+    im_default_behavior_plugin.logger.info.assert_any_call(
+        f"IM behavior: Message from channel {event_data.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False."
+    )
+
+@pytest.mark.asyncio
+async def test_process_incoming_notification_data_empty_genai_output(im_default_behavior_plugin, global_manager):
+    # Setup
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="message",
+        channel_id="C123",
+        thread_id=None,
+        response_id=None,
+        user_name="test_user",
+        user_email="test_user@example.com",
+        user_id="U123",
+        is_mention=True,
+        text="hello",
+        origin_plugin_name="origin_plugin_name"
+    )
+
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
+    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(return_value="")
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch = AsyncMock()
+
+    # Add logging
+    im_default_behavior_plugin.logger = MagicMock()
+
+    # Execute
+    await im_default_behavior_plugin.process_incoming_notification_data(event)
+
+    # Assert
     assert im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request.called, \
-        "genai_interactions_text_dispatcher.handle_request was not called"  
-  
-    # Check that the 'done' reaction was added in any of the calls  
-    calls = im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch.await_args_list  
-    found_done_reaction = False  
-    for call in calls:  
-        args, kwargs = call  
-        reactions = args[0]  
-        for reaction in reactions:  
-            if reaction['action'] == 'add' and reaction['reaction']['reaction_name'] == im_default_behavior_plugin.reaction_done:  
-                found_done_reaction = True  
-                break  
-        if found_done_reaction:  
-            break  
-    assert found_done_reaction, "The 'done' reaction was not added as expected."  
+        "genai_interactions_text_dispatcher.handle_request was not called"
 
-@pytest.mark.asyncio  
-async def test_process_incoming_notification_data_exception_handling(im_default_behavior_plugin):  
-    # Setup  
-    event = IncomingNotificationDataBase(  
-        timestamp="1234567890.123456",  
-        event_label="message",  
-        channel_id="C123",  
-        thread_id=None,  
-        response_id=None,  
-        user_name="test_user",  
-        user_email="test_user@example.com",  
-        user_id="U123",  
-        is_mention=True,  
-        text="hello",  
-        origin_plugin_name="origin_plugin_name"  
-    )  
-  
-    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(side_effect=Exception("Test exception"))  
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.logger = MagicMock()  
-  
-    # Execute  
-    await im_default_behavior_plugin.process_incoming_notification_data(event)  
-  
-    # Assert  
-    im_default_behavior_plugin.logger.error.assert_called() 
+    # Check that the 'done' reaction was added in any of the calls
+    calls = im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch.await_args_list
+    found_done_reaction = False
+    for call in calls:
+        args, kwargs = call
+        reactions = args[0]
+        for reaction in reactions:
+            if reaction['action'] == 'add' and reaction['reaction']['reaction_name'] == im_default_behavior_plugin.reaction_done:
+                found_done_reaction = True
+                break
+        if found_done_reaction:
+            break
+    assert found_done_reaction, "The 'done' reaction was not added as expected."
 
-@pytest.mark.asyncio  
-async def test_process_interaction_event_none_after_conversion(im_default_behavior_plugin):  
-    # Setup  
-    event_data = {  
-        "timestamp": "1234567890.123456",  
-        "event_label": "message",  
-        "channel_id": "C123",  
-        "thread_id": None,  
-        "response_id": None,  
-        "user_name": "test_user",  
-        "user_email": "test@example.com",  
-        "user_id": "U123",  
-        "is_mention": True,  
-        "text": "hello",  
-        "origin_plugin_name": "origin_plugin_name"  
-    }  
-  
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()  
-    # Make request_to_notification_data return None  
-    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=None)  
-    im_default_behavior_plugin.logger = MagicMock()  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()  
-  
-    # Execute  
-    await im_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")  
-  
-    # Assert  
-    im_default_behavior_plugin.logger.error.assert_called_with("IM behavior: No event data found")  
-    # Verify that other methods are not called  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content.assert_not_awaited()   
+@pytest.mark.asyncio
+async def test_process_incoming_notification_data_exception_handling(im_default_behavior_plugin):
+    # Setup
+    event = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="message",
+        channel_id="C123",
+        thread_id=None,
+        response_id=None,
+        user_name="test_user",
+        user_email="test_user@example.com",
+        user_id="U123",
+        is_mention=True,
+        text="hello",
+        origin_plugin_name="origin_plugin_name"
+    )
 
-@pytest.mark.asyncio  
-async def test_process_interaction_clear_keyword(im_default_behavior_plugin, global_manager):  
-    global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"  
-  
-    event_data = {  
-        "text": "please clear",  
-        "event_label": "thread_message",  
-        "channel_id": "C123",  
-        "timestamp": "1234567890.123456",  
-        "thread_id": "thread_1",  
-        "is_mention": True,  
-        "origin_plugin_name": 'test_plugin'  
-    }  
-    event = IncomingNotificationDataBase.from_dict(event_data)  
-  
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.global_manager.interaction_queue_manager = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction_from_thread = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message = AsyncMock()  
-  
-    await im_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")  
-  
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()  
-    im_default_behavior_plugin.global_manager.interaction_queue_manager.clear_expired_messages.assert_called_once()  
-    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction_from_thread.assert_awaited_with(  
-        channel_id=event.channel_id,  
-        thread_id=event.thread_id,  
-        reaction_name=im_default_behavior_plugin.reaction_wait,  
-    )  
+    im_default_behavior_plugin.genai_interactions_text_dispatcher = AsyncMock()
+    im_default_behavior_plugin.genai_interactions_text_dispatcher.handle_request = AsyncMock(side_effect=Exception("Test exception"))
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+    im_default_behavior_plugin.logger = MagicMock()
 
-def test_plugin_name_setter(im_default_behavior_plugin):  
-    # Set the plugin_name  
-    im_default_behavior_plugin.plugin_name = 'new_plugin_name'  
-    # Check that the internal variable is set  
-    assert im_default_behavior_plugin._plugin_name == 'new_plugin_name'  
+    # Execute
+    await im_default_behavior_plugin.process_incoming_notification_data(event)
 
-@pytest.mark.asyncio  
-async def test_process_interaction_pending_messages_no_queuing_message_in_wait_queue(im_default_behavior_plugin, global_manager):  
-    # Setup  
-    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = False  
-    global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"  
-    event_data = IncomingNotificationDataBase(  
-        timestamp="1234567890.123456",  
-        event_label="thread_message",  
-        channel_id="C123",  
-        thread_id="thread_1",  
-        response_id=None,  
-        user_name="test_user",  
-        user_email="test_user@example.com",  
-        user_id="U123",  
-        is_mention=True,  
-        text="Hello",  
-        origin_plugin_name="origin_plugin_name"  
-    )  
-  
-    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()  
-    im_default_behavior_plugin.backend_internal_data_processing_dispatcher.processing = AsyncMock()  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.has_older_messages = AsyncMock(return_value=True)  
-    # Assume there is already a message in wait queue  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.get_all_messages = AsyncMock(return_value=['existing_message'])  
-    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch = AsyncMock()  
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message = AsyncMock()  
-  
-    # Execute  
-    await im_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")  
-  
-    # Assert  
-    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch.assert_awaited()  
-    # Check that the send_message is not called since message is already in wait queue  
-    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_not_awaited()  
-    # The event should not be enqueued again  
-    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_not_awaited()  
+    # Assert
+    im_default_behavior_plugin.logger.error.assert_called()
+
+@pytest.mark.asyncio
+async def test_process_interaction_event_none_after_conversion(im_default_behavior_plugin):
+    # Setup
+    event_data = {
+        "timestamp": "1234567890.123456",
+        "event_label": "message",
+        "channel_id": "C123",
+        "thread_id": None,
+        "response_id": None,
+        "user_name": "test_user",
+        "user_email": "test@example.com",
+        "user_id": "U123",
+        "is_mention": True,
+        "text": "hello",
+        "origin_plugin_name": "origin_plugin_name"
+    }
+
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    # Make request_to_notification_data return None
+    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=None)
+    im_default_behavior_plugin.logger = MagicMock()
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+
+    # Execute
+    await im_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
+
+    # Assert
+    im_default_behavior_plugin.logger.error.assert_called_with("IM behavior: No event data found")
+    # Verify that other methods are not called
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher.write_data_content.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_process_interaction_clear_keyword(im_default_behavior_plugin, global_manager):
+    global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"
+
+    event_data = {
+        "text": "please clear",
+        "event_label": "thread_message",
+        "channel_id": "C123",
+        "timestamp": "1234567890.123456",
+        "thread_id": "thread_1",
+        "is_mention": True,
+        "origin_plugin_name": 'test_plugin'
+    }
+    event = IncomingNotificationDataBase.from_dict(event_data)
+
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event)
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+    im_default_behavior_plugin.global_manager.interaction_queue_manager = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction_from_thread = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.send_message = AsyncMock()
+
+    await im_default_behavior_plugin.process_interaction(event_data, event_origin="test_origin")
+
+    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_awaited()
+    im_default_behavior_plugin.global_manager.interaction_queue_manager.clear_expired_messages.assert_called_once()
+    im_default_behavior_plugin.user_interaction_dispatcher.remove_reaction_from_thread.assert_awaited_with(
+        channel_id=event.channel_id,
+        thread_id=event.thread_id,
+        reaction_name=im_default_behavior_plugin.reaction_wait,
+    )
+
+def test_plugin_name_setter(im_default_behavior_plugin):
+    # Set the plugin_name
+    im_default_behavior_plugin.plugin_name = 'new_plugin_name'
+    # Check that the internal variable is set
+    assert im_default_behavior_plugin._plugin_name == 'new_plugin_name'
+
+@pytest.mark.asyncio
+async def test_process_interaction_pending_messages_no_queuing_message_in_wait_queue(im_default_behavior_plugin, global_manager):
+    # Setup
+    global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING = False
+    global_manager.bot_config.CLEARQUEUE_KEYWORD = "clear"
+    event_data = IncomingNotificationDataBase(
+        timestamp="1234567890.123456",
+        event_label="thread_message",
+        channel_id="C123",
+        thread_id="thread_1",
+        response_id=None,
+        user_name="test_user",
+        user_email="test_user@example.com",
+        user_id="U123",
+        is_mention=True,
+        text="Hello",
+        origin_plugin_name="origin_plugin_name"
+    )
+
+    im_default_behavior_plugin.user_interaction_dispatcher = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.request_to_notification_data = AsyncMock(return_value=event_data)
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher = AsyncMock()
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+    im_default_behavior_plugin.backend_internal_data_processing_dispatcher.processing = AsyncMock()
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.has_older_messages = AsyncMock(return_value=True)
+    # Assume there is already a message in wait queue
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.get_all_messages = AsyncMock(return_value=['existing_message'])
+    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch = AsyncMock()
+    im_default_behavior_plugin.user_interaction_dispatcher.send_message = AsyncMock()
+
+    # Execute
+    await im_default_behavior_plugin.process_interaction(event_data.to_dict(), event_origin="test_origin")
+
+    # Assert
+    im_default_behavior_plugin.user_interaction_dispatcher.update_reactions_batch.assert_awaited()
+    # Check that the send_message is not called since message is already in wait queue
+    im_default_behavior_plugin.user_interaction_dispatcher.send_message.assert_not_awaited()
+    # The event should not be enqueued again
+    im_default_behavior_plugin.backend_internal_queue_processing_dispatcher.enqueue_message.assert_not_awaited()

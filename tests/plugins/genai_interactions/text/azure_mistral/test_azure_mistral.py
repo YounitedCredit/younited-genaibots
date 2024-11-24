@@ -48,25 +48,25 @@ async def test_handle_action_with_empty_blob(azure_mistral_plugin):
     mock_response = MagicMock()
     mock_response.choices = [MagicMock(message=MagicMock(content="Generated response"))]
     mock_response.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
-    
+
     session_mock = MagicMock()
     session_mock.messages = []
     session_mock.session_id = "test_session_id"
-    
+
     with patch.object(azure_mistral_plugin.mistral_client, 'chat', return_value=mock_response) as mock_chat, \
          patch.object(azure_mistral_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
          patch.object(azure_mistral_plugin.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_session:
 
         mock_read_data_content.return_value = ""
         mock_get_session.return_value = session_mock
-        
+
         action_input = ActionInput(action_name='generate_text', parameters={
             'input': 'test input',
             'main_prompt': 'test prompt',
             'context': 'test context',
             'conversation_data': 'test conversation'
         })
-        
+
         event = IncomingNotificationDataBase(
             channel_id="channel_id", thread_id="thread_id", user_id="user_id",
             text="user text", timestamp="timestamp", event_label="event_label",
@@ -75,7 +75,7 @@ async def test_handle_action_with_empty_blob(azure_mistral_plugin):
         )
 
         result = await azure_mistral_plugin.handle_action(action_input, event)
-        
+
         assert result == "Generated response"
         expected_messages = []
         assert mock_chat.call_args.kwargs['messages'] == expected_messages
@@ -86,25 +86,25 @@ async def test_handle_action_with_existing_blob(azure_mistral_plugin):
     mock_response = MagicMock()
     mock_response.choices = [MagicMock(message=MagicMock(content="Generated response"))]
     mock_response.usage = MagicMock(total_tokens=100, prompt_tokens=50, completion_tokens=50)
-    
+
     session_mock = MagicMock()
     session_mock.messages = existing_messages
     session_mock.session_id = "test_session_id"
-    
+
     with patch.object(azure_mistral_plugin.mistral_client, 'chat', return_value=mock_response) as mock_chat, \
          patch.object(azure_mistral_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
          patch.object(azure_mistral_plugin.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_session:
 
         mock_read_data_content.return_value = json.dumps(existing_messages)
         mock_get_session.return_value = session_mock
-        
+
         action_input = ActionInput(action_name='generate_text', parameters={
             'input': 'test input',
             'main_prompt': 'test prompt',
             'context': 'test context',
             'conversation_data': 'test conversation'
         })
-        
+
         event = IncomingNotificationDataBase(
             channel_id="channel_id", thread_id="thread_id", user_id="user_id",
             text="user text", timestamp="timestamp", event_label="event_label",
@@ -113,11 +113,11 @@ async def test_handle_action_with_existing_blob(azure_mistral_plugin):
         )
 
         result = await azure_mistral_plugin.handle_action(action_input, event)
-        
+
         assert result == "Generated response"
         expected_messages = []
         assert mock_chat.call_args.kwargs['messages'] == expected_messages
-        
+
 @pytest.mark.asyncio
 async def test_trigger_genai(azure_mistral_plugin):
     event = IncomingNotificationDataBase(

@@ -11,6 +11,7 @@ from plugins.action_interactions.default.main_actions.actions.generate_text impo
     GenerateText,
 )
 
+
 @pytest.mark.asyncio
 async def test_generate_text_execute(mock_global_manager):
     action = GenerateText(mock_global_manager)
@@ -42,7 +43,7 @@ async def test_generate_text_execute(mock_global_manager):
     # Configuration correcte des mocks
     mock_session = MagicMock()
     mock_session.messages = [{"role": "user", "content": "Hello"}]
-    
+
     mock_global_manager.prompt_manager.get_main_prompt = AsyncMock(return_value="Test main prompt")
     mock_global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(return_value=mock_session)
     mock_global_manager.genai_interactions_text_dispatcher.plugins = [MagicMock(plugin_name='TestModel')]

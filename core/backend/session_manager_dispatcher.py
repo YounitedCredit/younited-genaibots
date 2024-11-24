@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING, Optional, List, Dict
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from utils.config_manager.config_model import BotConfig
 from core.backend.enriched_session import EnrichedSession
 from core.backend.session_manager_plugin_base import SessionManagerPluginBase
+from utils.config_manager.config_model import BotConfig
 
 if TYPE_CHECKING:
     from core.global_manager import (
@@ -51,7 +51,7 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
 
         self.logger.error(f"SessionManager: Plugin '{plugin_name}' not found, returning default plugin")
         return self.default_plugin
-    
+
     @property
     def plugins(self) -> List[SessionManagerPluginBase]:
         return self._plugins
@@ -89,7 +89,7 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
     async def get_or_create_session(self, channel_id: str, thread_id: str, enriched: bool = False, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         return await plugin.get_or_create_session(channel_id, thread_id, enriched)
-    
+
     def append_messages(self, messages: List[Dict], message: Dict, session_id: str, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin()
         plugin.append_messages(messages, message, session_id)

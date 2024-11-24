@@ -1,6 +1,6 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
+from logging.handlers import RotatingFileHandler
 
 import coloredlogs
 from azure.monitor.opentelemetry.exporter import (

@@ -299,31 +299,31 @@ async def test_send_message_with_session_management(mock_user_interactions_dispa
     # Test sending a message with session management
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
-    
+
     # Mock session manager
     mock_session = MagicMock()
     mock_session.messages = [
         {"role": "user", "content": "Hello"},
         {"role": "assistant", "content": "Hi there"}
     ]
-    
+
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(return_value=mock_session)
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.save_session = AsyncMock()
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.add_user_interaction_to_message = AsyncMock()
-    
+
     # Create mock event
     mock_event = MagicMock()
     mock_event.channel_id = "test_channel"
     mock_event.thread_id = "test_thread"
     mock_event.origin_plugin_name = "test_plugin"
-    
+
     # Test sending a message
     await mock_user_interactions_dispatcher.send_message(
         message="test message",
         event=mock_event,
         is_internal=False
     )
-    
+
     # Verify session management calls
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.get_or_create_session.assert_awaited_once_with(
         "test_channel", "test_thread", enriched=True
@@ -335,29 +335,29 @@ async def test_send_message_with_mind_interaction(mock_user_interactions_dispatc
     # Test sending an internal message with mind interaction
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
-    
+
     # Mock session
     mock_session = MagicMock()
     mock_session.messages = [
         {"role": "assistant", "content": "Previous response"}
     ]
-    
+
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.get_or_create_session = AsyncMock(return_value=mock_session)
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.add_mind_interaction_to_message = AsyncMock()
-    
+
     # Create mock event
     mock_event = MagicMock()
     mock_event.channel_id = "test_channel"
     mock_event.thread_id = "test_thread"
     mock_event.origin_plugin_name = "test_plugin"
-    
+
     # Test sending an internal message
     await mock_user_interactions_dispatcher.send_message(
         message="internal thought",
         event=mock_event,
         is_internal=True
     )
-    
+
     # Verify mind interaction was added
     mock_user_interactions_dispatcher.global_manager.session_manager_dispatcher.add_mind_interaction_to_message.assert_awaited_once()
 
@@ -366,15 +366,15 @@ async def test_update_reactions_batch_with_mixed_actions(mock_user_interactions_
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
     mock_user_interactions_dispatcher.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING = False
-    
+
     # Mock the plugin's reaction methods
     mock_user_interactions_plugin.add_reaction = AsyncMock()
     mock_user_interactions_plugin.remove_reaction = AsyncMock()
-    
+
     # Create test reactions_actions
     mock_event = MagicMock()
     mock_event.origin_plugin_name = "test_plugin"
-    
+
     reactions_actions = [
         {
             "action": "add",
@@ -395,10 +395,10 @@ async def test_update_reactions_batch_with_mixed_actions(mock_user_interactions_
             }
         }
     ]
-    
+
     # Test batch update
     await mock_user_interactions_dispatcher.update_reactions_batch(reactions_actions)
-    
+
     # Verify both add and remove reactions were called
     assert mock_user_interactions_plugin.add_reaction.call_count == 1
     assert mock_user_interactions_plugin.remove_reaction.call_count == 1
@@ -407,22 +407,22 @@ async def test_update_reactions_batch_with_mixed_actions(mock_user_interactions_
 async def test_fetch_conversation_history(mock_user_interactions_dispatcher, mock_user_interactions_plugin):
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
-    
+
     # Mock the plugin's fetch_conversation_history method
     mock_history = [MagicMock(), MagicMock()]
     mock_user_interactions_plugin.fetch_conversation_history = AsyncMock(return_value=mock_history)
-    
+
     # Create mock event
     mock_event = MagicMock()
     mock_event.origin_plugin_name = "test_plugin"
-    
+
     # Test fetching history
     result = await mock_user_interactions_dispatcher.fetch_conversation_history(
         event=mock_event,
         channel_id="test_channel",
         thread_id="test_thread"
     )
-    
+
     # Verify the result and method call
     assert result == mock_history
     mock_user_interactions_plugin.fetch_conversation_history.assert_awaited_once_with(
@@ -436,22 +436,22 @@ async def test_send_message_with_queuing_and_show_ref(mock_user_interactions_dis
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
     mock_user_interactions_dispatcher.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING = True
-    
+
     # Mock the queue manager
     mock_user_interactions_dispatcher.event_queue_manager = AsyncMock()
-    
+
     # Create mock event
     mock_event = MagicMock()
     mock_event.origin_plugin_name = "test_plugin"
     mock_event.to_dict = MagicMock(return_value={"key": "value"})
-    
+
     # Test sending message with show_ref=True
     await mock_user_interactions_dispatcher.send_message(
         message="test message",
         event=mock_event,
         show_ref=True  # This should bypass queuing
     )
-    
+
     # Verify direct plugin call instead of queuing
     mock_user_interactions_plugin.send_message.assert_awaited_once()
     mock_user_interactions_dispatcher.event_queue_manager.add_to_queue.assert_not_awaited()
@@ -461,20 +461,20 @@ async def test_handling_exception_in_send_message(mock_user_interactions_dispatc
     mock_user_interactions_dispatcher.plugins = {"default_category": [mock_user_interactions_plugin]}
     mock_user_interactions_dispatcher.default_plugin = mock_user_interactions_plugin
     mock_user_interactions_dispatcher.logger = MagicMock()
-    
+
     # Mock the plugin to raise an exception
     mock_user_interactions_plugin.send_message = AsyncMock(side_effect=Exception("Test error"))
-    
+
     # Create mock event
     mock_event = MagicMock()
     mock_event.origin_plugin_name = "test_plugin"
-    
+
     # Test exception handling
     with pytest.raises(Exception) as exc_info:
         await mock_user_interactions_dispatcher.send_message(
             message="test message",
             event=mock_event
         )
-    
+
     assert str(exc_info.value) == "Test error"
     mock_user_interactions_dispatcher.logger.error.assert_called_once()

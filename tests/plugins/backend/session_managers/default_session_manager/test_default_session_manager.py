@@ -1,9 +1,13 @@
-import pytest
 import json
-from plugins.backend.session_managers.default_session_manager.default_session_manager import DefaultSessionManagerPlugin
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime
+from unittest.mock import AsyncMock
+
+import pytest
+
 from core.backend.enriched_session import EnrichedSession
+from plugins.backend.session_managers.default_session_manager.default_session_manager import (
+    DefaultSessionManagerPlugin,
+)
+
 
 @pytest.fixture
 def session_manager(mock_global_manager):
@@ -39,7 +43,7 @@ async def test_add_user_interaction(session_manager):
     session = EnrichedSession("test_session")
     session.messages = [{"role": "assistant", "content": "test"}]
     interaction = {"type": "reaction", "value": "👍", "message": "test reaction"}
-    
+
     await session_manager.add_user_interaction_to_message(session, 0, interaction)
     assert "user_interactions" in session.messages[0]
     assert session.messages[0]["user_interactions"][0] == interaction
@@ -49,16 +53,16 @@ async def test_add_user_interaction_non_assistant(session_manager):
     session = EnrichedSession("test_session")
     session.messages = [{"role": "user", "content": "test"}]
     interaction = {"type": "reaction", "value": "👍", "message": "test"}
-    
+
     await session_manager.add_user_interaction_to_message(session, 0, interaction)
     assert "user_interactions" not in session.messages[0]
-    
+
 @pytest.mark.asyncio
 async def test_add_mind_interaction(session_manager):
     session = EnrichedSession("test_session")
     session.messages = [{"role": "assistant", "content": "test"}]
     interaction = {"message": "thinking...", "timestamp": "2024-01-01"}
-    
+
     await session_manager.add_mind_interaction_to_message(session, 0, interaction)
     assert session.messages[0]["mind_interactions"] == [interaction]
 
