@@ -47,7 +47,7 @@ class AzureMistralPlugin(GenAIInteractionsTextPluginBase):
         self.azure_mistral_config = AzureMistralConfig(**azure_mistral_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
-
+        self.model_name = self.azure_mistral_config.AZURE_MISTRAL_MODELNAME
         # Dispatchers
         self.user_interaction_dispatcher = None
         self.genai_interactions_text_dispatcher = None

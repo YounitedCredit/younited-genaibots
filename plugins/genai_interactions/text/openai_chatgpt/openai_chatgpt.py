@@ -46,7 +46,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.openai_chatgpt_config = OpenAIChatGptConfig(**openai_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
-
+        self.model_name = self.openai_chatgpt_config.OPENAI_CHATGPT_MODEL_NAME
         # Dispatchers
         self.user_interaction_dispatcher = None
         self.genai_interactions_text_dispatcher = None
