@@ -47,7 +47,7 @@ class AzureLlama370bPlugin(GenAIInteractionsTextPluginBase):
         self.azure_llama370b_config = AzureLlama370bConfig(**azure_llama370b_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
-
+        self.model_name = self.azure_llama370b_config.AZURE_LLAMA370B_MODELNAME
 
         # Dispatchers
         self.user_interaction_dispatcher = None

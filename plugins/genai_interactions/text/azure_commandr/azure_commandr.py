@@ -48,6 +48,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
         self.plugin_name = None
         self._genai_cost_base = None
         self.session_manager = self.global_manager.session_manager_dispatcher
+        self.model_name = self.azure_commandr_config.AZURE_COMMANDR_MODELNAME
         # Dispatchers
         self.user_interaction_dispatcher = None
         self.genai_interactions_text_dispatcher = None
@@ -78,7 +79,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
         self.azure_commandr_modelname = self.azure_commandr_config.AZURE_COMMANDR_MODELNAME
         self.input_token_price = self.azure_commandr_config.AZURE_COMMANDR_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_commandr_config.AZURE_COMMANDR_OUTPUT_TOKEN_PRICE
-
+        
         self.load_client()
         self.input_handler = ChatInputHandler(self.global_manager, self)
         self.input_handler.initialize()
