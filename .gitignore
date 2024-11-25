@@ -61,3 +61,6 @@ plugins/user_interactions_behaviors/custom_api/*
 !plugins/user_interactions_behaviors/custom_api/ca_default_behavior/**
 
 plugins/user_interactions_behaviors/custom_api/**/__pycache__/
+
+# Ignore all __pycache__ directories globally
+**/__pycache__/

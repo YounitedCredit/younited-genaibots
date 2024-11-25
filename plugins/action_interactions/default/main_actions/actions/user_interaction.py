@@ -1,14 +1,10 @@
-
 import copy
 
 from core.action_interactions.action_base import ActionBase
 from core.action_interactions.action_input import ActionInput
-from core.user_interactions.incoming_notification_data_base import (
-    IncomingNotificationDataBase,
-)
+from core.user_interactions.incoming_notification_data_base import IncomingNotificationDataBase
 from core.user_interactions.message_type import MessageType
-
-
+from core.user_interactions.user_interactions_dispatcher import UserInteractionsDispatcher
 class UserInteraction(ActionBase):
     REQUIRED_PARAMETERS = ['value']
     def __init__(self, global_manager):
@@ -17,7 +13,7 @@ class UserInteraction(ActionBase):
         self.user_interactions_text_plugin = None
 
         # Dispatchers
-        self.user_interactions_dispatcher = self.global_manager.user_interactions_dispatcher
+        self.user_interactions_dispatcher : UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
@@ -26,6 +22,9 @@ class UserInteraction(ActionBase):
         value = parameters.get('value')
         channel_id = parameters.get('channelid', None)
         thread_id = parameters.get('threadid', None)
+        as_file = parameters.get('AsFile', False)
+        title = parameters.get('title', "file_upload.txt")
+        
         event_copy = copy.deepcopy(event)
         is_custom_target = False
         if channel_id and channel_id.lower() != "none":
@@ -45,9 +44,13 @@ class UserInteraction(ActionBase):
         if not message:
             raise ValueError("Empty message")
         else:
-            #mind_message = f":speaking_head_in_silhouette: *UserInteraction:* {message}"
-            if is_custom_target:
-                await self.user_interactions_dispatcher.send_message(event=event_copy, message=message, message_type=MessageType.TEXT, action_ref="user_interaction")
+            if as_file:
+                if is_custom_target:
+                    await self.user_interactions_dispatcher.upload_file(event=event_copy, file_content=message, filename=title, title=title)
+                else:
+                    await self.user_interactions_dispatcher.upload_file(event=event, file_content=message, filename=title, title=title)
             else:
-                await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.TEXT, action_ref="user_interaction")
-            #await self.user_interactions_dispatcher.send_message(event=event, message=mind_message, message_type=MessageType.TEXT, is_internal=True)
+                if is_custom_target:
+                    await self.user_interactions_dispatcher.send_message(event=event_copy, message=message, message_type=MessageType.TEXT, action_ref="user_interaction")
+                else:
+                    await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.TEXT, action_ref="user_interaction")
