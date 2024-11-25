@@ -24,8 +24,7 @@ class SpanEnrichingProcessor(SpanProcessor):
         for key, value in custom_dimensions.items():
             span.set_attribute(key, value)
 
-# Initialize FastAPI application
-
+# Function to create the FastAPI application
 def create_app():
     app = FastAPI()
 
@@ -40,10 +39,15 @@ def create_app():
     logger.info("Global manager initialized.")
     return app, logger
 
-app, logger = create_app()
+# Function to run the FastAPI application
+def run_app():
+    app, logger = create_app()
+    logger.info("Starting application...")
+    uvicorn_run(app, host="0.0.0.0", port=7071)
+    logger.info("Application started.")
 
-# Load environment variables
-load_dotenv()
+# Create the FastAPI application
+app, logger = create_app()
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -68,6 +72,4 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 if __name__ == "__main__":
-    logger.info("Starting application...")
-    uvicorn_run(app, host="0.0.0.0", port=7071)
-    logger.info("Application started.")
+    run_app()

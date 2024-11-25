@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.sessions.enriched_session import EnrichedSession
+from core.backend.enriched_session import EnrichedSession
 
 
 # Example of a reusable fixture to mock a global manager or config
@@ -24,7 +24,6 @@ def test_init_session(mock_config_manager):
     # If needed, check if start_time is a valid ISO format string
     assert datetime.fromisoformat(session.start_time)  # This ensures it's a valid datetime string
 
-
 def test_end_session(mock_config_manager):
     """
     Test the end_session method, which should mark the session's end and calculate total time.
@@ -32,7 +31,7 @@ def test_end_session(mock_config_manager):
     session = EnrichedSession(session_id="test_session", start_time="2024-10-01T10:00:00")
 
     # Mock datetime to control the current time
-    with patch("core.sessions.enriched_session.datetime") as mock_datetime:
+    with patch("core.backend.enriched_session.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(2024, 10, 1, 10, 30)
         mock_datetime.fromisoformat.side_effect = datetime.fromisoformat
         session.end_session()
@@ -71,32 +70,6 @@ def test_sanitize_message(mock_config_manager):
     sanitized_message = session.sanitize_message(message)
 
     assert sanitized_message == message  # Expecting same content, but JSON safe
-
-def test_add_mind_interaction_to_message(mock_config_manager):
-    """
-    Test that a mind interaction is correctly added to an assistant message.
-    """
-    session = EnrichedSession(session_id="test_session")
-    session.messages = [{"role": "assistant", "content": "Hello!"}]
-
-    interaction = {"message": "Interaction content"}
-    session.add_mind_interaction_to_message(0, interaction)
-
-    assert "mind_interactions" in session.messages[0]
-    assert session.messages[0]["mind_interactions"][0]["message"] == "Interaction content"
-
-def test_add_user_interaction_to_message(mock_config_manager):
-    """
-    Test that a user interaction is correctly added to an assistant message.
-    """
-    session = EnrichedSession(session_id="test_session")
-    session.messages = [{"role": "assistant", "content": "Hello!"}]
-
-    interaction = {"message": "User content"}
-    session.add_user_interaction_to_message(0, interaction)
-
-    assert "user_interactions" in session.messages[0]
-    assert session.messages[0]["user_interactions"][0]["message"] == "User content"
 
 def test_to_dict(mock_config_manager):
     """
@@ -142,3 +115,39 @@ def test_from_dict(mock_config_manager):
     assert session.total_time_ms == 1800000
     assert session.total_cost == {"total_tokens": 150, "total_cost": 15.75}
     assert session.messages == [{"role": "assistant", "content": "Hello!"}]
+
+def test_sanitize_message_invalid_json(mock_config_manager):
+    """
+    Test sanitize_message to ensure it handles invalid JSON correctly.
+    """
+    session = EnrichedSession(session_id="test_session")
+
+    message = "This is a message with invalid JSON: \x00"
+    sanitized_message = session.sanitize_message(message)
+
+    assert sanitized_message == message  # Expecting the original message if JSON serialization fails
+
+def test_end_session_without_start_time(mock_config_manager):
+    """
+    Test end_session method when start_time is not set.
+    """
+    session = EnrichedSession(session_id="test_session")
+    session.start_time = None
+
+    with patch("core.backend.enriched_session.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(2024, 10, 1, 10, 30)
+        session.end_session()
+
+    assert session.end_time == mock_datetime.now.return_value.isoformat()
+    assert session.total_time_ms == 0  # No start time, so total time should be 0
+
+def test_calculate_total_time_invalid_times(mock_config_manager):
+    """
+    Test calculate_total_time method with invalid start and end times.
+    """
+    session = EnrichedSession(session_id="test_session")
+    session.start_time = "invalid_start_time"
+    session.end_time = "invalid_end_time"
+
+    session.calculate_total_time()
+    assert session.total_time_ms == 0  # Invalid times should result in 0 total time

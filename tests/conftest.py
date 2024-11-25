@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import sys
+from os import environ
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -50,6 +51,22 @@ else:
         yield loop
         loop.close()
 
+DEFAULT_ENV_VARS = {
+    "ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME": "main_actions",
+    "USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME": "im_default_behavior",
+    "GENAI_TEXT_DEFAULT_PLUGIN_NAME": "azure_chatgpt",
+    "GENAI_IMAGE_DEFAULT_PLUGIN_NAME": "azure_dalle",
+    "GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME": "openai_file_search",
+    "INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME": "file_system",
+    "INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME": "file_system_queue",
+    "SESSION_MANAGER_DEFAULT_PLUGIN_NAME": "default_session_manager"
+}
+
+@pytest.fixture(scope='session', autouse=True)
+def set_default_env_vars():
+    with patch.dict(environ, DEFAULT_ENV_VARS):
+        yield
+
 @pytest.fixture
 def mock_app():
     return MagicMock()
@@ -92,22 +109,23 @@ def mock_plugins():
                     "SERVICE_BUS_EXTERNAL_EVENTS_QUEUE_TTL": 7200,
                     "SERVICE_BUS_WAIT_QUEUE_TTL": 600
                 }
-            }
-        ),
-        USER_INTERACTIONS=UserInteractions(
-            INSTANT_MESSAGING={"some key": "some value"},
-            CUSTOM_API={"custom_api": "some_custom_api"}
-        ),
-        GENAI_INTERACTIONS=GenaiInteractions(
-            TEXT={"some key": "some value"},
-            IMAGE={"some key": "some value"},
-            VECTOR_SEARCH={"some key": "some value"}
-        ),
-        USER_INTERACTIONS_BEHAVIORS=UserInteractionsBehaviors(
-            INSTANT_MESSAGING={"some key": "some value"},
-            CUSTOM_API={"some key": "some value"}
-        )
-    )
+            },
+            SESSION_MANAGERS={"DEFAULT_SESSION_MANAGER": Plugin(PLUGIN_NAME="default_session_manager")}
+         ),
+         USER_INTERACTIONS=UserInteractions(
+             INSTANT_MESSAGING={"some key": "some value"},
+             CUSTOM_API={"custom_api": "some_custom_api"}
+         ),
+         GENAI_INTERACTIONS=GenaiInteractions(
+             TEXT={"some key": "some value"},
+             IMAGE={"some key": "some value"},
+             VECTOR_SEARCH={"some key": "some value"}
+         ),
+         USER_INTERACTIONS_BEHAVIORS=UserInteractionsBehaviors(
+             INSTANT_MESSAGING={"some key": "some value"},
+             CUSTOM_API={"some key": "some value"}
+         )
+     )
 
 @pytest.fixture
 def mock_config_manager(mock_utils, mock_plugins):
@@ -125,24 +143,26 @@ def mock_config_manager(mock_utils, mock_plugins):
             LOG_DEBUG_LEVEL="DEBUG",
             SHOW_COST_IN_THREAD=True,
             GET_URL_CONTENT=True,
-            ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="action_interactions_default_plugin_name",
-            INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="internal_data_processing_default_plugin_name",
-            USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="user_interactions_instant_messaging_behavior_default_plugin_name",
-            GENAI_TEXT_DEFAULT_PLUGIN_NAME="genai_text_default_plugin_name",
-            GENAI_IMAGE_DEFAULT_PLUGIN_NAME="genai_image_default_plugin_name",
+            ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="main_actions",
+            INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="file_system",
+            USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="im_default_behavior",
+            GENAI_TEXT_DEFAULT_PLUGIN_NAME="azure_chatgpt",
+            GENAI_IMAGE_DEFAULT_PLUGIN_NAME="azure_dalle",
             USER_INTERACTIONS_INSTANT_MESSAGING_DEFAULT_PLUGIN_NAME="test_plugin",
-            GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="genai_vector_search_default_plugin_name",
+            GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="openai_file_search",
+            SESSION_MANAGER_DEFAULT_PLUGIN_NAME="default_session_manager",
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
             START_KEYWORD="stop",
             LOAD_ACTIONS_FROM_BACKEND=False,
             CLEARQUEUE_KEYWORD='!CLEARQUEUE',
             ACTIVATE_MESSAGE_QUEUING=False,
-            INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="internal_queue_processing_default_plugin_name",
+            INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="file_system_queue",
             LOAD_PROMPTS_FROM_BACKEND=False,
             LOCAL_PROMPTS_PATH="local_prompts_path",
             LOCAL_SUBPROMPTS_PATH="local_subprompts_path",
-            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False
+            ACTIVATE_USER_INTERACTION_EVENTS_QUEUING=False,
+            BOT_UNIQUE_ID="bot_unique_id"
         ),
         UTILS=mock_utils,
         PLUGINS=mock_plugins,
@@ -190,6 +210,7 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.logger.level = logging.INFO
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'
+    mock_global_manager.session_manager_dispatcher = AsyncMock()  # Add this line
 
     # Ensure the Azure Service Bus plugin is available
     mock_global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING = {
@@ -208,7 +229,6 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     }
 
     return mock_global_manager
-
 
 @pytest.fixture
 def mock_user_interactions_plugin():

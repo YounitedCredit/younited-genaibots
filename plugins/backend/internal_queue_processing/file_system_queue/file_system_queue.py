@@ -420,3 +420,10 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
 
         self.logger.info(f"{LOG_PREFIX} Total removed files across all queues: {total_removed_files}.")
 
+    async def create_container(self, data_container):
+        directory_path = os.path.join(self.root_directory, data_container)
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+        except OSError as e:
+            self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
+            raise

@@ -1,7 +1,6 @@
 import json
 import os
 import traceback
-from typing import NoReturn
 
 from pydantic import BaseModel
 
@@ -24,6 +23,7 @@ class FileSystemConfig(BaseModel):
     FILE_SYSTEM_VECTORS_CONTAINER: str
     FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER: str
     FILE_SYSTEM_SUBPROMPTS_CONTAINER: str
+    FILE_SYSTEM_CHAINOFTHOUGHTS_CONTAINER: str
 
 
 class FileSystemPlugin(InternalDataProcessingBase):
@@ -48,6 +48,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.vectors_container = None
         self.custom_actions_container = None
         self.subprompts_container = None
+        self.chainofthoughts_container = None
 
     @property
     def plugin_name(self):
@@ -97,6 +98,10 @@ class FileSystemPlugin(InternalDataProcessingBase):
     def subprompts(self):
         return self.subprompts_container
 
+    @property
+    def chainofthoughts(self):
+        return self.chainofthoughts_container
+
     def initialize(self):
         try:
             self.logger.debug("Initializing file system")
@@ -111,6 +116,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.vectors_container = self.file_system_config.FILE_SYSTEM_VECTORS_CONTAINER
             self.custom_actions_container = self.file_system_config.FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER
             self.subprompts_container = self.file_system_config.FILE_SYSTEM_SUBPROMPTS_CONTAINER
+            self.chainofthoughts_container = self.file_system_config.FILE_SYSTEM_CHAINOFTHOUGHTS_CONTAINER
 
             self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_shares()
@@ -128,7 +134,8 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.abort_container,
             self.vectors_container,
             self.custom_actions_container,
-            self.subprompts_container
+            self.subprompts_container,
+            self.chainofthoughts_container
         ]
         for container in containers:
             directory_path = os.path.join(self.root_directory, container)
@@ -152,25 +159,44 @@ class FileSystemPlugin(InternalDataProcessingBase):
         except IOError as e:
             self.logger.error(f"Failed to append data to the file {file_path}: {e}")
             raise e
-        
+
     async def remove_data(self, container_name: str, datafile_name: str, data: str):
         """
-        Remove data to a specified container file.
+        Remove data from a specified container file.
         """
         file_path = os.path.join(self.root_directory, container_name, datafile_name)
+        data_lower = data.lower()
+
+        # Lire le contenu existant
+        existing_content = await self.read_data_content(container_name, datafile_name)
+
+        # Si pas de contenu, on arrête là
+        if existing_content is None or existing_content == "":
+            self.logger.debug(f"No content or empty file in {file_path}")
+            return
 
         try:
-            data_lower = data.lower()
-            existing_content = await self.read_data_content(container_name, datafile_name)
+            new_content = existing_content  # Par défaut, on garde le contenu existant
+
+            # Si on trouve le texte à supprimer
             if data_lower in existing_content.lower():
-                new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
-            if new_content == "":
-                new_content = " " 
-            await self.remove_data_content(data_container=container_name, data_file=datafile_name)
-            await self.write_data_content(data_container=container_name, data_file=datafile_name, data=new_content)
-            self.logger.info(f"Data successfully removed to {file_path}.")
+                new_content = '\n'.join([line for line in existing_content.split('\n')
+                                    if data_lower not in line.lower()])
+
+                # Si le nouveau contenu est vide, on met un espace
+                if new_content.strip() == "":
+                    new_content = " "
+
+                # Supprimer et réécrire le fichier
+                await self.remove_data_content(data_container=container_name, data_file=datafile_name)
+                await self.write_data_content(data_container=container_name, data_file=datafile_name, data=new_content)
+                self.logger.info(f"Data successfully removed from {file_path}")
+
         except IOError as e:
-            self.logger.error(f"Failed to remove data to the file {file_path}: {e}")
+            self.logger.error(f"Failed to remove data from file {file_path}: {e}")
+            raise e
+        except Exception as e:
+            self.logger.error(f"Unexpected error while removing data from {file_path}: {e}")
             raise e
 
     async def read_data_content(self, data_container, data_file):
@@ -178,10 +204,13 @@ class FileSystemPlugin(InternalDataProcessingBase):
         file_path = os.path.join(self.root_directory, data_container, data_file)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                with open(file_path, 'r', encoding='utf-8') as file:
                     data = file.read()
                 self.logger.debug("Data successfully read")
                 return data
+            except UnicodeDecodeError as e:
+                self.logger.error(f"Failed to read file due to encoding error: {str(e)}")
+                return None
             except Exception as e:
                 self.logger.error(f"Failed to read file: {str(e)}")
                 return None
@@ -193,7 +222,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
         self.logger.debug(f"Writing data content to {data_file} in {data_container}")
         file_path = os.path.join(self.root_directory, data_container, data_file)
         try:
-            with open(file_path, 'w') as file:
+            with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(data)
             self.logger.debug("Data successfully written to file")
         except Exception:
@@ -316,3 +345,70 @@ class FileSystemPlugin(InternalDataProcessingBase):
             self.logger.debug("Session update completed")
         except Exception as e:
             self.logger.error(f"Failed to write to file: {str(e)}")
+
+    async def create_container(self, data_container):
+        directory_path = os.path.join(self.root_directory, data_container)
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+        except OSError as e:
+            self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
+            raise
+
+    def create_container_sync(self, data_container):
+        directory_path = os.path.join(self.root_directory, data_container)
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+        except OSError as e:
+            self.logger.error(f"Failed to create directory: {directory_path} - {str(e)}")
+            raise
+
+    async def file_exists(self, container_name: str, file_name: str) -> bool:
+        """
+        Check if a file exists in the specified container.
+        """
+        file_path = os.path.join(self.root_directory, container_name, file_name)
+        return os.path.exists(file_path)
+
+    async def clear_container(self, container_name: str):
+        """
+        Clear all contents of the specified container.
+        """
+        container_path = os.path.join(self.root_directory, container_name)
+        if os.path.exists(container_path):
+            try:
+                for filename in os.listdir(container_path):
+                    file_path = os.path.join(container_path, filename)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        self.logger.info(f"File {file_path} successfully deleted.")
+                    elif os.path.isdir(file_path):
+                        os.rmdir(file_path)
+                        self.logger.info(f"Directory {file_path} successfully deleted.")
+                self.logger.info(f"All contents of container {container_name} have been cleared.")
+            except Exception as e:
+                self.logger.error(f"Failed to clear container {container_name}: {str(e)}")
+                raise
+        else:
+            self.logger.warning(f"Container {container_name} does not exist.")
+
+    def clear_container_sync(self, container_name: str):
+        """
+        Clear all contents of the specified container.
+        """
+        container_path = os.path.join(self.root_directory, container_name)
+        if os.path.exists(container_path):
+            try:
+                for filename in os.listdir(container_path):
+                    file_path = os.path.join(container_path, filename)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        self.logger.info(f"File {file_path} successfully deleted.")
+                    elif os.path.isdir(file_path):
+                        os.rmdir(file_path)
+                        self.logger.info(f"Directory {file_path} successfully deleted.")
+                self.logger.info(f"All contents of container {container_name} have been cleared.")
+            except Exception as e:
+                self.logger.error(f"Failed to clear container {container_name}: {str(e)}")
+                raise
+        else:
+            self.logger.warning(f"Container {container_name} does not exist.")

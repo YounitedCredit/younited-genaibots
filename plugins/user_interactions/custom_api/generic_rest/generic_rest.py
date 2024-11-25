@@ -25,7 +25,7 @@ from core.user_interactions.user_interactions_dispatcher import (
 from core.user_interactions.user_interactions_plugin_base import (
     UserInteractionsPluginBase,
 )
-from plugins.user_interactions.custom_api.generic_rest.utils.genereic_rest_reactions import (
+from plugins.user_interactions.custom_api.generic_rest.utils.generic_rest_reactions import (
     GenericRestReactions,
 )
 from utils.plugin_manager.plugin_manager import PluginManager
@@ -185,8 +185,15 @@ class GenericRestPlugin(UserInteractionsPluginBase):
         return text
 
     async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False):
-        pass
-        #raise NotImplementedError("This method is not implemented yet.")
+        notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.FILE_UPLOAD)
+        notification.is_internal = is_internal
+        safe_file_content = json.dumps(file_content)  # Serialize file_content to ensure it's valid JSON
+        notification.files_content.append({
+            'file_content': safe_file_content,
+            'filename': filename,
+            'title': title
+        })
+        await self.post_notification(notification, self.rest_config.GENERIC_REST_MESSAGE_URL)
 
     async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name):
         notification = OutgoingNotificationDataBase.from_incoming_notification_data(incoming_notification_data=event, event_type=OutgoingNotificationEventTypes.REACTION_ADD)
@@ -219,7 +226,7 @@ class GenericRestPlugin(UserInteractionsPluginBase):
             return notification_data
 
     def format_trigger_genai_message(self, message):
-        bot_id = self.global_manager.bot_config.get_bot_id()
+        bot_id = self.rest_config.GENERIC_REST_BOT_ID
         formatted_message = f"<@{bot_id}> {message}"
         return formatted_message
 
@@ -250,5 +257,3 @@ class GenericRestPlugin(UserInteractionsPluginBase):
 
     def get_bot_id(self) -> str:
         return self.rest_config.GENERIC_REST_BOT_ID
-        pass
-

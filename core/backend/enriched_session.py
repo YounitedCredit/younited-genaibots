@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from core.sessions.session_base import SessionBase
+from core.backend.session_base import SessionBase
 
 
 class EnrichedSession(SessionBase):
@@ -29,11 +29,15 @@ class EnrichedSession(SessionBase):
         Calculates the total time of the session in milliseconds.
         """
         try:
-            start = datetime.fromisoformat(self.start_time)
-            end = datetime.fromisoformat(self.end_time)
-            self.total_time_ms = int((end - start).total_seconds() * 1000)
+            if self.start_time is None or self.end_time is None:
+                self.total_time_ms = 0
+            else:
+                start = datetime.fromisoformat(self.start_time)
+                end = datetime.fromisoformat(self.end_time)
+                self.total_time_ms = int((end - start).total_seconds() * 1000)
         except Exception as e:
             print(f"Error calculating total time: {e}")
+            self.total_time_ms = 0
 
     def accumulate_cost(self, cost: Dict) -> None:
         """
@@ -55,37 +59,7 @@ class EnrichedSession(SessionBase):
             self.logger.error(f"Error sanitizing message: {e}")
             return message  # If there's an issue, return the original message unmodified
 
-    def add_mind_interaction_to_message(self, message_index: int, interaction: Dict) -> None:
-        """
-        Add a mind interaction to a specific assistant message by index.
-        This interaction is stored inside the specific assistant message.
-        """
-        if message_index < len(self.messages):
-            message = self.messages[message_index]
-            if message.get("role") == "assistant":
-                # Sanitize the interaction content before storing it
-                interaction["message"] = self.sanitize_message(interaction["message"])
 
-                # Add mind_interactions key if not present
-                if "mind_interactions" not in message:
-                    message["mind_interactions"] = []
-                message["mind_interactions"].append(interaction)
-
-    def add_user_interaction_to_message(self, message_index: int, interaction: Dict) -> None:
-        """
-        Add a user interaction to a specific assistant message by index.
-        This interaction is stored inside the specific assistant message.
-        """
-        if message_index < len(self.messages):
-            message = self.messages[message_index]
-            if message.get("role") == "assistant":
-                # Sanitize the message content before storing it
-                interaction["message"] = self.sanitize_message(interaction["message"])
-
-                # Add user_interactions key if not present
-                if "user_interactions" not in message:
-                    message["user_interactions"] = []
-                message["user_interactions"].append(interaction)
 
     def to_dict(self) -> Dict:
         """

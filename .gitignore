@@ -19,3 +19,48 @@ codebase.md
 *.log
 plugins/action_interactions/custom/*
 /output.csv
+
+# Include the Logs and InternalData directories
+!logs/
+!internal_data/
+
+# Ignore all files in Logs and InternalData
+logs/*
+internal_data/*
+
+# Do not ignore the directories themselves
+!logs/.gitkeep
+!internal_data/.gitkeep
+
+# Ignore everything in plugins/backend/session_managers
+plugins/backend/session_managers/*
+
+# Do not ignore the default_session_manager directory
+!plugins/backend/session_managers/default_session_manager
+
+# Do not ignore the contents of the default_session_manager directory
+!plugins/backend/session_managers/default_session_manager/**
+# Ignore __pycache__ directories in default_session_manager
+plugins/backend/session_managers/default_session_manager/**/__pycache__/
+
+# Do not ignore the __init__.py file in session_managers
+!plugins/backend/session_managers/__init__.py
+
+# Ignore all directories in plugins/user_interactions/custom_api
+plugins/user_interactions/custom_api/*
+
+# Do not ignore the generic_rest directory and its contents
+!plugins/user_interactions/custom_api/generic_rest
+!plugins/user_interactions/custom_api/generic_rest/**
+
+# Ignore all directories in plugins/user_interactions_behaviors/custom_api
+plugins/user_interactions_behaviors/custom_api/*
+
+# Do not ignore the ca_default_behavior directory and its contents
+!plugins/user_interactions_behaviors/custom_api/ca_default_behavior
+!plugins/user_interactions_behaviors/custom_api/ca_default_behavior/**
+
+plugins/user_interactions_behaviors/custom_api/**/__pycache__/
+
+# Ignore all __pycache__ directories globally
+**/__pycache__/

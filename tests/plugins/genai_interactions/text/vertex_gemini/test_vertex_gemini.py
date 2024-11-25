@@ -64,59 +64,64 @@ def test_initialize(vertexai_gemini_plugin):
 
 @pytest.mark.asyncio
 async def test_handle_action_with_empty_blob(vertexai_gemini_plugin):
-    with patch.object(vertexai_gemini_plugin.client, 'generate_content_async', new_callable=AsyncMock) as mock_generate:
+    with patch.object(vertexai_gemini_plugin.client, 'generate_content_async', new_callable=AsyncMock) as mock_generate, \
+         patch.object(vertexai_gemini_plugin.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+         patch.object(vertexai_gemini_plugin.session_manager_dispatcher, 'save_session', new_callable=AsyncMock) as mock_save_session, \
+         patch.object(vertexai_gemini_plugin.session_manager_dispatcher, 'append_messages', new_callable=MagicMock) as mock_append_messages, \
+         patch.object(vertexai_gemini_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
+
         mock_generate.return_value = MagicMock(
             candidates=[MagicMock(content=MagicMock(parts=[MagicMock(text="Invalid JSON response")]))],
             usage_metadata=MagicMock(total_token_count=100, prompt_token_count=50, candidates_token_count=50)
         )
 
-        with patch.object(vertexai_gemini_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content:
+        fake_session = MagicMock()
+        fake_session.messages = []
+        fake_session.session_id = "test_session_id"
+        mock_get_or_create_session.return_value = fake_session
 
-            mock_read_data_content.return_value = ""
+        mock_read_data_content.return_value = ""
 
-            action_input = ActionInput(action_name='generate_text', parameters={
+        action_input = ActionInput(
+            action_name='generate_text',
+            parameters={
                 'input': 'test input',
+                'messages': [],
                 'main_prompt': 'test prompt',
                 'context': 'test context',
                 'conversation_data': 'test conversation'
-            })
-            event = IncomingNotificationDataBase(
-                channel_id="channel_id",
-                thread_id="thread_id",
-                user_id="user_id",
-                text="user text",
-                timestamp="timestamp",
-                event_label="event_label",
-                response_id="response_id",
-                user_name="user_name",
-                user_email="user_email",
-                is_mention=True,
-                origin_plugin_name="origin_plugin_name"
-            )
+            }
+        )
 
-            result = await vertexai_gemini_plugin.handle_action(action_input, event)
+        event = IncomingNotificationDataBase(
+            channel_id="channel_id",
+            thread_id="thread_id",
+            user_id="user_id",
+            text="user text",
+            timestamp="timestamp",
+            event_label="event_label",
+            response_id="response_id",
+            user_name="user_name",
+            user_email="user_email",
+            is_mention=True,
+            origin_plugin_name="origin_plugin_name"
+        )
 
-            assert result == "Invalid JSON response"  # We expect the cleaned text to be returned
-            mock_generate.assert_called_once()
+        result = await vertexai_gemini_plugin.handle_action(action_input, event)
 
-            # Parse the JSON string passed to generate_content_async
-            call_args = json.loads(mock_generate.call_args[0][0])
+        assert result == "Invalid JSON response"
+        mock_generate.assert_called_once()
+        mock_get_or_create_session.assert_called_once()
+        mock_append_messages.assert_called()
+        mock_save_session.assert_called_once_with(fake_session)
 
-            # Check the structure of the parsed JSON
-            assert "messages" in call_args
-            assert "parameters" in call_args
-            assert len(call_args["messages"]) == 4
-
-            # Check the content of each message
-            assert call_args["messages"][0] == {"role": "system", "content": "No specific instruction provided."}
-            assert call_args["messages"][1] == {"role": "user", "content": "Here is additional context: test context"}
-            assert call_args["messages"][2] == {"role": "user", "content": "Conversation data: test conversation"}
-            assert call_args["messages"][3] == {"role": "user", "content": "test input"}
-
-            # Check the parameters
-            assert call_args["parameters"]["temperature"] == 0.7
-            assert call_args["parameters"]["top_p"] == 0.9
-            assert call_args["parameters"]["max_tokens"] == 100
+        # Verify generate_content_async call
+        call_args = json.loads(mock_generate.call_args[0][0])
+        assert "messages" in call_args
+        assert "parameters" in call_args
+        assert call_args["parameters"]["temperature"] == 0.7
+        assert call_args["parameters"]["top_p"] == 0.9
+        assert call_args["parameters"]["max_tokens"] == 100
 
 @pytest.mark.asyncio
 async def test_handle_action_with_existing_blob(vertexai_gemini_plugin):

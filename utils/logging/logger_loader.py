@@ -1,4 +1,5 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
 import coloredlogs
@@ -68,18 +69,23 @@ def setup_logger_and_tracer(global_manager):
     log_plugin_azure = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE_LOGGING'])
 
     if log_plugin_file is None and log_plugin_azure is None:
-        logger.warning("No Logging confured in UTILS/LOGGING, no logs will be recorded")
+        logger.warning("No Logging configured in UTILS/LOGGING, no logs will be recorded")
 
     if log_plugin_file and log_plugin_file.PLUGIN_NAME == 'local_logging':
         # File handler setup
-        file_handler = RotatingFileHandler(
-            config_handler.get_config(['UTILS', 'LOGGING', 'LOCAL_LOGGING', 'LOCAL_LOGGING_FILE_PATH']),
-            maxBytes=10000000,
-            backupCount=3
-        )
-        file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
-        logger.debug("File logging is set up")
+        log_file_path = config_handler.get_config(['UTILS', 'LOGGING', 'LOCAL_LOGGING', 'LOCAL_LOGGING_FILE_PATH'])
+        try:
+            os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+            file_handler = RotatingFileHandler(
+                log_file_path,
+                maxBytes=10000000,
+                backupCount=3
+            )
+            file_handler.setFormatter(file_formatter)
+            logger.addHandler(file_handler)
+            logger.debug("File logging is set up")
+        except PermissionError:
+            logger.error(f"Permission denied to write log in {log_file_path}")
 
     elif log_plugin_azure and log_plugin_azure.PLUGIN_NAME == 'azure':
         logging.getLogger('azure').setLevel(logging.WARNING)
@@ -117,3 +123,7 @@ def setup_logger_and_tracer(global_manager):
         logging.getLogger("urllib3").setLevel(logging.WARNING)
 
     return logger, tracer
+
+if __name__ == "__main__":
+    logger, tracer = setup_logger_and_tracer(None)
+    logger.info("Logging is configured.")

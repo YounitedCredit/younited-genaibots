@@ -180,3 +180,11 @@ class BackendInternalQueueProcessingDispatcher(InternalQueueProcessingBase):
         plugin = self.get_plugin(plugin_name)
         self.logger.info(f"Cleaning all expired messages from queues through {plugin.plugin_name}.")
         await plugin.clean_all_queues()
+
+    async def create_container(self, data_container, plugin_name: Optional[str] = None):
+        """
+        Creates a new data container for the specified plugin.
+        """
+        plugin = self.get_plugin(plugin_name)
+        self.logger.info(f"Creating data container for {plugin.plugin_name}.")
+        await plugin.create_container(data_container)

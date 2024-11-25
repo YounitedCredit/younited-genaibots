@@ -127,6 +127,9 @@ By following this structured, conceptual approach, the assistant ensures that it
   - channelid: The channel ID where the message should be sent, if not provided, the message will be sent to the channel where the assistant is currently operating.
     - if the user specify a channelid without threadid, threadid value must be set to "None"
   - threadid: The thread ID where the message should be sent. If not provided, the message will be sent to the channel where the assistant is currently operating.
+  - asfile: "True" or "False". if the user or the instruction explicitly mention to respond as a file, the use this parameter with "True". in any other case assume that this parameter is always "False".
+  - title: only used if asfile is "True", a name for the file uploaded, without extension .txt per default except if the user or instructions mention a specific extension. If the user doesn't mention it but want a file, you can choose a relevant filename shorter thant 56 characters.
+
 Example:
 {
   "Action": {
@@ -135,6 +138,8 @@ Example:
       "value": "Your user interaction message here"
       "channelid": "a target channel id"
       "threadid": "a target thread id"
+      "asfile": "False"
+      "title": ""
     }
   }
 }
@@ -278,7 +283,7 @@ Example:
 
 - Parameters:
   - Prompt: The assistant must create a detailed and descriptive prompt based on the user’s request. It is essential to include all relevant details, such as objects, colors, styles, emotions, and scene settings to maximize the image generation accuracy. The assistant should avoid vague or minimal descriptions.
-
+  - Target (optional): slack or other user interaction platform, empty by default.
   - Size: The size of the image. Defaults are:
 
       - "1024x1024" for a square image,

@@ -33,7 +33,7 @@ async def test_execute_generate_image_success(mock_global_manager):
     )
     action.user_interaction_dispatcher.send_message.assert_any_call(
         event=event,
-        message="<http://example.com/image.png|Image>"
+        message="http://example.com/image.png"
     )
 
 @pytest.mark.asyncio

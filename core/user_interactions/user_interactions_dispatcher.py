@@ -1,8 +1,10 @@
+import asyncio
 from datetime import datetime
 from typing import List, Optional
 
 from fastapi import BackgroundTasks
 
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
 from core.user_interactions.incoming_notification_data_base import (
     IncomingNotificationDataBase,
 )
@@ -34,6 +36,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             return
 
         self.plugins = plugins
+        self.session_manager_dispatcher : SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
 
     def get_plugin(self, plugin_name=None):
         if plugin_name is None:
@@ -187,7 +190,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             if event is not None:
                 if is_replayed == False:
                     # Get the session
-                    session = await self.global_manager.session_manager.get_or_create_session(
+                    session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                         event.channel_id, event.thread_id, enriched=True
                     )
 
@@ -208,13 +211,13 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                     if message_index is not None:
                         if is_internal:
                             # Add the interaction to mind_interactions in the correct assistant message
-                            session.add_mind_interaction_to_message(message_index=message_index, interaction=interaction)
+                            await self.session_manager_dispatcher.add_mind_interaction_to_message(session=session, message_index=message_index, interaction=interaction)
                         else:
                             # Add the interaction to user_interactions in the correct assistant message
-                            session.add_user_interaction_to_message(message_index=message_index, interaction=interaction)
+                            await self.session_manager_dispatcher.add_user_interaction_to_message(session=session, message_index=message_index, interaction=interaction)
 
                     # Save the session after adding the interaction
-                    await self.global_manager.session_manager.save_session(session)
+                    await self.global_manager.session_manager_dispatcher.save_session(session)
 
                 plugin_name = event.origin_plugin_name
                 self.logger.debug(f"Event provided with origin_plugin_name: {plugin_name}")
@@ -281,52 +284,212 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         )
 
     async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+        """  
+        Add a reaction using the specified plugin. If `is_replayed` is True, process it directly.  
+        If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event.  
+        Otherwise, process it directly using the plugin.  
         """
-        Add a reaction using the specified plugin. If `is_replayed` is True, process it directly.
-        If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event or add it to background tasks.
-        Otherwise, process it directly using the plugin.
-        """
-        if event is not None:
-            plugin_name = event.origin_plugin_name
+        self.logger.debug("Entering add_reaction method")
+        try:
+            if event is not None:
+                plugin_name = event.origin_plugin_name
 
-            if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-                method_params = {
-                    "event": event.to_dict(),
-                    "channel_id": channel_id,
-                    "timestamp": timestamp,
-                    "reaction_name": reaction_name
-                }
+                if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+                    method_params = {
+                        "reactions": [{
+                            "event": event.to_dict(),
+                            "channel_id": channel_id,
+                            "timestamp": timestamp,
+                            "reaction_name": reaction_name
+                        }]
+                    }
 
-                # Enqueue the event
-                await self.event_queue_manager.add_to_queue("add_reaction", method_params)
-                self.logger.debug(f"Event 'add_reaction' enqueued with parameters: {method_params}")
-            else:
-                # Process the event directly
-                plugin = self.get_plugin(plugin_name)
-                return await plugin.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
-
+                    # Enqueue the event
+                    await self.event_queue_manager.add_to_queue("add_reactions", method_params)
+                    self.logger.debug(f"Event 'add_reactions' enqueued with parameters: {method_params}")
+                else:
+                    # Process the event directly
+                    await self.add_reactions([{
+                        "event": event,
+                        "channel_id": channel_id,
+                        "timestamp": timestamp,
+                        "reaction_name": reaction_name
+                    }], is_replayed=True)
+        except Exception as e:
+            self.logger.error(f"Error in add_reaction: {e}")
+            raise
+        finally:
+            self.logger.debug("Exiting add_reaction method")
 
     async def remove_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+        """  
+        Remove a reaction using the specified plugin. If `is_replayed` is True, process it directly.  
+        If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event.  
+        Otherwise, process it directly using the plugin.  
         """
-        Remove a reaction using the specified plugin. If `is_replayed` is True, process it directly.
-        If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event or add it to background tasks.
-        Otherwise, process it directly using the plugin.
+        self.logger.debug("Entering remove_reaction method")
+        try:
+            if event is not None:
+                plugin_name = event.origin_plugin_name
+
+                if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+                    method_params = {
+                        "reactions": [{
+                            "event": event.to_dict(),
+                            "channel_id": channel_id,
+                            "timestamp": timestamp,
+                            "reaction_name": reaction_name
+                        }]
+                    }
+
+                    # Enqueue the event
+                    await self.event_queue_manager.add_to_queue("remove_reactions", method_params)
+                    self.logger.debug(f"Event 'remove_reactions' enqueued with parameters: {method_params}")
+                else:
+                    # Process the event directly
+                    await self.remove_reactions([{
+                        "event": event,
+                        "channel_id": channel_id,
+                        "timestamp": timestamp,
+                        "reaction_name": reaction_name
+                    }], is_replayed=True)
+        except Exception as e:
+            self.logger.error(f"Error in remove_reaction: {e}")
+            raise
+        finally:
+            self.logger.debug("Exiting remove_reaction method")
+
+    async def add_reactions(self, reactions: List[dict], is_replayed=False):
+        """  
+        Add multiple reactions using the specified plugin.  
         """
-        if event is not None:
+        if not reactions:
+            return
+
+        # Determine the plugin_name
+        first_reaction = reactions[0]
+        event = first_reaction.get('event')
+        if isinstance(event, IncomingNotificationDataBase):
             plugin_name = event.origin_plugin_name
+        elif isinstance(event, dict):
+            plugin_name = event.get('origin_plugin_name')
+        else:
+            plugin_name = self.default_plugin_name
 
-            if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
-                method_params = {
-                    "event": event.to_dict(),
-                    "channel_id": channel_id,
-                    "timestamp": timestamp,
-                    "reaction_name": reaction_name
-                }
+        if not plugin_name:
+            plugin_name = self.default_plugin_name
 
-                # Enqueue the event
-                await self.event_queue_manager.add_to_queue("remove_reaction", method_params)
-                self.logger.debug(f"Event 'remove_reaction' enqueued with parameters: {method_params}")
-            else:
-                # Process the event directly
-                plugin = self.get_plugin(plugin_name)
-                return await plugin.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=reaction_name)
+        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+            method_params = {
+                "reactions": [reaction for reaction in reactions],
+            }
+
+            # Enqueue the event
+            await self.event_queue_manager.add_to_queue("add_reactions", method_params)
+            self.logger.debug(f"Event 'add_reactions' enqueued with parameters: {method_params}")
+        else:
+            # Process the event directly
+
+            # Ensure all events are IncomingNotificationDataBase instances
+            for reaction in reactions:
+                event = reaction.get('event')
+                if isinstance(event, dict):
+                    reaction['event'] = IncomingNotificationDataBase.from_dict(event)
+
+            plugin = self.get_plugin(plugin_name)
+            tasks = [plugin.add_reaction(**reaction) for reaction in reactions]
+            await asyncio.gather(*tasks)
+
+    async def remove_reactions(self, reactions: List[dict], is_replayed=False):
+        """  
+        Remove multiple reactions using the specified plugin.  
+        """
+        if not reactions:
+            return
+
+        # Determine the plugin_name
+        first_reaction = reactions[0]
+        event = first_reaction.get('event')
+        if isinstance(event, IncomingNotificationDataBase):
+            plugin_name = event.origin_plugin_name
+        elif isinstance(event, dict):
+            plugin_name = event.get('origin_plugin_name')
+        else:
+            plugin_name = self.default_plugin_name
+
+        if not plugin_name:
+            plugin_name = self.default_plugin_name
+
+        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+            method_params = {
+                "reactions": [reaction for reaction in reactions],
+            }
+
+            # Enqueue the event
+            await self.event_queue_manager.add_to_queue("remove_reactions", method_params)
+            self.logger.debug(f"Event 'remove_reactions' enqueued with parameters: {method_params}")
+        else:
+            # Process the event directly
+
+            # Ensure all events are IncomingNotificationDataBase instances
+            for reaction in reactions:
+                event = reaction.get('event')
+                if isinstance(event, dict):
+                    reaction['event'] = IncomingNotificationDataBase.from_dict(event)
+
+            plugin = self.get_plugin(plugin_name)
+            tasks = [plugin.remove_reaction(**reaction) for reaction in reactions]
+            await asyncio.gather(*tasks)
+
+    async def update_reactions_batch(self, reactions_actions: List[dict], is_replayed=False):
+        """  
+        Update reactions in batch, handling both additions and removals.  
+        Each item in `reactions_actions` should be a dict with keys:  
+        - 'action': 'add' or 'remove'  
+        - 'reaction': dict with reaction details  
+        """
+        if not reactions_actions:
+            return
+
+        # Determine the plugin name from the first reaction
+        first_action = reactions_actions[0]
+        event = first_action.get('reaction', {}).get('event')
+        if isinstance(event, IncomingNotificationDataBase):
+            plugin_name = event.origin_plugin_name
+        elif isinstance(event, dict):
+            plugin_name = event.get('origin_plugin_name')
+        else:
+            plugin_name = self.default_plugin_name
+
+        if not plugin_name:
+            plugin_name = self.default_plugin_name
+
+        if not is_replayed and self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
+            method_params = {
+                "reactions_actions": [action for action in reactions_actions],
+            }
+
+            # Enqueue the event
+            await self.event_queue_manager.add_to_queue("update_reactions_batch", method_params)
+            self.logger.debug(f"Event 'update_reactions_batch' enqueued with parameters: {method_params}")
+        else:
+            # Process the event directly
+
+            # Ensure all events are IncomingNotificationDataBase instances
+            for action in reactions_actions:
+                reaction = action.get('reaction', {})
+                if 'event' in reaction and isinstance(reaction['event'], dict):
+                    reaction['event'] = IncomingNotificationDataBase.from_dict(reaction['event'])
+
+            plugin = self.get_plugin(plugin_name)
+
+            # Prepare tasks
+            tasks = []
+            for action in reactions_actions:
+                operation = action.get('action')
+                reaction = action.get('reaction')
+                if operation == 'add':
+                    tasks.append(plugin.add_reaction(**reaction))
+                elif operation == 'remove':
+                    tasks.append(plugin.remove_reaction(**reaction))
+            await asyncio.gather(*tasks)

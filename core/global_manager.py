@@ -11,6 +11,8 @@ from core.backend.backend_internal_queue_processing_dispatcher import (
     BackendInternalQueueProcessingDispatcher,
 )
 from core.backend.internal_data_processing_base import InternalDataProcessingBase
+from core.backend.session_manager_dispatcher import SessionManagerDispatcher
+from core.backend.session_manager_plugin_base import SessionManagerPluginBase
 from core.event_processing.interaction_queue_manager import (
     InteractionQueueManager,
 )
@@ -24,7 +26,6 @@ from core.genai_interactions.genai_interactions_text_dispatcher import (
     GenaiInteractionsTextDispatcher,
 )
 from core.genai_interactions.genai_vectorsearch_dispatcher import GenaiVectorsearch
-from core.sessions.session_manager import SessionManager
 from core.user_interactions.user_interactions_dispatcher import (
     UserInteractionsDispatcher,
 )
@@ -58,7 +59,7 @@ class GlobalManager:
 
         self.logger.info("Plugin manager and main handlers initialized.")
 
-        self.session_manager = SessionManager(self)
+
 
         bot_config_dict = self.config_manager.config_model.BOT_CONFIG
         self.bot_config: BotConfig = bot_config_dict
@@ -71,6 +72,7 @@ class GlobalManager:
         self.genai_vectorsearch_dispatcher = GenaiVectorsearch(self)
         self.user_interactions_dispatcher = UserInteractionsDispatcher(self)
         self.user_interactions_behavior_dispatcher = UserInteractionsBehaviorsDispatcher(self)
+        self.session_manager_dispatcher = SessionManagerDispatcher(self)
 
         self.logger.info("Loading plugins...")
         self.plugin_manager.load_plugins()
@@ -85,6 +87,9 @@ class GlobalManager:
             "BACKEND", "INTERNAL_DATA_PROCESSING")
         backend_internal_queue_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_QUEUE_PROCESSING")
+        session_manager_plugins: List[SessionManagerPluginBase] = self.plugin_manager.get_plugin_by_category(
+            "BACKEND", "SESSION_MANAGERS")
+
         user_interactions_plugins: List[UserInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "USER_INTERACTIONS")
         genai_interactions_text_plugins: List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
@@ -102,6 +107,7 @@ class GlobalManager:
         self.genai_interactions_text_dispatcher.initialize(genai_interactions_text_plugins)
         self.backend_internal_data_processing_dispatcher.initialize(backend_internal_data_processing_plugins)
         self.backend_internal_queue_processing_dispatcher.initialize(backend_internal_queue_processing_plugins)
+        self.session_manager_dispatcher.initialize(session_manager_plugins)
 
         self.genai_image_generator_dispatcher.initialize(genai_image_generator_plugins)
         self.genai_vectorsearch_dispatcher.initialize(vector_search_plugins)
@@ -117,7 +123,7 @@ class GlobalManager:
             self.logger.debug("Initializing interaction queue manager and Session manager...")
             self.interaction_queue_manager.initialize()
 
-        self.session_manager.initialize()
+
 
         self.logger.debug("Creating routes...")
         self.plugin_manager.intialize_routes(app)

@@ -28,6 +28,12 @@
 				],
 				"module": "uvicorn"
 			}
-		}
+		},
+        {
+            "label": "install-requirements",
+            "type": "shell",
+            "command": "python ${workspaceFolder}/install_requirements.py",
+            "problemMatcher": []
+        }
 	]
 }

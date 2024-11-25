@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import traceback
+import uuid
 from datetime import datetime, timezone
 
 import yaml
@@ -31,6 +32,7 @@ class ChatInputHandler():
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.session_manager_dispatcher = self.global_manager.session_manager_dispatcher
 
     def initialize(self):
         self.genai_client = {}
@@ -59,7 +61,7 @@ class ChatInputHandler():
     async def handle_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Récupérer ou créer la session
-            session = await self.global_manager.session_manager.get_or_create_session(
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                 channel_id=event_data.channel_id,
                 thread_id=event_data.thread_id or event_data.timestamp,  # Utiliser timestamp si thread_id est None
                 enriched=True
@@ -96,7 +98,12 @@ class ChatInputHandler():
                 # Créer le message système avec les nouvelles données de prompt et les versions
                 system_message = {
                     "role": "system",
-                    "content": system_content,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_content
+                        }
+                    ],
                     "core_prompt_name": core_prompt_name,
                     "core_prompt": core_prompt,
                     "core_prompt_version": core_prompt_version,
@@ -107,15 +114,15 @@ class ChatInputHandler():
                 }
 
                 # Ajouter le message système aux messages de la session
-                messages.append(system_message)
+                self.session_manager_dispatcher.append_messages(messages, system_message, session.session_id)
 
             # Construire le message utilisateur
             constructed_message = self.construct_message(event_data)
-            messages.append(constructed_message)
+            self.session_manager_dispatcher.append_messages(messages, constructed_message, session.session_id)
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return await self.generate_response(event_data, session)
         except Exception as e:
@@ -141,7 +148,7 @@ class ChatInputHandler():
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Récupérer ou créer la session
-            session = await self.global_manager.session_manager.get_or_create_session(
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                 channel_id=event_data.channel_id,
                 thread_id=event_data.thread_id,
                 enriched=True
@@ -171,16 +178,21 @@ class ChatInputHandler():
                     init_prompt += f"\nAlso take into account these previous general behavior feedbacks: {str(general_behavior_content)}"
 
                 # Ajouter le message système aux messages
-                system_message = {"role": "system", "content": init_prompt}
+                system_message = {"role": "system", "content": [
+                        {
+                            "type": "text",
+                            "text": init_prompt
+                        }
+                    ]}
                 messages.insert(0, system_message)
 
             # Construire le message utilisateur
             constructed_message = self.construct_message(event_data)
-            messages.append(constructed_message)
+            self.session_manager_dispatcher.append_messages(messages, constructed_message, session.session_id)
 
             # Mettre à jour les messages de la session et sauvegarder la session
             session.messages = messages
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return await self.generate_response(event_data, session)
         except Exception as e:
@@ -236,12 +248,13 @@ class ChatInputHandler():
 
             # Convertir les événements pertinents en messages et les ajouter aux messages de la session
             try:
-                converted_messages = self.convert_events_to_messages(relevant_events)
+                converted_messages = self.convert_events_to_messages(relevant_events, session.session_id)
                 # Trier les messages par timestamp
                 converted_messages.sort(key=lambda x: float(x.get('timestamp', datetime.now().timestamp())))
                 # Ajouter aux messages de la session
-                session.messages.extend(converted_messages)
-                await self.global_manager.session_manager.save_session(session)
+                for message in converted_messages:
+                    self.global_manager.session_manager_dispatcher.append_messages(session.messages, message, session.session_id)
+                await self.global_manager.session_manager_dispatcher.save_session(session)
             except Exception as e:
                 self.logger.error(f"Error converting events to messages: {e}")
 
@@ -255,11 +268,11 @@ class ChatInputHandler():
                 return message.get("timestamp")
         return None
 
-    def convert_events_to_messages(self, events):
+    def convert_events_to_messages(self, events, session_id):
         # Convertir les événements de l'historique de conversation en format de message approprié
         messages = []
         for event in events:
-            messages.append(self.construct_message(event))
+            self.session_manager_dispatcher.append_messages(messages, self.construct_message(event), session_id)
         return messages
 
     def construct_message(self, event_data):
@@ -332,7 +345,7 @@ class ChatInputHandler():
             session.total_time_ms += generation_time_ms
 
             # Sauvegarder la session après mise à jour du temps total
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return completion
         except Exception as e:
@@ -385,7 +398,7 @@ class ChatInputHandler():
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
         # Étape 2 : Enregistrer la réponse brute de GenAI pour le débogage
-        await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response YAML", is_internal=True)
+        await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response file", is_internal=True)
 
         try:
             # Étape 3 : Gestion de la conversion JSON ou YAML
@@ -420,7 +433,12 @@ class ChatInputHandler():
         # Mettre à jour les messages de la session avec la réponse de l'assistant
         assistant_message = {
             "role": "assistant",
-            "content": completion,
+            "content": [
+                {
+                    "type": "text",
+                    "text": completion
+                }
+            ],
             "timestamp": datetime.now().isoformat(),
             "actions": self.extract_actions(response_json),
             "cost": {
@@ -434,10 +452,11 @@ class ChatInputHandler():
             "plugin_name": self.chat_plugin.plugin_name,
             "model_name": self.chat_plugin.model_name,
             "generation_time_ms": generation_time_ms,
-            "from_action": False
+            "from_action": False,
+            "assistant_message_guid": str(uuid.uuid4())
         }
 
-        session.messages.append(assistant_message)
+        self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
 
         # Mettre à jour le temps total de génération dans la session
         if not hasattr(session, 'total_ms'):
@@ -445,7 +464,7 @@ class ChatInputHandler():
         session.total_ms += generation_time_ms
 
         # Sauvegarder la session mise à jour
-        await self.global_manager.session_manager.save_session(session)
+        await self.global_manager.session_manager_dispatcher.save_session(session)
 
         return response_json
 
@@ -626,7 +645,7 @@ class ChatInputHandler():
             })
 
             # Sauvegarder la session pour mettre à jour total_cost
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             cost_update_msg = (
                 f"🔹 Last: {total_tk} tk {total_cost:.4f}$ "

@@ -21,6 +21,8 @@ from utils.config_manager.config_model import (
 def test_bot_config():
     # Test valid BotConfig
     valid_data = {
+        "BOT_UNIQUE_ID": "unique_bot_id",
+        "SESSION_MANAGER_DEFAULT_PLUGIN_NAME": "default_session_manager_plugin",
         "CORE_PROMPT": "core_prompt",
         "MAIN_PROMPT": "main_prompt",
         "PROMPTS_FOLDER": "prompts_folder",
@@ -91,13 +93,36 @@ def test_plugins():
     # Test valid Plugins
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
     action_interactions = ActionInteractions(DEFAULT={"default_plugin": Plugin(**plugin_data)})
+
+    # Add required SESSION_MANAGERS field
+    session_managers_data = {
+        "DEFAULT": {
+            "default_session_manager": Plugin(
+                PLUGIN_NAME="default_session_manager_plugin",
+                SESSION_TTL=3600  # Assuming SESSION_TTL is a required field
+            )
+        }
+    }
+
     backend = Backend(
+        SESSION_MANAGERS=session_managers_data,
         INTERNAL_DATA_PROCESSING={"key": "value"},
         INTERNAL_QUEUE_PROCESSING={"key": "value"}
     )
-    user_interactions = UserInteractions(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
-    genai_interactions = GenaiInteractions(TEXT={"key": "value"}, IMAGE={"key": "value"}, VECTOR_SEARCH={"key": "value"})
-    user_interactions_behaviors = UserInteractionsBehaviors(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
+
+    user_interactions = UserInteractions(
+        INSTANT_MESSAGING={"key": "value"},
+        CUSTOM_API={"key": "value"}
+    )
+    genai_interactions = GenaiInteractions(
+        TEXT={"key": "value"},
+        IMAGE={"key": "value"},
+        VECTOR_SEARCH={"key": "value"}
+    )
+    user_interactions_behaviors = UserInteractionsBehaviors(
+        INSTANT_MESSAGING={"key": "value"},
+        CUSTOM_API={"key": "value"}
+    )
 
     plugins = Plugins(
         ACTION_INTERACTIONS=action_interactions,
@@ -108,10 +133,13 @@ def test_plugins():
     )
 
     assert plugins.ACTION_INTERACTIONS.DEFAULT["default_plugin"].PLUGIN_NAME == "plugin_name"
+    assert plugins.BACKEND.SESSION_MANAGERS == session_managers_data
 
 def test_config_model():
     # Test valid ConfigModel
     bot_config_data = {
+        "BOT_UNIQUE_ID": "unique_bot_id",
+        "SESSION_MANAGER_DEFAULT_PLUGIN_NAME": "default_session_manager_plugin",
         "CORE_PROMPT": "core_prompt",
         "MAIN_PROMPT": "main_prompt",
         "PROMPTS_FOLDER": "prompts_folder",
@@ -149,13 +177,36 @@ def test_config_model():
 
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
     action_interactions = ActionInteractions(DEFAULT={"default_plugin": Plugin(**plugin_data)})
+
+    # Add required SESSION_MANAGERS field
+    session_managers_data = {
+        "DEFAULT": {
+            "default_session_manager": Plugin(
+                PLUGIN_NAME="default_session_manager_plugin",
+                SESSION_TTL=3600  # Assuming SESSION_TTL is a required field
+            )
+        }
+    }
+
     backend = Backend(
+        SESSION_MANAGERS=session_managers_data,
         INTERNAL_DATA_PROCESSING={"key": "value"},
         INTERNAL_QUEUE_PROCESSING={"key": "value"}
     )
-    user_interactions = UserInteractions(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
-    genai_interactions = GenaiInteractions(TEXT={"key": "value"}, IMAGE={"key": "value"}, VECTOR_SEARCH={"key": "value"})
-    user_interactions_behaviors = UserInteractionsBehaviors(INSTANT_MESSAGING={"key": "value"}, CUSTOM_API={"key": "value"})
+
+    user_interactions = UserInteractions(
+        INSTANT_MESSAGING={"key": "value"},
+        CUSTOM_API={"key": "value"}
+    )
+    genai_interactions = GenaiInteractions(
+        TEXT={"key": "value"},
+        IMAGE={"key": "value"},
+        VECTOR_SEARCH={"key": "value"}
+    )
+    user_interactions_behaviors = UserInteractionsBehaviors(
+        INSTANT_MESSAGING={"key": "value"},
+        CUSTOM_API={"key": "value"}
+    )
 
     plugins = Plugins(
         ACTION_INTERACTIONS=action_interactions,
@@ -169,3 +220,4 @@ def test_config_model():
 
     assert config_model.BOT_CONFIG.CORE_PROMPT == "core_prompt"
     assert config_model.UTILS.LOGGING.LOCAL_LOGGING.PLUGIN_NAME == "file_plugin"
+    assert config_model.PLUGINS.BACKEND.SESSION_MANAGERS == session_managers_data

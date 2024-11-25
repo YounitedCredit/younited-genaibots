@@ -28,6 +28,7 @@ class AzureBlobStorageConfig(BaseModel):
     AZURE_BLOB_STORAGE_VECTORS_CONTAINER: str
     AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER: str
     AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER: str
+    AZURE_BLOB_STORAGE_CHAINOFTHOUGHTS_CONTAINER: str
 
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
@@ -104,6 +105,10 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def subprompts(self):
         return self.subprompts_container
 
+    @property
+    def chainofthoughts(self):
+        return self.chainofthoughts_container
+
     def initialize(self):
         self.logger.debug("Initializing Azure Blob Storage connection")
         self.connection_string = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CONNECTION_STRING
@@ -117,6 +122,7 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
         self.vectors_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_VECTORS_CONTAINER
         self.custom_actions_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER
         self.subprompts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER
+        self.chainofthoughts_container = self.azure_blob_storage_config.AZURE_BLOB_STORAGE_CHAINOFTHOUGHTS_CONTAINER
         self.plugin_name = self.azure_blob_storage_config.PLUGIN_NAME
 
         try:
@@ -167,22 +173,22 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.error(traceback.format_exc())
 
     async def remove_data(self, container_name: str, datafile_name: str, data: str) -> None:
-        self.logger.debug(f"Removing data to blob {datafile_name} in container {container_name}")
+        self.logger.debug(f"Removing data from blob {datafile_name} in container {container_name}")
         try:
             data_lower = data.lower()
-            existing_content = self.read_data_content(container_name, datafile_name)
-            if existing_content is None or existing_content=="":
-                self.logger.info(f"Data successfully Nothing to remove to blob {datafile_name}")
-            else:    
-                if data_lower in existing_content.lower():
-                    new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
+            existing_content = await self.read_data_content(container_name, datafile_name)
+            if existing_content is None or existing_content == "":
+                self.logger.info(f"Nothing to remove from blob {datafile_name}")
+                return
+
+            if data_lower in existing_content.lower():
+                new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
                 if new_content == "":
-                    new_content = " " 
-                await self.remove_data_content(data_container=container_name, data_file=datafile_name)
-                await self.write_data_content(data_container=container_name, data_file=datafile_name, data=new_content)
-                self.logger.info(f"Data successfully removed to blob {datafile_name}")
+                    new_content = " "
+                await self.write_data_content(container_name, datafile_name, new_content)
+                self.logger.info(f"Data successfully removed from blob {datafile_name}")
         except Exception as e:
-            self.logger.error(f"Failed to remove data to blob: {str(e)}")
+            self.logger.error(f"Failed to remove data from blob: {str(e)}")
             self.logger.error(traceback.format_exc())
 
     async def read_data_content(self, data_container, data_file: str):
@@ -275,22 +281,20 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             session = json.loads(blob_data)
             self.logger.debug("Session blob content parsed into JSON")
 
-            # Update the 'system' role content in the session
-            updated = False
-            for obj in session:
-                if obj.get('role') == 'system':
-                    self.logger.info("Found system role, updating content")
-                    obj['content'] = message
-                    updated = True
-                    break
-
-            if updated:
-                # Convert updated session to JSON and upload it back to the blob
-                updated_session_data = json.dumps(session)
-                await blob_client.upload_blob(updated_session_data, overwrite=True)
-                self.logger.info("Prompt system message update completed successfully")
+            # Check if system message exists, if not add it at the beginning
+            has_system = any(obj.get('role') == 'system' for obj in session)
+            if not has_system:
+                session.insert(0, {"role": "system", "content": message})
             else:
-                self.logger.warning("System role not found in session JSON, no changes made")
+                for obj in session:
+                    if obj.get('role') == 'system':
+                        obj['content'] = message
+                        break
+
+            # Convert updated session to JSON and upload it back to the blob
+            updated_session_data = json.dumps(session)
+            await blob_client.upload_blob(updated_session_data, overwrite=True)
+            self.logger.info("Prompt system message updated successfully")
 
         except Exception as e:
             self.logger.error(f"Failed to update prompt system message: {str(e)}")
@@ -330,3 +334,80 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
             self.logger.debug(f"Session update completed for {data_file} in container {data_container}")
         except Exception as e:
             self.logger.error(f"Failed to write updated session to blob: {str(e)}")
+
+    async def create_container(self, data_container):
+        try:
+            container_client = self.blob_service_client.get_container_client(data_container)
+            if not container_client.exists():
+                container_client.create_container()
+                self.logger.info(f"Created container: {data_container}")
+            else:
+                self.logger.info(f"Container already exists: {data_container}")
+        except Exception as e:
+            self.logger.error(f"Failed to create container {data_container}: {str(e)}")
+
+    def create_container_sync(self, data_container):
+        try:
+            container_client = self.blob_service_client.get_container_client(data_container)
+            if not container_client.exists():
+                container_client.create_container()
+                self.logger.info(f"Created container: {data_container}")
+            else:
+                self.logger.info(f"Container already exists: {data_container}")
+        except Exception as e:
+            self.logger.error(f"Failed to create container {data_container}: {str(e)}")
+
+    async def file_exists(self, container_name: str, file_name: str) -> bool:
+        """
+        Check if a file exists in the specified container.
+        """
+        file_path = os.path.join(self.root_directory, container_name, file_name)
+        return os.path.exists(file_path)
+
+    async def exists(self, container_name: str, file_name: str) -> bool:
+        """
+        Check if a file exists in the specified container.
+        
+        Args:
+            container_name (str): Name of the container
+            file_name (str): Name of the file to check
+            
+        Returns:
+            bool: True if the file exists, False otherwise
+        """
+        try:
+            blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=file_name)
+            return await blob_client.exists()
+        except Exception as e:
+            self.logger.error(f"Error checking if file {file_name} exists in container {container_name}: {str(e)}")
+            return False
+
+    async def clear_container(self, container_name: str):
+        """
+        Clear all contents of the specified container in Azure Blob Storage.
+        """
+        container_client = self.blob_service_client.get_container_client(container_name)
+        try:
+            async for blob in container_client.list_blobs():
+                blob_client = container_client.get_blob_client(blob)
+                blob_client.delete_blob()
+                self.logger.info(f"Blob {blob.name} successfully deleted.")
+            self.logger.info(f"All contents of container {container_name} have been cleared.")
+        except Exception as e:
+            self.logger.error(f"Failed to clear container {container_name}: {str(e)}")
+            raise
+
+    def clear_container_sync(self, container_name: str):
+        """
+        Clear all contents of the specified container in Azure Blob Storage.
+        """
+        container_client = self.blob_service_client.get_container_client(container_name)
+        try:
+            for blob in container_client.list_blobs():
+                blob_client = container_client.get_blob_client(blob)
+                blob_client.delete_blob()
+                self.logger.info(f"Blob {blob.name} successfully deleted.")
+            self.logger.info(f"All contents of container {container_name} have been cleared.")
+        except Exception as e:
+            self.logger.error(f"Failed to clear container {container_name}: {str(e)}")
+            raise

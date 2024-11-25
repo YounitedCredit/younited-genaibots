@@ -3,6 +3,7 @@ import copy
 import inspect
 import json
 import traceback
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -48,7 +49,6 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.azure_chatgpt_config = AzureChatGptConfig(**azure_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
-        self.session_manager = global_manager.session_manager
 
         # Dispatchers
         self.user_interaction_dispatcher = None
@@ -93,6 +93,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.session_manager_dispatcher = self.global_manager.session_manager_dispatcher
 
     def load_client(self):
         try:
@@ -163,9 +164,10 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             context = parameters.get('context', '')
             model_name = parameters.get('model_name', '')
             conversation_data = parameters.get('conversation_data', '')
+            target_messages = []
 
             # Retrieve or create a session for this thread
-            session = await self.global_manager.session_manager.get_or_create_session(
+            session = await self.global_manager.session_manager_dispatcher.get_or_create_session(
                 channel_id=event.channel_id,
                 thread_id=event.thread_id or event.timestamp,  # Use timestamp if thread_id is None
                 enriched=True
@@ -177,11 +179,16 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             # Add the automated user message to the session (with is_automated=True)
             automated_user_event = {
                 'role': 'user',
-                'content': input_param,
+                'content': [
+                        {
+                            'type': 'text',
+                            'text': input_param
+                        }
+                    ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
-            session.messages.append(automated_user_event)  # Append the automated message to the session
+            self.session_manager_dispatcher.append_messages(session.messages, automated_user_event, session.session_id)
 
             # Prepare the system message for the assistant
             if main_prompt:
@@ -190,23 +197,23 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                     data_file=f"{main_prompt}.txt"
                 )
                 if init_prompt:
-                    messages.insert(0, {"role": "system", "content": init_prompt})
+                    target_messages.insert(0, {"role": "system", "content": init_prompt})
             else:
-                messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
+                target_messages.insert(0, {"role": "system", "content": "No specific instruction provided."})
 
             # Append context and conversation data
             if context:
-                messages.append({"role": "user", "content": f"Here is additional context: {context}"})
+                target_messages.append({"role": "user", "content": f"Here is additional context: {context}"})
             if conversation_data:
-                messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
+                target_messages.append({"role": "user", "content": f"Conversation data: {conversation_data}"})
 
             # Append the user input
-            messages.append({"role": "user", "content": input_param})
+            target_messages.append({"role": "user", "content": input_param})
 
             # Call the model to generate the completion
             self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {model_name}..")
             generation_start_time = datetime.now()
-            completion, genai_cost_base = await self.generate_completion(messages, event, raw_output=True)
+            completion, genai_cost_base = await self.generate_completion(target_messages, event, raw_output=True)
             generation_end_time = datetime.now()
 
             # Calculate the generation time
@@ -220,7 +227,12 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             # Add the assistant's response to the session
             assistant_message = {
                 "role": "assistant",
-                "content": completion,  # Strip markers if needed
+                "content": [
+                        {
+                            "type": "text",
+                            "text": completion
+                        }
+                    ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,
@@ -234,11 +246,12 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 "model_name": self.model_name,
                 "generation_time_ms": generation_time_ms,
                 "from_action": True,  # Indicate that the message comes from an action
-                "action_payload": messages  # Include the messages that were sent to the model
+                "action_payload": messages,  # Include the messages that were sent to the model
+                "assistant_message_guid": str(uuid.uuid4())
             }
 
             # Add the assistant message to the session
-            session.messages.append(assistant_message)
+            self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
 
             # Update the total generation time in the session
             if not hasattr(session, 'total_time_ms'):
@@ -246,7 +259,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             session.total_time_ms += generation_time_ms
 
             # Save the updated session
-            await self.global_manager.session_manager.save_session(session)
+            await self.global_manager.session_manager_dispatcher.save_session(session)
 
             return completion
 

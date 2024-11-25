@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -91,21 +91,27 @@ async def test_handle_action(openai_chatgpt_plugin):
         origin_plugin_name="openai_chatgpt"
     )
 
-    with patch.object(openai_chatgpt_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
-         patch.object(openai_chatgpt_plugin.session_manager, 'save_session', new_callable=AsyncMock) as mock_save_session, \
+    with patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'save_session', new_callable=AsyncMock) as mock_save_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'append_messages', new_callable=MagicMock) as mock_append_messages, \
          patch.object(openai_chatgpt_plugin.backend_internal_data_processing_dispatcher, 'read_data_content', new_callable=AsyncMock) as mock_read_data_content, \
          patch.object(openai_chatgpt_plugin, 'generate_completion', new_callable=AsyncMock) as mock_generate_completion:
 
         fake_session = MagicMock()
         fake_session.messages = []
+        fake_session.session_id = "test_session"
         mock_get_or_create_session.return_value = fake_session
 
-        # Set up the return value with valid input and output token prices
+        def append_message(messages, message, session_id):
+            messages.append(message)
+
+        mock_append_messages.side_effect = append_message
+
         genai_cost_base = GenAICostBase(
             total_tk=100,
             prompt_tk=50,
             completion_tk=50,
-            input_token_price=0.01,  # Ensure token price is set here
+            input_token_price=0.01,
             output_token_price=0.02
         )
         mock_generate_completion.return_value = ("Generated response", genai_cost_base)
@@ -115,7 +121,6 @@ async def test_handle_action(openai_chatgpt_plugin):
         assert result == "Generated response"
         assert len(fake_session.messages) == 2
         mock_save_session.assert_called_once()
-
 
 # Test Error Handling in handle_request
 @pytest.mark.asyncio
@@ -176,7 +181,7 @@ async def test_generate_completion(openai_chatgpt_plugin):
 async def test_handle_action_with_missing_parameters(openai_chatgpt_plugin):
     action_input = ActionInput(
         action_name="generate_text",
-        parameters={  # Missing 'input' and other keys
+        parameters={
             "main_prompt": "test prompt"
         }
     )
@@ -194,38 +199,34 @@ async def test_handle_action_with_missing_parameters(openai_chatgpt_plugin):
         origin_plugin_name="openai_chatgpt"
     )
 
-    with patch.object(openai_chatgpt_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
-         patch.object(openai_chatgpt_plugin.session_manager, 'save_session', new_callable=AsyncMock) as mock_save_session, \
+    with patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'save_session', new_callable=AsyncMock) as mock_save_session, \
          patch.object(openai_chatgpt_plugin, 'generate_completion', new_callable=AsyncMock) as mock_generate_completion:
 
         fake_session = MagicMock()
         fake_session.messages = []
         mock_get_or_create_session.return_value = fake_session
 
-        # Set the mock to include valid input and output token prices
         genai_cost_base = GenAICostBase(
             total_tk=100,
             prompt_tk=50,
             completion_tk=50,
-            input_token_price=0.01,  # Ensure token price is set
-            output_token_price=0.02  # Ensure token price is set
+            input_token_price=0.01,
+            output_token_price=0.02
         )
-
-        mock_generate_completion.return_value = ("Generated response", genai_cost_base)
-
         mock_generate_completion.return_value = ("Generated response", genai_cost_base)
 
         result = await openai_chatgpt_plugin.handle_action(action_input, event)
 
         assert result == "Generated response"
-        mock_save_session.assert_called_once()
         assert len(fake_session.messages) == 2
+        mock_save_session.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_handle_action_without_main_prompt(openai_chatgpt_plugin):
     action_input = ActionInput(
         action_name="generate_text",
-        parameters={  # No 'main_prompt'
+        parameters={
             "input": "test input",
             "context": "test context",
             "conversation_data": "test conversation"
@@ -245,29 +246,91 @@ async def test_handle_action_without_main_prompt(openai_chatgpt_plugin):
         origin_plugin_name="openai_chatgpt"
     )
 
-    with patch.object(openai_chatgpt_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+    with patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'save_session', new_callable=AsyncMock) as mock_save_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'append_messages', new_callable=MagicMock) as mock_append_messages, \
          patch.object(openai_chatgpt_plugin, 'generate_completion', new_callable=AsyncMock) as mock_generate_completion:
 
+        messages_list = []
         fake_session = MagicMock()
-        fake_session.messages = []
+        fake_session.session_id = "test_session"
+        messages_property = PropertyMock(return_value=messages_list)
+        type(fake_session).messages = messages_property
         mock_get_or_create_session.return_value = fake_session
 
-        # Set the mock with valid input_token_price and output_token_price
+        def append_message(messages_list, message, session_id):
+            messages_list.append(message)
+
+        mock_append_messages.side_effect = append_message
+
         genai_cost_base = GenAICostBase(
             total_tk=100,
             prompt_tk=50,
             completion_tk=50,
-            input_token_price=0.01,  # Ensure token price is set
-            output_token_price=0.02  # Ensure token price is set
+            input_token_price=0.01,
+            output_token_price=0.02
         )
         mock_generate_completion.return_value = ("Generated response", genai_cost_base)
 
         result = await openai_chatgpt_plugin.handle_action(action_input, event)
 
         assert result == "Generated response"
-        assert len(fake_session.messages) == 2
-        mock_generate_completion.assert_called_once()
+        assert len(messages_list) == 2
+        mock_save_session.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_handle_action_with_missing_parameters(openai_chatgpt_plugin):
+    action_input = ActionInput(
+        action_name="generate_text",
+        parameters={
+            "main_prompt": "test prompt"
+        }
+    )
+    event = IncomingNotificationDataBase(
+        channel_id="channel_id",
+        thread_id="thread_id",
+        user_id="user_id",
+        text="user text",
+        timestamp="timestamp",
+        event_label="event_label",
+        response_id="response_id",
+        user_name="user_name",
+        user_email="user_email",
+        is_mention=True,
+        origin_plugin_name="openai_chatgpt"
+    )
+
+    with patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'save_session', new_callable=AsyncMock) as mock_save_session, \
+         patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'append_messages', new_callable=MagicMock) as mock_append_messages, \
+         patch.object(openai_chatgpt_plugin, 'generate_completion', new_callable=AsyncMock) as mock_generate_completion:
+
+        messages_list = []
+        fake_session = MagicMock()
+        fake_session.session_id = "test_session"
+        messages_property = PropertyMock(return_value=messages_list)
+        type(fake_session).messages = messages_property
+        mock_get_or_create_session.return_value = fake_session
+
+        def append_message(messages_list, message, session_id):
+            messages_list.append(message)
+
+        mock_append_messages.side_effect = append_message
+
+        genai_cost_base = GenAICostBase(
+            total_tk=100,
+            prompt_tk=50,
+            completion_tk=50,
+            input_token_price=0.01,
+            output_token_price=0.02
+        )
+        mock_generate_completion.return_value = ("Generated response", genai_cost_base)
+
+        result = await openai_chatgpt_plugin.handle_action(action_input, event)
+
+        assert result == "Generated response"
+        assert len(messages_list) == 2
+        mock_save_session.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_handle_action_error(openai_chatgpt_plugin):
@@ -289,7 +352,7 @@ async def test_handle_action_error(openai_chatgpt_plugin):
         origin_plugin_name="openai_chatgpt"
     )
 
-    with patch.object(openai_chatgpt_plugin.session_manager, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
+    with patch.object(openai_chatgpt_plugin.global_manager.session_manager_dispatcher, 'get_or_create_session', new_callable=AsyncMock) as mock_get_or_create_session, \
          patch.object(openai_chatgpt_plugin, 'generate_completion', new_callable=AsyncMock) as mock_generate_completion, \
          patch.object(openai_chatgpt_plugin.logger, 'error') as mock_logger_error:
 

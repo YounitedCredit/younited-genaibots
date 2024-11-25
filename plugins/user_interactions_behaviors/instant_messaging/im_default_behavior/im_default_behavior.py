@@ -20,10 +20,10 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         if not isinstance(global_manager, GlobalManager):
             raise TypeError("global_manager must be an instance of GlobalManager")
 
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
         self.logger = global_manager.logger
         bot_config_dict = global_manager.config_manager.config_model.BOT_CONFIG
-        self.bot_config : BotConfig = bot_config_dict
+        self.bot_config: BotConfig = bot_config_dict
         self.reaction_done = None
         self.reaction_generating = None
         self.reaction_writing = None
@@ -32,7 +32,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         self.STATIC_GUID = "1234-5678-ABCD-EFGH"
 
     def initialize(self):
-        #Dispatchers
+        # Dispatchers
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
@@ -45,7 +45,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
     @plugin_name.setter
     def plugin_name(self, value):
         self._plugin_name = value
-
 
     async def process_interaction(self, event_data, event_origin=None):
         try:
@@ -135,7 +134,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         channel_id=event.channel_id,
                         thread_id=event.thread_id,
                         reaction_name=self.reaction_wait,
-
                     )
                     return
 
@@ -159,7 +157,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.info("IM behavior: Event is a new message without mention and non-processed messages are not recorded, not processing.")
                     return
 
-
             # Check if there are pending messages in the queue for this event's channel/thread
             self.logger.info(f"IM behavior: Checking for pending messages in channel '{event.channel_id}' and thread '{event.thread_id}'")
             if await self.backend_internal_queue_processing_dispatcher.has_older_messages(
@@ -167,8 +164,8 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                 channel_id=event.channel_id,
                 thread_id=event.thread_id,
                 current_message_id=event.timestamp
-                ):
-                # check if the activate_message_queuing is enabled
+            ):
+                # Check if the activate_message_queuing is enabled
                 if self.global_manager.bot_config.ACTIVATE_MESSAGE_QUEUING:
                     event_json = event.to_json()
                     # Use a constant GUID to respect the dispatcher's structure
@@ -188,7 +185,19 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     if event.event_label == "message":
                         self.logger.warning(f"IM behavior: Message from channel {event.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False but this is the main thread message.")
                     else:
-                        await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+                        # Add 'wait' reaction
+                        reactions_actions = [
+                            {
+                                'action': 'add',
+                                'reaction': {
+                                    'event': event,
+                                    'channel_id': event.channel_id,
+                                    'timestamp': event.timestamp,
+                                    'reaction_name': self.reaction_wait
+                                }
+                            }
+                        ]
+                        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
                     return
                 else:
                     self.logger.info(f"IM behavior: Message from channel {event.channel_id} discarded due to pending messages and BotConfig ACTIVATE_MESSAGE_QUEUING is False.")
@@ -200,7 +209,19 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                         thread_id=thread_id
                     )
 
-                    await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=event.channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
+                    # Add 'wait' reaction
+                    reactions_actions = [
+                        {
+                            'action': 'add',
+                            'reaction': {
+                                'event': event,
+                                'channel_id': event.channel_id,
+                                'timestamp': event.timestamp,
+                                'reaction_name': self.reaction_wait
+                            }
+                        }
+                    ]
+                    await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
                     if not messages_in_wait_queue:
                         event_json = event.to_json()
@@ -210,7 +231,7 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                             thread_id=thread_id,
                             message_id=event.thread_id,
                             message=event_json,
-                            guid= self.STATIC_GUID
+                            guid=self.STATIC_GUID
                         )
 
                         await self.user_interaction_dispatcher.send_message(
@@ -237,14 +258,30 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             )
 
             # Remove the wait reaction and add the acknowledgment reaction
-            await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_wait)
-            await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=event.timestamp, reaction_name=self.reaction_acknowledge)
+            reactions_actions = [
+                {
+                    'action': 'remove',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': event.timestamp,
+                        'reaction_name': self.reaction_wait
+                    }
+                },
+                {
+                    'action': 'add',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': event.timestamp,
+                        'reaction_name': self.reaction_acknowledge
+                    }
+                }
+            ]
+            await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
             # If the event is a thread message, send a response
-            if event.event_label == "thread_message":
-                await self.user_interaction_dispatcher.send_message(event=event, message="", message_type=MessageType.TEXT, is_internal=True, show_ref=True)
-            else:
-                await self.user_interaction_dispatcher.send_message(event=event, message="", message_type=MessageType.TEXT, is_internal=True, show_ref=True)
+            await self.user_interaction_dispatcher.send_message(event=event, message="", message_type=MessageType.TEXT, is_internal=True, show_ref=True)
 
             # Process the incoming notification data
             await self.process_incoming_notification_data(event)
@@ -267,8 +304,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             elapsed_time = end_time - start_time  # Calculate elapsed time
             self.logger.info(f"IM behavior: process_interaction took {elapsed_time} seconds.")
 
-
-
     async def process_incoming_notification_data(self, event: IncomingNotificationDataBase):
         try:
             # Get the channel ID and timestamp from the event
@@ -284,9 +319,31 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             self.reaction_error = self.user_interaction_dispatcher.reactions.ERROR
             self.reaction_wait = self.user_interaction_dispatcher.reactions.WAIT
 
-            # Remove outdated reactions if necessary
-            await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
-            await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_wait)
+            # Collect reactions to remove and add
+            reactions_actions = [
+                # Remove outdated reactions
+                {
+                    'action': 'remove',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': timestamp,
+                        'reaction_name': self.reaction_done
+                    }
+                },
+                {
+                    'action': 'remove',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': timestamp,
+                        'reaction_name': self.reaction_wait
+                    }
+                }
+            ]
+
+            # Update reactions in batch
+            await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
             # Check if the event is a message and if mention is required based on the bot configuration
             if event.event_label == "message":
@@ -301,24 +358,84 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
             genai_output = await self.genai_interactions_text_dispatcher.handle_request(event)
 
             # Remove 'generating' reaction
-            await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_generating)
+            reactions_actions = [
+                {
+                    'action': 'remove',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': timestamp,
+                        'reaction_name': self.reaction_generating
+                    }
+                }
+            ]
+            await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
             # If GenAI output is present, process it as an Action and dispatch it to the action handler
             if genai_output and genai_output != "":
-                await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_writing)
+                # Add 'writing' reaction
+                reactions_actions = [
+                    {
+                        'action': 'add',
+                        'reaction': {
+                            'event': event,
+                            'channel_id': channel_id,
+                            'timestamp': timestamp,
+                            'reaction_name': self.reaction_writing
+                        }
+                    }
+                ]
+                await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
+
                 genai_response = await GenAIResponse.from_json(genai_output)
                 await self.global_manager.action_interactions_handler.handle_request(genai_response, event)
             else:
                 self.logger.info("IM behavior: No GenAI output generated. Not processing further.")
-
-            # If no GenAI output, mark the message as done
-            if genai_output is None:
-                await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
+                # If no GenAI output, mark the message as done
+                reactions_actions = [
+                    {
+                        'action': 'add',
+                        'reaction': {
+                            'event': event,
+                            'channel_id': channel_id,
+                            'timestamp': timestamp,
+                            'reaction_name': self.reaction_done
+                        }
+                    }
+                ]
+                await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
             # Clean up reactions after processing
-            await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_writing)
-            await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_acknowledge)
-            await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=self.reaction_done)
+            reactions_actions = [
+                {
+                    'action': 'remove',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': timestamp,
+                        'reaction_name': self.reaction_writing
+                    }
+                },
+                {
+                    'action': 'remove',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': timestamp,
+                        'reaction_name': self.reaction_acknowledge
+                    }
+                },
+                {
+                    'action': 'add',
+                    'reaction': {
+                        'event': event,
+                        'channel_id': channel_id,
+                        'timestamp': timestamp,
+                        'reaction_name': self.reaction_done
+                    }
+                }
+            ]
+            await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
             # Handle message queuing if enabled
             if self.bot_config.ACTIVATE_MESSAGE_QUEUING:
@@ -350,8 +467,29 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     self.logger.info(f"IM behavior: Found next message in the queue: {next_message_id}. Processing next message.")
                     try:
                         event_to_process = IncomingNotificationDataBase.from_json(next_message_content)
-                        await self.user_interaction_dispatcher.remove_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_wait)
-                        await self.user_interaction_dispatcher.add_reaction(event=event_to_process, channel_id=str(event_to_process.channel_id), timestamp=event_to_process.timestamp, reaction_name=self.reaction_acknowledge)
+                        # Remove 'wait' reaction and add 'acknowledge' reaction
+                        reactions_actions = [
+                            {
+                                'action': 'remove',
+                                'reaction': {
+                                    'event': event_to_process,
+                                    'channel_id': str(event_to_process.channel_id),
+                                    'timestamp': event_to_process.timestamp,
+                                    'reaction_name': self.reaction_wait
+                                }
+                            },
+                            {
+                                'action': 'add',
+                                'reaction': {
+                                    'event': event_to_process,
+                                    'channel_id': str(event_to_process.channel_id),
+                                    'timestamp': event_to_process.timestamp,
+                                    'reaction_name': self.reaction_acknowledge
+                                }
+                            }
+                        ]
+                        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
+
                         await self.process_incoming_notification_data(event_to_process)
                     except Exception as e:
                         self.logger.error(f"IM behavior: Error parsing next message: {str(e)}\n{traceback.format_exc()}")
@@ -383,8 +521,6 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     guid=self.STATIC_GUID  # Constant GUID
                 )
                 self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
-                # If message queuing is disabled, remove the "wait" reaction from the thread
-                self.logger.info(f"IM behavior: Message queuing is disabled, removing wait reaction from thread {event.thread_id}")
 
                 await self.backend_internal_queue_processing_dispatcher.dequeue_message(
                     data_container=self.backend_internal_queue_processing_dispatcher.wait_queue,
@@ -393,11 +529,11 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
                     message_id=event.thread_id,
                     guid=self.STATIC_GUID
                 )
+                # Remove 'wait' reaction from the thread
                 await self.user_interaction_dispatcher.remove_reaction_from_thread(
                     channel_id=event.channel_id,
                     thread_id=event.thread_id,
                     reaction_name=self.reaction_wait,
-
                 )
 
         except Exception as e:
@@ -407,23 +543,111 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         # This method is called when GenAI starts generating a completion.
         # It updates the reaction on the message in the specified channel and timestamp.
         # The 'writing' reaction is removed and the 'generating' reaction is added.
-        await self.update_reaction(event=event, channel_id=channel_id, timestamp=timestamp, remove_reaction= self.reaction_writing, add_reaction=self.reaction_generating)
+        reactions_actions = [
+            {
+                'action': 'remove',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_writing
+                }
+            },
+            {
+                'action': 'add',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_generating
+                }
+            }
+        ]
+        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
     async def end_genai_completion(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when GenAI finishes generating a completion.
         # It removes the 'generating' reaction from the message in the specified channel and timestamp.
-        await self.update_reaction(event=event, channel_id=channel_id, timestamp=timestamp, remove_reaction=self.reaction_generating)
+        reactions_actions = [
+            {
+                'action': 'remove',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_generating
+                }
+            }
+        ]
+        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
     async def begin_long_action(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when a long action starts.
         # It updates the reaction on the message in the specified channel and timestamp.
         # The 'generating' reaction is removed and the 'processing' reaction is added.
-        await self.update_reaction(event=event, channel_id=channel_id, timestamp=timestamp, remove_reaction= self.reaction_generating, add_reaction=self.reaction_processing)
+        reactions_actions = [
+            {
+                'action': 'remove',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_generating
+                }
+            },
+            {
+                'action': 'add',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_processing
+                }
+            }
+        ]
+        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
     async def end_long_action(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when a long action ends.
         # It removes the 'processing' reaction from the message in the specified channel and timestamp.
-        await self.update_reaction(event=event, channel_id=channel_id, timestamp=timestamp, remove_reaction= self.reaction_processing)
+        reactions_actions = [
+            {
+                'action': 'remove',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_processing
+                }
+            }
+        ]
+        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
+
+    async def mark_error(self, event: IncomingNotificationDataBase, channel_id, timestamp):
+        # This method is called when an error occurs.
+        # It updates the reaction on the message in the specified channel and timestamp.
+        # The 'generating' reaction is removed and the 'error' reaction is added.
+        reactions_actions = [
+            {
+                'action': 'remove',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_generating
+                }
+            },
+            {
+                'action': 'add',
+                'reaction': {
+                    'event': event,
+                    'channel_id': channel_id,
+                    'timestamp': timestamp,
+                    'reaction_name': self.reaction_error
+                }
+            }
+        ]
+        await self.user_interaction_dispatcher.update_reactions_batch(reactions_actions)
 
     async def begin_wait_backend(self, event: IncomingNotificationDataBase, channel_id, timestamp):
         # This method is called when the backend starts processing a request.
@@ -436,16 +660,3 @@ class ImDefaultBehaviorPlugin(UserInteractionsBehaviorBase):
         # It removes the 'wait' reaction from the message in the specified channel and timestamp.
         pass
         # await self.instantmessaging_plugin.remove_reaction(channel_id=channel_id, timestamp=timestamp, reaction_name= self.reaction_wait)
-
-    async def mark_error(self, event: IncomingNotificationDataBase, channel_id, timestamp):
-        # This method is called when an error occurs.
-        # It updates the reaction on the message in the specified channel and timestamp.
-        # The 'generating' reaction is removed and the 'error' reaction is added.
-        await self.update_reaction(event=event, channel_id=channel_id, timestamp=timestamp, remove_reaction= self.reaction_generating, add_reaction=self.reaction_error)
-
-    async def update_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, remove_reaction, add_reaction=None):
-        # This method is used to update the reaction on a message.
-        # It removes the specified reaction and, if provided, adds a new one.
-        await self.user_interaction_dispatcher.remove_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=remove_reaction)
-        if add_reaction:
-            await self.user_interaction_dispatcher.add_reaction(event=event, channel_id=channel_id, timestamp=timestamp, reaction_name=add_reaction)

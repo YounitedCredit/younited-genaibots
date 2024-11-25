@@ -1,243 +1,248 @@
 # ====================================================
-# BOT CONFIGURATION
+# ENVIRONMENT VARIABLES TEMPLATE FOR GENAI BOT
 # ====================================================
-LOG_DEBUG_LEVEL="info"
-LOAD_ACTIONS_FROM_BACKEND=False # If set to True, actions will not be loaded from plugins/action_interactions/custom but for action python script in the custom actions folder of the backend
-LOAD_PROMPTS_FROM_BACKEND=False # If set to True prompts and subprompts are loaded from the backend prompts and subprompts folder, if False from the path specified below
-LOCAL_PROMPTS_PATH="./prompts" # Path to local prompts folder
-LOCAL_SUBPROMPTS_PATH="./subprompts" ## Path to local subprompts folder
-
-
+# IMPORTANT INSTRUCTIONS:
+# 1. This template contains ALL possible environment variables that can be used
+#    with the bot configuration (config.yaml)
+# 2. You should ONLY include the variables that are actually used in your config.yaml
+#    (marked with $(VARIABLE_NAME))
+# 3. !!! CRITICAL !!! - When using a variable, REMOVE the inline comment after the value
+#    Example:
+#    Wrong:  BOT_UNIQUE_ID="my-bot"  # Unique identifier for bot instance
+#    Correct: BOT_UNIQUE_ID="my-bot"
+# 4. Keep this template as reference for all possible settings
 # ====================================================
-# PROMPT CONFIGURATION
-# ====================================================
-CORE_PROMPT="core_prompt" 
-MAIN_PROMPT="main_prompt"
-FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"
 
 # ====================================================
-# BOT BEHAVIOR CONFIGURATION
+# BOT CONFIG - CORE SETTINGS
 # ====================================================
-REQUIRE_MENTION_NEW_MESSAGE = False # If set to True, the bot will only respond to new thread where the bot is mentioned
-REQUIRE_MENTION_THREAD_MESSAGE = True # if set to True, the bot will only respond in a thread to messages where the bot is mentioned (default recommanded behavior)
-GET_ALL_THREAD_FROM_MESSAGE_LINKS = False # If set to true, the bot will get all thread from the message links and not only the specific message that is forwarded
-ACTIVATE_MESSAGE_QUEUING = False # If set to True, when the bot is already generating an answer, the bot will queue the message and generate the answer when the bot is free. False the bot will not process new messages until it is free.
-ACTIVATE_USER_INTERACTION_EVENTS_QUEUING = True # If set to True, event for the user_interaction target will be queued and processed independently of the generative AI process. Recommended.
+BOT_UNIQUE_ID="my-bot-id"  # Unique identifier for the bot instance
+LOG_DEBUG_LEVEL="info"  # Logging level (options: info, debug, warning, error)
 
 # ====================================================
-# BOT DEFAULT PLUGINS
+# BOT CONFIG - PROMPT SETTINGS
 # ====================================================
-ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="main_actions"
-USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="im_default_behavior"
-GENAI_TEXT_DEFAULT_PLUGIN_NAME="azure_chatgpt"
-GENAI_IMAGE_DEFAULT_PLUGIN_NAME="azure_dalle"
-GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="openai_file_search"
-INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="file_system"
-INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="file_system_queue"
+CORE_PROMPT="core_prompt"  # Name of the core prompt file without extension
+MAIN_PROMPT="main_prompt"  # Name of the main prompt file without extension
+LOAD_PROMPTS_FROM_BACKEND="False"  # Whether to load prompts from backend storage instead of local files
+LOCAL_PROMPTS_PATH="./prompts"  # Directory path containing main prompts
+LOCAL_SUBPROMPTS_PATH="./subprompts"  # Directory path containing sub-prompts
+FEEDBACK_GENERAL_BEHAVIOR="General_Global.txt"  # Filename for general feedback behavior configuration
 
 # ====================================================
-# LOGGING - LOCAL LOGGING
+# BOT CONFIG - BEHAVIOR SETTINGS
 # ====================================================
-LOCAL_LOGGING_FILE_PATH="C:\\LOGS\\GENAI_BOT.log"  # File path for storing local logs
+LOAD_ACTIONS_FROM_BACKEND="False"  # Whether to load custom actions from backend storage
+REQUIRE_MENTION_NEW_MESSAGE="False"  # Whether the bot requires being mentioned to respond to new messages
+REQUIRE_MENTION_THREAD_MESSAGE="True"  # Whether the bot requires being mentioned to respond in threads
+GET_ALL_THREAD_FROM_MESSAGE_LINKS="False"  # Whether to fetch entire thread history from message links
+ACTIVATE_MESSAGE_QUEUING="False"  # Whether to queue messages when bot is busy
+ACTIVATE_USER_INTERACTION_EVENTS_QUEUING="True"  # Whether to queue user interaction events
 
 # ====================================================
-# LOGGING - AZURE LOGGING
+# BOT CONFIG - DEFAULT PLUGINS
 # ====================================================
-# AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING="your_application_insights_connection_string"  # Connection string for Azure Application Insights
+ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME="main_actions"  # Default plugin for handling action interactions
+INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME="file_system"  # Default plugin for internal data processing
+USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME="im_default_behavior"  # Default behavior for instant messaging
+GENAI_TEXT_DEFAULT_PLUGIN_NAME="openai_chatgpt"  # Default text generation plugin (options: openai_chatgpt, azure_chatgpt)
+GENAI_IMAGE_DEFAULT_PLUGIN_NAME="openai_dalle"  # Default image generation plugin (options: openai_dalle, azure_dalle)
+GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="openai_file_search"  # Default vector search plugin
+INTERNAL_QUEUE_PROCESSING_DEFAULT_PLUGIN_NAME="file_system_queue"  # Default queue processing plugin
+SESSION_MANAGER_DEFAULT_PLUGIN_NAME="default_session_manager"  # Default session management plugin
 
 # ====================================================
-# BACKEND DATA - FILE SYSTEM CONFIGURATION
+# PLUGINS - BACKEND - FILE SYSTEM
 # ====================================================
-FILE_SYSTEM_DIRECTORY="C:\\GenAI" # Directory path for storing backend data
-FILE_SYSTEM_SESSIONS_CONTAINER="sessions"
-FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"
-FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"
-FILE_SYSTEM_COSTS_CONTAINER="costs"
-FILE_SYSTEM_PROCESSING_CONTAINER="processing"
-FILE_SYSTEM_ABORT_CONTAINER="abort"
-FILE_SYSTEM_VECTORS_CONTAINER="vectors"
-FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"
-FILE_SYSTEM_PROMPTS_CONTAINER="prompts"
-FILE_SYSTEM_SUBPROMPTS_CONTAINER="subprompts"
+FILE_SYSTEM_DIRECTORY="C:\\GenAI"  # Root directory for file system storage
+FILE_SYSTEM_SESSIONS_CONTAINER="sessions"  # Directory name for storing session data
+FILE_SYSTEM_FEEDBACKS_CONTAINER="feedbacks"  # Directory name for storing feedback data
+FILE_SYSTEM_CONCATENATE_CONTAINER="concatenate"  # Directory name for storing concatenated data
+FILE_SYSTEM_PROMPTS_CONTAINER="prompts"  # Directory name for storing prompts
+FILE_SYSTEM_COSTS_CONTAINER="costs"  # Directory name for storing cost data
+FILE_SYSTEM_PROCESSING_CONTAINER="processing"  # Directory name for storing processing data
+FILE_SYSTEM_ABORT_CONTAINER="abort"  # Directory name for storing abort information
+FILE_SYSTEM_VECTORS_CONTAINER="vectors"  # Directory name for storing vector data
+FILE_SYSTEM_CUSTOM_ACTIONS_CONTAINER="custom_actions"  # Directory name for storing custom actions
+FILE_SYSTEM_SUBPROMPTS_CONTAINER="subprompts"  # Directory name for storing subprompts
+FILE_SYSTEM_CHAINOFTHOUGHTS_CONTAINER="chainofthoughts"  # Directory name for storing chain of thoughts
 
 # ====================================================
-# BACKEND DATA - Azure Blob Storage
+# PLUGINS - BACKEND - AZURE BLOB STORAGE
 # ====================================================
-#AZURE_BLOB_STORAGE_CONNECTION_STRING="Blob storage connection string"
-#AZURE_BLOB_STORAGE_ABORT_CONTAINER="abort"
-#AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER="concatenate"
-#AZURE_BLOB_STORAGE_COSTS_CONTAINER="costs"
-#AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER="feedbacks"
-#AZURE_BLOB_STORAGE_PROCESSING_CONTAINER="processing"
-#AZURE_BLOB_STORAGE_SESSIONS_CONTAINER="sessions"
-#AZURE_BLOB_STORAGE_VECTORS_CONTAINER="vectors"
-#AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER="custom-actions"
-#AZURE_BLOB_STORAGE_PROMPTS_CONTAINER="prompts"
-#AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER="subprompts"
+AZURE_BLOB_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;..."  # Full Azure Blob Storage connection string
+AZURE_BLOB_STORAGE_SESSIONS_CONTAINER="sessions"  # Container name for sessions in Azure Storage
+AZURE_BLOB_STORAGE_FEEDBACKS_CONTAINER="feedbacks"  # Container name for feedbacks in Azure Storage
+AZURE_BLOB_STORAGE_CONCATENATE_CONTAINER="concatenate"  # Container name for concatenated data in Azure Storage
+AZURE_BLOB_STORAGE_PROMPTS_CONTAINER="prompts"  # Container name for prompts in Azure Storage
+AZURE_BLOB_STORAGE_COSTS_CONTAINER="costs"  # Container name for costs in Azure Storage
+AZURE_BLOB_STORAGE_PROCESSING_CONTAINER="processing"  # Container name for processing data in Azure Storage
+AZURE_BLOB_STORAGE_ABORT_CONTAINER="abort"  # Container name for abort info in Azure Storage
+AZURE_BLOB_STORAGE_VECTORS_CONTAINER="vectors"  # Container name for vectors in Azure Storage
+AZURE_BLOB_STORAGE_CUSTOM_ACTIONS_CONTAINER="custom-actions"  # Container name for custom actions in Azure Storage
+AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER="subprompts"  # Container name for subprompts in Azure Storage
+AZURE_BLOB_STORAGE_CHAINOFTHOUGHTS_CONTAINER="chainofthoughts"  # Container name for chain of thoughts in Azure Storage
 
 # ====================================================
-# BACKEND QUEUE - FILE SYSTEM QUEUE CONFIGURATION
+# PLUGINS - BACKEND - QUEUE SETTINGS - FILE SYSTEM
 # ====================================================
-FILE_SYSTEM_QUEUE_DIRECTORY = "C:\\GenAI\\" # Directory path for storing backend queue data
-FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_CONTAINER="messages_queue"
-FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER="internal_events_queue"
-FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER="external_events_queue"
-FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER="wait_queue"
-FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_TTL=120     
-FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_TTL=120
-FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL=120
-FILE_SYSTEM_QUEUE_WAIT_QUEUE_TTL=120
+FILE_SYSTEM_QUEUE_DIRECTORY="C:\\GenAI"  # Root directory for queue file system
+FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_CONTAINER="messages_queue"  # Directory for message queue
+FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER="internal_events_queue"  # Directory for internal events queue
+FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER="external_events_queue"  # Directory for external events queue
+FILE_SYSTEM_QUEUE_WAIT_QUEUE_CONTAINER="wait_queue"  # Directory for wait queue
+FILE_SYSTEM_QUEUE_MESSAGES_QUEUE_TTL="120"  # Time-to-live in seconds for messages
+FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_TTL="120"  # Time-to-live in seconds for internal events
+FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL="120"  # Time-to-live in seconds for external events
+FILE_SYSTEM_QUEUE_WAIT_QUEUE_TTL="120"  # Time-to-live in seconds for wait queue items
 
 # ====================================================
-# BACKEND QUEUE - Azure Blob Storage Queue Configuration
+# PLUGINS - BACKEND - QUEUE SETTINGS - AZURE BLOB STORAGE
 # ====================================================
-#AZURE_BLOB_STORAGE_QUEUE_CONNECTION_STRING="Blob storage connection string"
-#AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER="messages-queue"
-#AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER="internal-events-queue"
-#AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER="external-events-queue"
-#AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER="wait-queue"
-#AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_TTL=120
-#AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_TTL=120
-#AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL=120
-#AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_TTL=120
+AZURE_BLOB_STORAGE_QUEUE_CONNECTION_STRING="DefaultEndpointsProtocol=https;..."  # Azure Queue Storage connection string
+AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_CONTAINER="messages-queue"  # Container for message queue in Azure
+AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_CONTAINER="internal-events-queue"  # Container for internal events in Azure
+AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_CONTAINER="external-events-queue"  # Container for external events in Azure
+AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_CONTAINER="wait-queue"  # Container for wait queue in Azure
+AZURE_BLOB_STORAGE_QUEUE_MESSAGES_QUEUE_TTL="120"  # TTL in seconds for messages in Azure Queue
+AZURE_BLOB_STORAGE_QUEUE_INTERNAL_EVENTS_QUEUE_TTL="120"  # TTL in seconds for internal events in Azure Queue
+AZURE_BLOB_STORAGE_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL="120"  # TTL in seconds for external events in Azure Queue
+AZURE_BLOB_STORAGE_QUEUE_WAIT_QUEUE_TTL="120"  # TTL in seconds for wait queue items in Azure Queue
 
 # ====================================================
-# USER INTERACTIONS - INSTANT MESSAGING (SLACK) CONFIGURATION
+# PLUGINS - USER INTERACTIONS - SLACK
 # ====================================================
-SLACK_SIGNING_SECRET="your_slack_signing_secret"  # Slack signing secret for verifying requests
-SLACK_BOT_TOKEN="xoxb-your-bot-token"  # Bot user OAuth access token
-SLACK_BOT_USER_TOKEN="xoxp-your-user-token"  # User OAuth access token
-SLACK_BOT_USER_ID="U1234567890"  # Slack bot user ID
+SLACK_SIGNING_SECRET="your-slack-signing-secret"  # Secret key provided by Slack for request verification
+SLACK_BOT_TOKEN="xoxb-your-bot-token"  # Bot User OAuth Token starting with xoxb-
+SLACK_BOT_USER_TOKEN="xoxp-your-user-token"  # User OAuth Token starting with xoxp-
+SLACK_BOT_USER_ID="U1234567890"  # Bot's user ID in Slack (starts with U)
 SLACK_AUTHORIZED_CHANNELS="C1234567890,C0987654321"  # Comma-separated list of authorized channel IDs
-SLACK_AUTHORIZED_APPS=""  # Comma-separated list of authorized app IDs
-SLACK_AUTHORIZED_WEBHOOKS=""  # Comma-separated list of authorized webhook IDs
-SLACK_FEEDBACK_CHANNEL=""  # Channel ID for feedback messages
-SLACK_FEEDBACK_BOT_ID=""  # Bot ID for feedback messages
-SLACK_INTERNAL_CHANNEL="C1122334455"  # Internal channel ID for bot communications
-SLACK_WORKSPACE_NAME="your_workspace_name"  # Name of the Slack workspace
-SLACK_AUTHORIZE_DIRECT_MESSAGE=True  # Allow direct messages to the bot
+SLACK_AUTHORIZED_APPS=""  # Comma-separated list of authorized Slack app IDs
+SLACK_AUTHORIZED_WEBHOOKS=""  # Comma-separated list of authorized webhook URLs
+SLACK_FEEDBACK_CHANNEL="C1234567890"  # Channel ID where feedback should be sent
+SLACK_FEEDBACK_BOT_ID="B1234567890"  # Bot ID for feedback functionality
+SLACK_INTERNAL_CHANNEL="C1234567890"  # Channel ID for internal bot communications
+SLACK_WORKSPACE_NAME="your-workspace"  # Name of your Slack workspace
+SLACK_AUTHORIZE_DIRECT_MESSAGE="True"  # Whether to allow direct messages to the bot
 
 # ====================================================
-# USER INTERACTIONS - INSTANT MESSAGING (TEAMS) CONFIGURATION
+# PLUGINS - USER INTERACTIONS - TEAMS
 # ====================================================
-# TEAMS_BEHAVIOR_PLUGIN_NAME="your_teams_behavior_plugin_name"  # Plugin name for Teams behavior
-# TEAMS_ROUTE_PATH="/teams/webhook"  # Route path for Teams webhook
-# TEAMS_ROUTE_METHODS="POST"  # HTTP methods for Teams route
-# TEAMS_PLUGIN_DIRECTORY="plugins/teams"  # Directory for Teams plugins
-# TEAMS_MESSAGE_TTL=3600  # Message time-to-live in seconds
-# TEAMS_SIGNING_SECRET="your_teams_signing_secret"  # Teams signing secret
-# TEAMS_BOT_TOKEN="your_teams_bot_token"  # Teams bot token
-# TEAMS_BOT_USER_ID="your_teams_bot_user_id"  # Teams bot user ID
-# TEAMS_API_URL="https://api.teams.microsoft.com/"  # Teams API URL
-# TEAMS_AUTHORIZED_CHANNELS="your_teams_authorized_channels"  # Comma-separated list of authorized Teams channels
-# TEAMS_AUTHORIZED_APPS="your_teams_authorized_apps"  # Comma-separated list of authorized Teams apps
-# TEAMS_FEEDBACK_CHANNEL="your_teams_feedback_channel"  # Teams feedback channel ID
-# TEAMS_FEEDBACK_BOT_ID="your_teams_feedback_bot_id"  # Teams feedback bot ID
-# TEAMS_INTERNAL_CHANNEL="your_teams_internal_channel"  # Teams internal channel ID
-# TEAMS_WORKSPACE_NAME="your_teams_workspace_name"  # Teams workspace name
+TEAMS_BEHAVIOR_PLUGIN_NAME="teams_default_behavior"  # Plugin name for Teams behavior
+TEAMS_ROUTE_PATH="/teams/webhook"  # Webhook route path for Teams
+TEAMS_ROUTE_METHODS="POST"  # HTTP method for Teams webhook
+TEAMS_PLUGIN_DIRECTORY="plugins/teams"  # Directory for Teams plugins
+TEAMS_MESSAGE_TTL="3600"  # Time-to-live for Teams messages in seconds
+TEAMS_SIGNING_SECRET="your-teams-secret"  # Teams signing secret for verification
+TEAMS_BOT_TOKEN="your-teams-bot-token"  # Bot token for Teams
+TEAMS_BOT_USER_ID="your-teams-bot-id"  # Bot user ID in Teams
+TEAMS_API_URL="https://api.teams.microsoft.com/"  # Teams API endpoint
+TEAMS_AUTHORIZED_CHANNELS="channel1,channel2"  # Comma-separated list of authorized Teams channels
+TEAMS_AUTHORIZED_APPS="app1,app2"  # Comma-separated list of authorized Teams apps
+TEAMS_FEEDBACK_CHANNEL="feedback-channel"  # Channel ID for Teams feedback
+TEAMS_FEEDBACK_BOT_ID="feedback-bot-id"  # Bot ID for Teams feedback
+TEAMS_INTERNAL_CHANNEL="internal-channel"  # Channel for internal Teams communications
+TEAMS_WORKSPACE_NAME="your-teams-workspace"  # Name of Teams workspace
 
 # ====================================================
-# GENAI INTERACTIONS - TEXT (OPENAI ChatGPT)
+# PLUGINS - GENAI INTERACTIONS - TEXT - OPENAI CHATGPT
 # ====================================================
-OPENAI_CHATGPT_API_KEY="<YOUR OPENAI API KEY>"  # OpenAI API key
-OPENAI_CHATGPT_MODEL_NAME="gpt-4-turbo" #  Model name for OpenAI ChatGPT
-OPENAI_CHATGPT_VISION_MODEL_NAME="gpt-4o" # Model name for vision capabilities in OpenAI ChatGPT
-
-OPENAI_CHATGPT_INPUT_TOKEN_PRICE="0.0025"
-OPENAI_CHATGPT_OUTPUT_TOKEN_PRICE="0.01"
-
-# Assistant settings (if using an assistant with OpenAI, otherwise leave empty)
-OPENAI_CHATGPT_IS_ASSISTANT=False
-OPENAI_CHATGPT_ASSISTANT_ID="" 
+OPENAI_CHATGPT_INPUT_TOKEN_PRICE="0.0025"  # Cost per input token for OpenAI ChatGPT
+OPENAI_CHATGPT_OUTPUT_TOKEN_PRICE="0.01"  # Cost per output token for OpenAI ChatGPT
+OPENAI_CHATGPT_API_KEY="your-openai-api-key"  # API key from OpenAI platform
+OPENAI_CHATGPT_MODEL_NAME="gpt-4-turbo"  # Model name for ChatGPT (e.g., gpt-4-turbo, gpt-3.5-turbo)
+OPENAI_CHATGPT_VISION_MODEL_NAME="gpt-4-vision-preview"  # Model name for vision capabilities
 
 # ====================================================
-# GENAI INTERACTIONS - TEXT (Azure ChatGPT)
+# PLUGINS - GENAI INTERACTIONS - TEXT - AZURE CHATGPT
 # ====================================================
 AZURE_CHATGPT_INPUT_TOKEN_PRICE="0.0025"  # Cost per input token for Azure ChatGPT
 AZURE_CHATGPT_OUTPUT_TOKEN_PRICE="0.01"  # Cost per output token for Azure ChatGPT
-AZURE_CHATGPT_OPENAI_KEY="your_azure_openai_api_key"  # Azure OpenAI API key
-AZURE_CHATGPT_OPENAI_ENDPOINT="https://your-openai-endpoint.openai.azure.com/"  # Azure OpenAI endpoint URL
-AZURE_CHATGPT_OPENAI_API_VERSION="2023-06-01-preview"  # Azure OpenAI API version
-AZURE_CHATGPT_MODEL_NAME="gpt-4-turbo-ga"  # Model name for Azure ChatGPT
-AZURE_CHATGPT_VISION_MODEL_NAME="gpt-4-vision"  # Model name for vision capabilities in Azure ChatGPT
+AZURE_CHATGPT_OPENAI_KEY="your-azure-openai-key"  # Azure OpenAI API key
+AZURE_CHATGPT_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"  # Azure OpenAI endpoint URL
+AZURE_CHATGPT_OPENAI_API_VERSION="2024-05-01-preview"  # Azure OpenAI API version
+AZURE_CHATGPT_MODEL_NAME="gpt-4"  # Model deployment name in Azure
+AZURE_CHATGPT_VISION_MODEL_NAME="gpt-4-vision"  # Vision model deployment name in Azure
 
 # ====================================================
-# GENAI INTERACTIONS - TEXT (Azure Mistral)
+# PLUGINS - GENAI INTERACTIONS - TEXT - AZURE MISTRAL
 # ====================================================
-#AZURE_MISTRAL_INPUT_TOKEN_PRICE="0.009"  # Cost per input token for Azure Mistral
-#AZURE_MISTRAL_OUTPUT_TOKEN_PRICE="0.003"  # Cost per output token for Azure Mistral
-#AZURE_MISTRAL_KEY="your_azure_mistral_api_key"  # API key for Azure Mistral
-#AZURE_MISTRAL_ENDPOINT="https://your-mistral-endpoint.inference.ai.azure.com"  # Endpoint URL for Azure Mistral
-#AZURE_MISTRAL_MODELNAME="Mistral-large"  # Model name for Azure Mistral
+AZURE_MISTRAL_INPUT_TOKEN_PRICE="0.009"  # Cost per input token for Mistral
+AZURE_MISTRAL_OUTPUT_TOKEN_PRICE="0.003"  # Cost per output token for Mistral
+AZURE_MISTRAL_KEY="your-mistral-key"  # Azure Mistral API key
+AZURE_MISTRAL_ENDPOINT="https://your-mistral.azure.com"  # Azure Mistral endpoint
+AZURE_MISTRAL_MODELNAME="Mistral-large"  # Mistral model name in Azure
 
 # ====================================================
-# GENAI INTERACTIONS - TEXT (VertexAI Gemini)
+# PLUGINS - GENAI INTERACTIONS - TEXT - AZURE LLAMA 70B
 # ====================================================
-#VERTEXAI_GEMINI_INPUT_TOKEN_PRICE="0.075"  # Cost per input token for Vertex AI Gemini
-#VERTEXAI_GEMINI_OUTPUT_TOKEN_PRICE="0.30"  # Cost per output token for Vertex AI Gemini
-#VERTEXAI_GEMINI_KEY="your_vertexai_service_account_json"  # Service account JSON key for Vertex AI
-#VERTEXAI_GEMINI_LOCATION="europe-west4"  # Location for Vertex AI services
-#VERTEXAI_GEMINI_MAX_OUTPUT_TOKENS="8192"  # Maximum output tokens for Vertex AI Gemini
-#VERTEXAI_GEMINI_MODELNAME="gemini-1.5-pro-001"  # Model name for Vertex AI Gemini
-#VERTEXAI_GEMINI_PROJECTNAME="your_project_name"  # GCP project name
-#VERTEXAI_GEMINI_TEMPERATURE="0.1"  # Temperature setting for generation
-#VERTEXAI_GEMINI_TOP_P="0.1"  # Top-p sampling parameter
+AZURE_LLAMA70B_INPUT_TOKEN_PRICE="0.00533"  # Cost per input token for LLaMA 70B
+AZURE_LLAMA70B_OUTPUT_TOKEN_PRICE="0.016"  # Cost per output token for LLaMA 70B
+AZURE_LLAMA70B_KEY="your-llama-key"  # Azure LLaMA API key
+AZURE_LLAMA70B_ENDPOINT="https://your-llama.azure.com"  # Azure LLaMA endpoint
+AZURE_LLAMA70B_MODELNAME="Meta-Llama-70B"  # LLaMA model name in Azure
 
 # ====================================================
-# GENAI INTERACTIONS - TEXT (Azure LLaMA 70B)
+# PLUGINS - GENAI INTERACTIONS - TEXT - AZURE COMMANDR
 # ====================================================
-#AZURE_LLAMA70B_INPUT_TOKEN_PRICE="0.00533"  # Cost per input token for Azure LLaMA 70B
-#AZURE_LLAMA70B_OUTPUT_TOKEN_PRICE="0.016"  # Cost per output token for Azure LLaMA 70B
-#AZURE_LLAMA70B_KEY="your_azure_llama70b_api_key"  # API key for Azure LLaMA 70B
-#AZURE_LLAMA70B_ENDPOINT="https://your-llama70b-endpoint.inference.ai.azure.com"  # Endpoint URL for Azure LLaMA 70B
-#AZURE_LLAMA70B_MODELNAME="Meta-Llama-70B-Instruct"  # Model name for Azure LLaMA 70B
+AZURE_COMMANDR_INPUT_TOKEN_PRICE="0.003"  # Cost per input token for CommandR
+AZURE_COMMANDR_OUTPUT_TOKEN_PRICE="0.015"  # Cost per output token for CommandR
+AZURE_COMMANDR_KEY="your-commandr-key"  # Azure CommandR API key
+AZURE_COMMANDR_ENDPOINT="https://your-commandr.azure.com"  # Azure CommandR endpoint
+AZURE_COMMANDR_MODELNAME="Cohere-command-r"  # CommandR model name in Azure
 
 # ====================================================
-# GENAI INTERACTIONS - TEXT (Azure CommandR)
+# PLUGINS - GENAI INTERACTIONS - TEXT - VERTEX AI GEMINI
 # ====================================================
-#AZURE_COMMANDR_INPUT_TOKEN_PRICE="0.003"  # Cost per input token for Azure CommandR
-#AZURE_COMMANDR_OUTPUT_TOKEN_PRICE="0.015"  # Cost per output token for Azure CommandR
-#AZURE_COMMANDR_KEY="your_azure_commandr_api_key"  # API key for Azure CommandR
-#AZURE_COMMANDR_ENDPOINT="https://your-commandr-endpoint.inference.ai.azure.com"  # Endpoint URL for Azure CommandR
-#AZURE_COMMANDR_MODELNAME="Cohere-command-r"  # Model name for Azure CommandR
+VERTEXAI_GEMINI_INPUT_TOKEN_PRICE="0.075"  # Cost per input token for Gemini
+VERTEXAI_GEMINI_OUTPUT_TOKEN_PRICE="0.30"  # Cost per output token for Gemini
+VERTEXAI_GEMINI_KEY="your-service-account-json"  # GCP service account key JSON
+VERTEXAI_GEMINI_LOCATION="europe-west4"  # GCP region for Vertex AI
+VERTEXAI_GEMINI_MAX_OUTPUT_TOKENS="8192"  # Maximum output tokens for generation
+VERTEXAI_GEMINI_MODELNAME="gemini-1.5-pro-001"  # Gemini model name
+VERTEXAI_GEMINI_PROJECTNAME="your-gcp-project"  # GCP project ID
+VERTEXAI_GEMINI_TEMPERATURE="0.1"  # Temperature for generation (0-1)
+VERTEXAI_GEMINI_TOP_P="0.1"  # Top-p sampling parameter (0-1)
 
 # ====================================================
-# GENAI INTERACTIONS - IMAGE (Azure DALL-E)
+# PLUGINS - GENAI INTERACTIONS - IMAGE - AZURE DALLE
 # ====================================================
 AZURE_DALLE_INPUT_TOKEN_PRICE="0.01"  # Cost per input token for Azure DALL-E
 AZURE_DALLE_OUTPUT_TOKEN_PRICE="0.03"  # Cost per output token for Azure DALL-E
-AZURE_DALLE_OPENAI_KEY="your_azure_dalle_api_key"  # Azure OpenAI API key for DALL-E
-AZURE_DALLE_OPENAI_ENDPOINT="https://your-openai-endpoint.openai.azure.com/"  # Endpoint URL for Azure DALL-E
-AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME="your_dalle_deployment_name"  # Model name for image generation
-AZURE_DALLE_OPENAI_API_VERSION="2023-12-01-preview"  # API version for Azure DALL-E
+AZURE_DALLE_OPENAI_KEY="your-azure-dalle-key"  # Azure DALL-E API key
+AZURE_DALLE_OPENAI_ENDPOINT="https://your-dalle.openai.azure.com/"  # Azure DALL-E endpoint
+AZURE_DALLE_OPENAI_API_VERSION="2024-05-01-preview"  # Azure DALL-E API version
+AZURE_DALLE_IMAGE_GENERATOR_MODEL_NAME="dall-e-3"  # DALL-E model deployment name
 
 # ====================================================
-# GENAI INTERACTIONS - VECTORSEARCH (OpenAI File Search)
+# PLUGINS - GENAI INTERACTIONS - IMAGE - OPENAI DALLE
 # ====================================================
-OPENAI_FILE_SEARCH_OPENAI_KEY="your_openai_api_key"  # OpenAI API key
-OPENAI_FILE_SEARCH_OPENAI_ENDPOINT="https://your-openai-endpoint.openai.azure.com/"  # OpenAI endpoint URL
-OPENAI_FILE_SEARCH_OPENAI_API_VERSION="2023-06-01-preview"  # OpenAI API version
-OPENAI_FILE_SEARCH_MODEL_HOST="azure"  # Host for the model (e.g., "azure" or "openai")
-OPENAI_FILE_SEARCH_MODEL_NAME="your_ada_deployment_name"  # Model name for embeddings
-OPENAI_FILE_SEARCH_CONTEXT_EXTRACTION=True  # Enable context extraction
-OPENAI_FILE_SEARCH_RESULT_COUNT=5  # Number of search results to return
-OPENAI_FILE_SEARCH_INDEX_NAME="your_index_name"  # Name of the search index
+OPENAI_DALLE_API_KEY="your-openai-key"  # OpenAI API key for DALL-E
+OPENAI_DALLE_MODEL_NAME="dall-e-3"  # DALL-E model name
+OPENAI_DALLE_INPUT_TOKEN_PRICE="0.01"  # Cost per input token for DALL-E
+OPENAI_DALLE_OUTPUT_TOKEN_PRICE="0.03"  # Cost per output token for DALL-E
 
 # ====================================================
-# GENAI INTERACTIONS - VECTORSEARCH (Azure AI Search)
+# PLUGINS - GENAI INTERACTIONS - VECTOR SEARCH - OPENAI
 # ====================================================
-#AZURE_AISEARCH_AZURE_OPENAI_KEY="your_azure_openai_api_key"  # Azure OpenAI API key
-#AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT="https://your-openai-endpoint.openai.azure.com/"  # Azure OpenAI endpoint URL
-#AZURE_AISEARCH_OPENAI_API_VERSION="2023-06-01-preview"  # Azure OpenAI API version
-#AZURE_AISEARCH_MODEL_NAME="your-deployment-name-for-an-ada-version"  # Model name for embeddings
-#AZURE_AISEARCH_SEARCH_ENDPOINT="https://your-search-endpoint.search.windows.net"  # Azure Cognitive Search endpoint
-#AZURE_AISEARCH_KEY="your_azure_search_api_key"  # API key for Azure Cognitive Search
-#AZURE_AISEARCH_INDEX_NAME="your_index_name"  # Name of the search index
-#AZURE_AISEARCH_TOPN_DOCUMENT=5  # Number of top documents to retrieve
-#AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME="your_gpt_deployment_name"  # Model name for text completion
-#AZURE_AISEARCH_PROMPT="You are a helpful assistant that provides vector search results"  # Prompt for AI search interactions
+OPENAI_FILE_SEARCH_OPENAI_KEY="your-openai-key"  # OpenAI API key for embeddings
+OPENAI_FILE_SEARCH_OPENAI_ENDPOINT="https://your-search.openai.azure.com/"  # OpenAI endpoint for search
+OPENAI_FILE_SEARCH_OPENAI_API_VERSION="2024-05-01-preview"  # API version for search
+OPENAI_FILE_SEARCH_MODEL_HOST="azure"  # Host type (azure/openai)
+OPENAI_FILE_SEARCH_MODEL_NAME="text-embedding-ada-002"  # Embedding model name
+OPENAI_FILE_SEARCH_RESULT_COUNT="5"  # Number of results to return
+OPENAI_FILE_SEARCH_INDEX_NAME="your-search-index"  # Name of the search index
 
 # ====================================================
-# BING SEARCH
+# PLUGINS - GENAI INTERACTIONS - VECTOR SEARCH - AZURE AI SEARCH
 # ====================================================
-BING_SEARCH_SUBSCRIPTION_KEY="<BINGSEARCH API KEY>" # Bing Search subscription key
+AZURE_AISEARCH_AZURE_OPENAI_KEY="your-azure-openai-key"  # Azure OpenAI key for AI Search
+AZURE_AISEARCH_AZURE_OPENAI_ENDPOINT="https://your-search.openai.azure.com/"  # Azure OpenAI endpoint for search
+AZURE_AISEARCH_OPENAI_API_VERSION="2024-05-01-preview"  # API version for AI Search
+AZURE_AISEARCH_MODEL_NAME="text-embedding-ada-002"  # Model name for embeddings
+AZURE_AISEARCH_SEARCH_ENDPOINT="https://your-search.search.windows.net"  # Azure AI Search endpoint
+AZURE_AISEARCH_KEY="your-search-key"  # Azure AI Search key
+AZURE_AISEARCH_INDEX_NAME="your-index"  # Search index name
+AZURE_AISEARCH_TOPN_DOCUMENT="5"  # Number of top documents to return
+AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME="gpt-35-turbo"  # Model for text completion
+AZURE_AISEARCH_PROMPT="You are a helpful assistant"  # Default prompt for AI Search

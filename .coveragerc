@@ -1,14 +1,35 @@
 [run]
 omit =
-    */tests/*
-    */__init__.py
-    */tests/*
-    */.venv/*
-    */miniconda3/*
-    */site-packages/*
-    */plugins/action_interactions/custom/*
-    
+    */venv/*
+    Yuc.Aibots.Framework.code-workspace
+    .env*
+    .config*
+    **/__pycache__/*
+    app.log
+    qodana.yaml
+    htmlcov/*
+    .idea/*
+    .pytest_cache/*
+    .bin
+    .idea/*
+    logs/*
+    .ruff_cache
+    .venv/*
+    .coverage
+    coverage.xml
+    codebase.md
+    *.log
+    plugins/action_interactions/custom/*
+    output.csv
+    plugins/backend/session_managers/*
+    !plugins/backend/session_managers/default_session_manager/**
+    plugins/user_interactions/custom_api/*
+    !plugins/user_interactions/custom_api/generic_rest/**
+    plugins/user_interactions_behaviors/custom_api/*
+    !plugins/user_interactions_behaviors/custom_api/ca_default_behavior/**
+    plugins/user_interactions_behaviors/custom_api/**/__pycache__/
+
 [report]
 exclude_lines =
     pragma: no cover
-    if __name__ == .__main__.:
+    if __name__ == .__main__.
