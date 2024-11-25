@@ -22,7 +22,7 @@ class UserInteraction(ActionBase):
         value = parameters.get('value')
         channel_id = parameters.get('channelid', None)
         thread_id = parameters.get('threadid', None)
-        as_file = parameters.get('AsFile', False)
+        as_file = parameters.get('AsFile', "false").lower()
         title = parameters.get('title', "file_upload.txt")
         
         event_copy = copy.deepcopy(event)
@@ -44,7 +44,7 @@ class UserInteraction(ActionBase):
         if not message:
             raise ValueError("Empty message")
         else:
-            if as_file:
+            if as_file == 'true':
                 if is_custom_target:
                     await self.user_interactions_dispatcher.upload_file(event=event_copy, file_content=message, filename=title, title=title)
                 else:
