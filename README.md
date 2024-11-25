@@ -7,6 +7,8 @@ GenaiBots is a comprehensive framework designed for automating and managing inte
 More details in the wiki https://github.com/YounitedCredit/younited-genaibots/wiki
 You can use also chat with the dedicated GPT here for any question related to the installtion, configuration and development of GenaiBots: https://chatgpt.com/g/g-HGEDT9hA2-genaibots-assistant
 
+this webclient sample works fine with the framework if you want to test it fast: https://github.com/Pilosite/genaibot-basicweb-client
+
 ## Key Features
 - **AI Enhancements**: Integrate generative AI at the core of interactions. This enables not only custom AI generation through prompts but also the ability to trigger actions and manage processes with a rapid feedback loop.
 - **Custom Action Handlers**: Easily create custom actions based on specific triggers and conditions, and invoke them directly through prompts.
