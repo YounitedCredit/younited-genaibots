@@ -5,7 +5,7 @@
 GenaiBots is a comprehensive framework designed for automating and managing interactions across various digital platforms. It is primarily an enterprise tool for integrating generative AI into operational processes through mediums such as instant messaging, emails, ticketing tools, or internal tools. Utilizing advanced AI and a modular plugin system, it enables the creation of sophisticated operational flows and interaction models tailored for both businesses and developers.
 
 More details in the wiki https://github.com/YounitedCredit/younited-genaibots/wiki
-You can use also chat with the dedicated GPT here for any question related to the installtion, configuration and development of GenaiBots: https://chatgpt.com/g/g-HGEDT9hA2-genaibots-assistant
+You can use also chat with the dedicated GPT here for any question related to the installation, configuration and development of GenaiBots: https://chatgpt.com/g/g-HGEDT9hA2-genaibots-assistant
 
 this webclient sample works fine with the framework if you want to test it fast: https://github.com/Pilosite/genaibot-basicweb-client
 
