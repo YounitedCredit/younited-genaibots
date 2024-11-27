@@ -8,6 +8,7 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
     Dispatcher for managing internal data processing plugins.
     This class specifically handles the data processing aspects, without queue management.
     """
+
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
         self.global_manager: GlobalManager = global_manager
@@ -35,7 +36,8 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
             if plugin.plugin_name == plugin_name:
                 return plugin
 
-        self.logger.error(f"BackendInternalDataProcessingDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
+        self.logger.error(
+            f"BackendInternalDataProcessingDispatcher: Plugin '{plugin_name}' not found, returning default plugin")
         if self.default_plugin is None:
             raise ValueError(f"Plugin '{plugin_name}' not found and no default plugin is set")
         return self.default_plugin
@@ -123,7 +125,8 @@ class BackendInternalDataProcessingDispatcher(InternalDataProcessingBase):
 
     async def update_pricing(self, container_name, datafile_name, pricing_data, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)
-        return await plugin.update_pricing(container_name=container_name, datafile_name=datafile_name, pricing_data=pricing_data)
+        return await plugin.update_pricing(container_name=container_name, datafile_name=datafile_name,
+                                           pricing_data=pricing_data)
 
     async def update_prompt_system_message(self, channel_id, thread_id, message, plugin_name=None):
         plugin: InternalDataProcessingBase = self.get_plugin(plugin_name)

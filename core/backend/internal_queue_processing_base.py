@@ -74,29 +74,32 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         raise NotImplementedError
 
     @abstractmethod
-    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str, guid: str) -> None:
+    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str,
+                              guid: str) -> None:
         """
         Adds a message to the queue for a given channel, thread, and message_id, using a GUID for uniqueness.
         """
         raise NotImplementedError
 
-
     @abstractmethod
-    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, guid: str) -> None:
+    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str,
+                              guid: str) -> None:
         """
         Removes a message from the queue based on channel_id, thread_id, message_id, and guid.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def get_next_message(self, data_container: str, channel_id: str, thread_id: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, data_container: str, channel_id: str, thread_id: str) -> Tuple[
+        Optional[str], Optional[str]]:
         """
         Retrieves the next (oldest) message from the queue for the given channel and thread.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> bool:
+    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str,
+                                 current_message_id: str) -> bool:
         """
         Checks if there are any older messages waiting in the queue for a given channel and thread.
         """
@@ -118,7 +121,8 @@ class InternalQueueProcessingBase(InternalDataPluginBase):
         raise NotImplementedError
 
     @abstractmethod
-    async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str, ttl_seconds: int) -> None:
+    async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str,
+                                       ttl_seconds: int) -> None:
         """
         Cleans up expired messages for a given thread/channel in the queue based on TTL.
         Removes messages whose creation time exceeds the TTL.

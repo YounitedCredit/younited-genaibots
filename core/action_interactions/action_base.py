@@ -10,7 +10,7 @@ class ActionBase(ABC):
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
         super().__init__()
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
 
     @abstractmethod
     def execute(self, action_input: ActionInput, event: IncomingNotificationDataBase):

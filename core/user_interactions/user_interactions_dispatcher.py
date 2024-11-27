@@ -19,11 +19,11 @@ from utils.config_manager.config_model import BotConfig
 class UserInteractionsDispatcher(UserInteractionsPluginBase):
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
         self.logger = self.global_manager.logger
-        self.plugins : List[UserInteractionsPluginBase] = []
+        self.plugins: List[UserInteractionsPluginBase] = []
         self.default_plugin_name = None
-        self.default_plugin : Optional[UserInteractionsPluginBase] = None
+        self.default_plugin: Optional[UserInteractionsPluginBase] = None
 
     def initialize(self, plugins: List[UserInteractionsPluginBase] = None):
         # Access the event queue manager from the global manager
@@ -36,7 +36,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             return
 
         self.plugins = plugins
-        self.session_manager_dispatcher : SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
+        self.session_manager_dispatcher: SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
 
     def get_plugin(self, plugin_name=None):
         if plugin_name is None:
@@ -72,61 +72,61 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         self._plugins = value
 
     @property
-    def plugin_name(self, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def plugin_name(self, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.plugin_name
 
     @plugin_name.setter
     def plugin_name(self, value):
-        plugin : UserInteractionsPluginBase = self.get_plugin()
+        plugin: UserInteractionsPluginBase = self.get_plugin()
         plugin.plugin_name = value
 
     @property
-    def route_path(self, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def route_path(self, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.route_path
 
     @property
-    def route_methods(self, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def route_methods(self, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.route_methods  # replace with your route methods
 
     @property
-    def reactions(self, plugin_name = None) -> ReactionBase:
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def reactions(self, plugin_name=None) -> ReactionBase:
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.reactions  # replace with your reactions
 
     @reactions.setter
-    def reactions(self, value: ReactionBase, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def reactions(self, value: ReactionBase, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         plugin.reactions = value  # replace with your logic
 
-    def validate_request(self, request, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def validate_request(self, request, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.validate_request(request)
 
-    def handle_request(self, request, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    def handle_request(self, request, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.handle_request(request)
 
-    async def request_to_notification_data(self, event_data, plugin_name = None):
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+    async def request_to_notification_data(self, event_data, plugin_name=None):
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return await plugin.request_to_notification_data(event_data)
 
-    def format_trigger_genai_message(self, event: IncomingNotificationDataBase = None, message = None, plugin_name = None):
+    def format_trigger_genai_message(self, event: IncomingNotificationDataBase = None, message=None, plugin_name=None):
         if event is not None:
             plugin_name = event.origin_plugin_name
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.format_trigger_genai_message(message)
 
-    async def process_event_data(self, event: IncomingNotificationDataBase, headers, raw_body_str, plugin_name = None):
+    async def process_event_data(self, event: IncomingNotificationDataBase, headers, raw_body_str, plugin_name=None):
         if event is not None:
             plugin_name = event.origin_plugin_name
-        plugin : UserInteractionsPluginBase = self.get_plugin(plugin_name)
+        plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return await plugin.process_event_data(event_data=event, headers=headers, raw_body_str=raw_body_str)
 
     async def fetch_conversation_history(
-        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+            self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         """
         Fetch conversation history from the plugin for a given channel and thread.
@@ -142,7 +142,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         plugin: UserInteractionsPluginBase = self.get_plugin(plugin_name)
         return plugin.get_bot_id()
 
-    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+    async def remove_reaction_from_thread(self, channel_id: str, thread_id: str, reaction_name: str, plugin_name=None,
+                                          is_replayed=False, background_tasks: BackgroundTasks = None):
         """
         Remove reaction from a thread using the specified plugin.
         If `is_replayed` is True, process it directly.
@@ -161,7 +162,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             # Use FastAPI background tasks if provided
             if background_tasks:
                 background_tasks.add_task(self._remove_reaction_from_thread_background, method_params)
-                self.logger.debug(f"Event 'remove_reaction_from_thread' added to background tasks with parameters: {method_params}")
+                self.logger.debug(
+                    f"Event 'remove_reaction_from_thread' added to background tasks with parameters: {method_params}")
             else:
                 await self.event_queue_manager.add_to_queue("remove_reaction_from_thread", method_params)
                 self.logger.debug(f"Event 'remove_reaction_from_thread' queued with parameters: {method_params}")
@@ -179,7 +181,9 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             is_replayed=True
         )
 
-    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None, action_ref=None):
+    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT,
+                           title=None, is_internal=False, show_ref=False, plugin_name=None, is_replayed=False,
+                           background_tasks: BackgroundTasks = None, action_ref=None):
         """
         Send a message using the specified plugin. If `is_replayed` is True, process it directly.
         If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event or add it to background tasks.
@@ -211,10 +215,14 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                     if message_index is not None:
                         if is_internal:
                             # Add the interaction to mind_interactions in the correct assistant message
-                            await self.session_manager_dispatcher.add_mind_interaction_to_message(session=session, message_index=message_index, interaction=interaction)
+                            await self.session_manager_dispatcher.add_mind_interaction_to_message(session=session,
+                                                                                                  message_index=message_index,
+                                                                                                  interaction=interaction)
                         else:
                             # Add the interaction to user_interactions in the correct assistant message
-                            await self.session_manager_dispatcher.add_user_interaction_to_message(session=session, message_index=message_index, interaction=interaction)
+                            await self.session_manager_dispatcher.add_user_interaction_to_message(session=session,
+                                                                                                  message_index=message_index,
+                                                                                                  interaction=interaction)
 
                     # Save the session after adding the interaction
                     await self.global_manager.session_manager_dispatcher.save_session(session)
@@ -241,7 +249,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                     self.logger.debug("Processing the send_message event directly")
                     # Process the event directly if replayed
                     plugin = self.get_plugin(plugin_name)
-                    result = await plugin.send_message(message=message, event=event, message_type=message_type, title=title, is_internal=is_internal, show_ref=show_ref)
+                    result = await plugin.send_message(message=message, event=event, message_type=message_type,
+                                                       title=title, is_internal=is_internal, show_ref=show_ref)
                     self.logger.debug("send_message event processed directly")
                     return result
         except Exception as e:
@@ -250,7 +259,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         finally:
             self.logger.debug("Exiting send_message method")
 
-    async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+    async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False,
+                          plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
         if event is not None:
             plugin_name = event.origin_plugin_name
 
@@ -269,8 +279,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             else:
                 # Process the event directly
                 plugin = self.get_plugin(plugin_name)
-                return await plugin.upload_file(event=event, file_content=file_content, filename=filename, title=title, is_internal=is_internal)
-
+                return await plugin.upload_file(event=event, file_content=file_content, filename=filename, title=title,
+                                                is_internal=is_internal)
 
     async def _upload_file_background(self, method_params):
         event = IncomingNotificationDataBase.from_dict(method_params['event'])
@@ -283,7 +293,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
             is_replayed=True
         )
 
-    async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+    async def add_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name,
+                           plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
         """  
         Add a reaction using the specified plugin. If `is_replayed` is True, process it directly.  
         If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event.  
@@ -321,7 +332,8 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
         finally:
             self.logger.debug("Exiting add_reaction method")
 
-    async def remove_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name, plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
+    async def remove_reaction(self, event: IncomingNotificationDataBase, channel_id, timestamp, reaction_name,
+                              plugin_name=None, is_replayed=False, background_tasks: BackgroundTasks = None):
         """  
         Remove a reaction using the specified plugin. If `is_replayed` is True, process it directly.  
         If `ACTIVATE_USER_INTERACTION_EVENTS_QUEUING` is enabled and not replayed, enqueue the event.  

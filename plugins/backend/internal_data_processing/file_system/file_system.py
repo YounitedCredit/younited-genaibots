@@ -181,7 +181,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             # Si on trouve le texte à supprimer
             if data_lower in existing_content.lower():
                 new_content = '\n'.join([line for line in existing_content.split('\n')
-                                    if data_lower not in line.lower()])
+                                         if data_lower not in line.lower()])
 
                 # Si le nouveau contenu est vide, on met un espace
                 if new_content.strip() == "":

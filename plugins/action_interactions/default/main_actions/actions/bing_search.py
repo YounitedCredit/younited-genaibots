@@ -12,15 +12,17 @@ from core.user_interactions.incoming_notification_data_base import (
 )
 from core.user_interactions.message_type import MessageType
 
+
 # IMPORTANT : Define an environment variable for your subscription ID called BING_SEARCH_SUBSCRIPTION_KEY
 
 class BingSearch(ActionBase):
     REQUIRED_PARAMETERS = ['query', "result_number", "from_snippet", "user_input", "urls"]
+
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
 
-        #Dispatchers
+        # Dispatchers
         self.user_interactions_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
@@ -30,7 +32,10 @@ class BingSearch(ActionBase):
         self.search_url = "https://api.bing.microsoft.com/v7.0/search"
 
     async def execute(self, action_input: ActionInput, event: IncomingNotificationDataBase):
-        await self.user_interactions_dispatcher.send_message(event=event, message="Looking for more info on the web please wait...", message_type=MessageType.COMMENT, is_internal=False, action_ref="bing_search")
+        await self.user_interactions_dispatcher.send_message(event=event,
+                                                             message="Looking for more info on the web please wait...",
+                                                             message_type=MessageType.COMMENT, is_internal=False,
+                                                             action_ref="bing_search")
 
         query, result_number, from_snippet, user_input, urls = self.extract_parameters(action_input)
 
@@ -84,8 +89,12 @@ class BingSearch(ActionBase):
         elif isinstance(error, requests.exceptions.Timeout):
             raise error
         self.logger.error(message)
-        await self.user_interactions_dispatcher.send_message(event=event, message=message, message_type=MessageType.COMMENT, is_internal=True)
-        await self.user_interactions_dispatcher.send_message(event=event, message=f"Oops something goes wrong! {message}", message_type=MessageType.COMMENT, is_internal=False, action_ref="bing_search")
+        await self.user_interactions_dispatcher.send_message(event=event, message=message,
+                                                             message_type=MessageType.COMMENT, is_internal=True)
+        await self.user_interactions_dispatcher.send_message(event=event,
+                                                             message=f"Oops something goes wrong! {message}",
+                                                             message_type=MessageType.COMMENT, is_internal=False,
+                                                             action_ref="bing_search")
 
     async def process_search_results(self, search_results, event, result_number, from_snippet, user_input):
         if 'webPages' in search_results and 'value' in search_results['webPages']:
@@ -94,17 +103,21 @@ class BingSearch(ActionBase):
             result_urls = []
 
         if from_snippet:
-            await self.select_from_snippet(search_results=search_results, event=event, result_number=result_number, user_input=user_input)
+            await self.select_from_snippet(search_results=search_results, event=event, result_number=result_number,
+                                           user_input=user_input)
         else:
             await self.get_webpages_content(result_urls, event)
 
-    async def process_urls(self, urls, event:IncomingNotificationDataBase):
+    async def process_urls(self, urls, event: IncomingNotificationDataBase):
         event_copy = copy.deepcopy(event)
         urls_msg = []
         urls = urls.split(',')
         for url in urls:
             if not self.is_valid_url(url):
-                await self.user_interactions_dispatcher.send_message(event=event, message=f"Sorry the url {url} is not valid", message_type=MessageType.COMMENT, is_internal=False, action_ref="bing_search")
+                await self.user_interactions_dispatcher.send_message(event=event,
+                                                                     message=f"Sorry the url {url} is not valid",
+                                                                     message_type=MessageType.COMMENT,
+                                                                     is_internal=False, action_ref="bing_search")
                 return
             else:
                 page_content = await self.get_page_content(url)
@@ -148,7 +161,7 @@ class BingSearch(ActionBase):
 
         return re.match(regex, url) is not None
 
-    async def get_webpages_content(self, result_urls, event:IncomingNotificationDataBase):
+    async def get_webpages_content(self, result_urls, event: IncomingNotificationDataBase):
         # Initialize a list to store the page contents
         page_contents = []
 
@@ -216,7 +229,7 @@ class BingSearch(ActionBase):
         text = re.sub(' +', ' ', text)
         return text
 
-    async def select_from_snippet(self, search_results, event : IncomingNotificationDataBase, result_number, user_input):
+    async def select_from_snippet(self, search_results, event: IncomingNotificationDataBase, result_number, user_input):
         # Initialize a list to store the page messages
         page_messages = []
 
@@ -236,14 +249,14 @@ class BingSearch(ActionBase):
         event_copy.files_content = []
         # Join the page messages into a single string
         event_copy.text = (
-            "\n".join(page_messages)
-            + f" Here's the question of the user : {user_input} ."
-            + f" Select up to {result_number} result that are the most relevant url"
-            + " and create an action called 'GetContentFromUrls' with a parameter 'urls'"
-            + " where you put all the url as a comma delimited value,"
-            + f" and result_number set to {result_number},"
-            + f" user_input with '{user_input}'"
-            + " dont create a userinteraction before our next action wait for the result."
+                "\n".join(page_messages)
+                + f" Here's the question of the user : {user_input} ."
+                + f" Select up to {result_number} result that are the most relevant url"
+                + " and create an action called 'GetContentFromUrls' with a parameter 'urls'"
+                + " where you put all the url as a comma delimited value,"
+                + f" and result_number set to {result_number},"
+                + f" user_input with '{user_input}'"
+                + " dont create a userinteraction before our next action wait for the result."
         )
 
         # Trigger the user event

@@ -16,12 +16,12 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 
 class SlackOutputHandler:
-    def __init__(self, global_manager : GlobalManager, slack_config):
+    def __init__(self, global_manager: GlobalManager, slack_config):
         from ..slack import SlackConfig
-        self.slack_config : SlackConfig = slack_config
-        self.global_manager : GlobalManager = global_manager
+        self.slack_config: SlackConfig = slack_config
+        self.global_manager: GlobalManager = global_manager
         self.logger = global_manager.logger
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
         # Create a WebClient instance
         self.slack_bot_token = slack_config.SLACK_BOT_TOKEN
         self.slack_bot_user_token = slack_config.SLACK_BOT_USER_TOKEN
@@ -64,7 +64,8 @@ class SlackOutputHandler:
             elif e.response["error"] == "message_not_found":
                 self.logger.warning("Message not found. Cannot remove reaction.")
             else:
-                self.logger.warning(f"Impossible to remove reaction: {e.response['error']} channel id {channel_id} timestamp {timestamp}")
+                self.logger.warning(
+                    f"Impossible to remove reaction: {e.response['error']} channel id {channel_id} timestamp {timestamp}")
         except Exception as e:
             self.logger.error(f"Error removing reaction: {e}")
 
@@ -96,11 +97,13 @@ class SlackOutputHandler:
             blocks = self.format_slack_message(title, message, message_format=message_type)
             payload['blocks'] = json.dumps(blocks)
         else:
-            raise ValueError(f"Invalid message type: {message_type}. Use 'TEXT', 'CARD', 'CODEBLOCK', 'COMMENT', or 'FILE'.")
+            raise ValueError(
+                f"Invalid message type: {message_type}. Use 'TEXT', 'CARD', 'CODEBLOCK', 'COMMENT', or 'FILE'.")
 
         # Use aiohttp for async HTTP request to Slack API
         async with aiohttp.ClientSession() as session:
-            async with session.post('https://slack.com/api/chat.postMessage', headers=headers, json=payload) as response:
+            async with session.post('https://slack.com/api/chat.postMessage', headers=headers,
+                                    json=payload) as response:
                 if response.status != 200:
                     self.logger.error(f"Slack API error: {response.status}")
                     return None
@@ -187,23 +190,26 @@ class SlackOutputHandler:
 
         return blocks
 
-    async def upload_file_to_slack(self, event :IncomingNotificationDataBase, file_content, filename, title):
+    async def upload_file_to_slack(self, event: IncomingNotificationDataBase, file_content, filename, title):
         channel_id = event.channel_id
         thread_id = event.thread_id
 
-        await self.send_slack_message(channel_id, thread_id, f"uploading file {filename} and processing it...", MessageType.COMMENT )
+        await self.send_slack_message(channel_id, thread_id, f"uploading file {filename} and processing it...",
+                                      MessageType.COMMENT)
 
         if file_content == None or file_content == '':
             file_content = "Empty result"
 
         try:
-            response = self.client.files_upload_v2(channel=channel_id, thread_ts=thread_id, title=title, filename=filename, content=file_content )
+            response = self.client.files_upload_v2(channel=channel_id, thread_ts=thread_id, title=title,
+                                                   filename=filename, content=file_content)
             return response
         except SlackApiError as e:
             # Handle exceptions
             error_traceback = traceback.format_exc()
             error_message = f":interrobang: Error uploading file: {str(error_traceback)}"
-            self.logger.error(f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
+            self.logger.error(
+                f"An error occurred: :interrobang: Error upload file: {e.response.get('error', 'No error message available')}")
             await self.send_slack_message(channel_id, thread_id, error_message)
 
     async def fetch_conversation_history(self, channel_id, thread_id) -> List[IncomingNotificationDataBase]:

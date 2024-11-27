@@ -25,4 +25,3 @@ class PluginBase(ABC):
     @plugin_name.setter
     def plugin_name(self, value):
         self._plugin_name = value
-

@@ -1,4 +1,3 @@
-
 from core.user_interactions.reaction_base import ReactionBase
 
 

@@ -52,7 +52,9 @@ class OutgoingNotificationDataBase:
         Returns the attributes of the object as a dictionary.
     """
 
-    def __init__(self, channel_id, event_type : OutgoingNotificationEventTypes, is_mention, response_id, thread_id, timestamp, user_email, user_id, user_name, files_content=None, images=None, origin_plugin_name=None, raw_data=None, reaction_name=None, message_type : MessageType = None, text = None, is_internal = False):
+    def __init__(self, channel_id, event_type: OutgoingNotificationEventTypes, is_mention, response_id, thread_id,
+                 timestamp, user_email, user_id, user_name, files_content=None, images=None, origin_plugin_name=None,
+                 raw_data=None, reaction_name=None, message_type: MessageType = None, text=None, is_internal=False):
         self.channel_id = channel_id
         self.event_type = event_type
         self.files_content = files_content if files_content is not None else []
@@ -114,12 +116,12 @@ class OutgoingNotificationDataBase:
             is_internal=data.get('is_internal')
         )
 
-
     @classmethod
-    def from_incoming_notification_data(cls, incoming_notification_data: IncomingNotificationDataBase, event_type: OutgoingNotificationEventTypes):
+    def from_incoming_notification_data(cls, incoming_notification_data: IncomingNotificationDataBase,
+                                        event_type: OutgoingNotificationEventTypes):
         return cls(
             channel_id=incoming_notification_data.channel_id,
-            event_type = event_type,
+            event_type=event_type,
             is_mention=incoming_notification_data.is_mention,
             origin_plugin_name=incoming_notification_data.origin_plugin_name,
             raw_data=incoming_notification_data.raw_data,

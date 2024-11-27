@@ -32,7 +32,8 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = global_manager.logger
-        openai_search_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.VECTOR_SEARCH["OPENAI_FILE_SEARCH"]
+        openai_search_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.VECTOR_SEARCH[
+            "OPENAI_FILE_SEARCH"]
         self.openai_search_config = OpenaiFileSearchConfig(**openai_search_config_dict)
         self._plugin_name = "openai_file_search"
 
@@ -73,12 +74,14 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
             self.logger.error(error_message)
             raise ValueError(error_message)
 
-        result = await self.call_search(query=query, index_name=index_name, result_count=result_count, get_whole_doc=get_whole_doc)
+        result = await self.call_search(query=query, index_name=index_name, result_count=result_count,
+                                        get_whole_doc=get_whole_doc)
         return result
 
     async def call_search(self, query, index_name, result_count, get_whole_doc=False):
         try:
-            file_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container="vectors", data_file=f"{index_name}.json")
+            file_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                data_container="vectors", data_file=f"{index_name}.json")
             data = json.loads(file_content)
         except Exception as e:
             self.logger.error(f"Failed to load JSON file: {str(e)}")
@@ -133,7 +136,8 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
     async def fetch_full_document_content(self, document_id, index_name):
         """Fetches and concatenates all passages for a specific document id."""
         try:
-            file_content = await self.backend_internal_data_processing_dispatcher.read_data_content("vectors", f"{index_name}.json")
+            file_content = await self.backend_internal_data_processing_dispatcher.read_data_content("vectors",
+                                                                                                    f"{index_name}.json")
             data = json.loads(file_content)
 
             passages = [item for item in data['value'] if item['document_id'] == document_id]
@@ -162,4 +166,5 @@ class OpenaiFileSearchPlugin(GenAIInteractionsPluginBase):
         self._plugin_name = value
 
     def trigger_genai(self, user_message=None, event: IncomingNotificationDataBase = None):
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")

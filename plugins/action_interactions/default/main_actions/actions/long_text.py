@@ -13,10 +13,11 @@ from core.user_interactions.user_interactions_dispatcher import (
 
 
 class LongText(ActionBase):
-    REQUIRED_PARAMETERS = ['value','is_finished']
+    REQUIRED_PARAMETERS = ['value', 'is_finished']
+
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
         self.user_interactions_text_plugin = None
         self.logger = self.global_manager.logger
         # Dispatchers
@@ -53,9 +54,11 @@ class LongText(ActionBase):
 
     async def _process_continuation(self, value, blob_name, event):
         try:
-            existing_content = await self.backend_internal_data_processing_dispatcher.read_data_content(self.concatenate_folder, blob_name)
+            existing_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                self.concatenate_folder, blob_name)
             updated_content = f'{existing_content or ""} \n\n{value}'.strip()
-            await self.backend_internal_data_processing_dispatcher.write_data_content(self.concatenate_folder, blob_name, updated_content)
+            await self.backend_internal_data_processing_dispatcher.write_data_content(self.concatenate_folder,
+                                                                                      blob_name, updated_content)
 
             event.text = "Great, thanks, now create the next longtext action."
             event.files_content = []
@@ -68,7 +71,8 @@ class LongText(ActionBase):
 
     async def _process_end_of_conversation(self, value, blob_name, event):
         try:
-            concatenated_content = await self.backend_internal_data_processing_dispatcher.read_data_content(self.concatenate_folder, blob_name)
+            concatenated_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                self.concatenate_folder, blob_name)
             complete_content = f"{concatenated_content or ''} \n\n{value}".strip()
 
             # await self.backend_internal_data_processing_dispatcher.update_session(self.sessions_folder, blob_name, "assistant", complete_content)
@@ -81,11 +85,11 @@ class LongText(ActionBase):
             assistant_message = {
                 "role": "assistant",
                 "content": [
-                        {
-                            "type": "text",
-                            "text": complete_content
-                        }
-                    ],
+                    {
+                        "type": "text",
+                        "text": complete_content
+                    }
+                ],
                 "timestamp": datetime.now().isoformat(),
                 "from_action": True,  # Indicate that the message comes from an action
                 "assistant_message_guid": str(uuid.uuid4())
@@ -94,13 +98,17 @@ class LongText(ActionBase):
             self.session_manager_dispatcher.append_messages(session.messages, assistant_message, session.session_id)
             await self.global_manager.session_manager_dispatcher.save_session(session)
 
-            await self.backend_internal_data_processing_dispatcher.remove_data_content(self.concatenate_folder, blob_name)
+            await self.backend_internal_data_processing_dispatcher.remove_data_content(self.concatenate_folder,
+                                                                                       blob_name)
 
             if not event.thread_id:
                 event.thread_id = event.timestamp
 
-            await self.user_interaction_dispatcher.upload_file(event=event, file_content=complete_content, filename="LongText.txt", title="Long Text")
-            await self.user_interaction_dispatcher.upload_file(event=event, file_content=complete_content, filename="LongText.txt", title="Long Text", is_internal=True)
+            await self.user_interaction_dispatcher.upload_file(event=event, file_content=complete_content,
+                                                               filename="LongText.txt", title="Long Text")
+            await self.user_interaction_dispatcher.upload_file(event=event, file_content=complete_content,
+                                                               filename="LongText.txt", title="Long Text",
+                                                               is_internal=True)
             return True
         except Exception as e:
             self.logger.error(f"Error in _process_end_of_conversation: {str(e)}")

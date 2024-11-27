@@ -36,14 +36,16 @@ class AzureCommandrConfig(BaseModel):
     AZURE_COMMANDR_ENDPOINT: str
     AZURE_COMMANDR_MODELNAME: str
 
+
 class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = self.global_manager.logger
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
-        self.config_manager : ConfigManager = global_manager.config_manager
-        azure_commandr_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT["AZURE_COMMANDR"]
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
+        self.config_manager: ConfigManager = global_manager.config_manager
+        azure_commandr_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT[
+            "AZURE_COMMANDR"]
         self.azure_commandr_config = AzureCommandrConfig(**azure_commandr_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
@@ -79,7 +81,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
         self.azure_commandr_modelname = self.azure_commandr_config.AZURE_COMMANDR_MODELNAME
         self.input_token_price = self.azure_commandr_config.AZURE_COMMANDR_INPUT_TOKEN_PRICE
         self.output_token_price = self.azure_commandr_config.AZURE_COMMANDR_OUTPUT_TOKEN_PRICE
-        
+
         self.load_client()
         self.input_handler = ChatInputHandler(self.global_manager, self)
         self.input_handler.initialize()
@@ -87,7 +89,7 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
         # Dispatchers
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
-        self.backend_internal_data_processing_dispatcher : BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.backend_internal_data_processing_dispatcher: BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
         self.session_manager_dispatcher: SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
 
     def load_client(self):
@@ -105,13 +107,13 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error(f"Unexpected error while loading Azure CommandR client: {e}")
             raise
 
-    def validate_request(self, event:IncomingNotificationDataBase):
+    def validate_request(self, event: IncomingNotificationDataBase):
         """Determines whether the plugin can handle the given request."""
         # Check if the request is a valid request for this plugin
         # todo: add validation logic
         return True
 
-    async def handle_request(self, event:IncomingNotificationDataBase):
+    async def handle_request(self, event: IncomingNotificationDataBase):
         """Handles the request."""
         validate_request = self.validate_request(event)
 
@@ -146,11 +148,11 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             automated_user_event = {
                 'role': 'user',
                 'content': [
-                        {
-                            'type': 'text',
-                            'text': input_param
-                        }
-                    ],
+                    {
+                        'type': 'text',
+                        'text': input_param
+                    }
+                ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
@@ -179,7 +181,8 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             target_messages.append({"role": "user", "content": input_param})
 
             # Call the model to generate the completion
-            self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
+            self.logger.info(
+                f"GENAI CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
             generation_start_time = datetime.now()
 
             # Ensure raw_output is set to True
@@ -199,11 +202,11 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             assistant_message = {
                 "role": "assistant",
                 "content": [
-                        {
-                            "type": "text",
-                            "text": completion
-                        }
-                    ],
+                    {
+                        "type": "text",
+                        "text": completion
+                    }
+                ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,
@@ -330,37 +333,46 @@ class AzureCommandrPlugin(GenAIInteractionsTextPluginBase):
             filtered_messages.append(message)
         return filtered_messages
 
-    async def trigger_genai(self, event :IncomingNotificationDataBase):
-            event_copy = event
+    async def trigger_genai(self, event: IncomingNotificationDataBase):
+        event_copy = event
 
-            if event.thread_id == '':
-                response_id = event_copy.timestamp
-            else:
-                response_id = event_copy.thread_id
+        if event.thread_id == '':
+            response_id = event_copy.timestamp
+        else:
+            response_id = event_copy.thread_id
 
-            AUTOMATED_RESPONSE_MESSAGE = "AUTOMATED_RESPONSE"
-            event_copy.user_id = AUTOMATED_RESPONSE_MESSAGE
-            event_copy.user_name =  AUTOMATED_RESPONSE_MESSAGE
-            event_copy.user_email = AUTOMATED_RESPONSE_MESSAGE
-            event_copy.event_label = "thread_message"
-            user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event, message=event_copy.text)
-            event_copy.text = user_message
-            event_copy.is_mention = True
-            event_copy.thread_id = response_id
+        AUTOMATED_RESPONSE_MESSAGE = "AUTOMATED_RESPONSE"
+        event_copy.user_id = AUTOMATED_RESPONSE_MESSAGE
+        event_copy.user_name = AUTOMATED_RESPONSE_MESSAGE
+        event_copy.user_email = AUTOMATED_RESPONSE_MESSAGE
+        event_copy.event_label = "thread_message"
+        user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event,
+                                                                                     message=event_copy.text)
+        event_copy.text = user_message
+        event_copy.is_mention = True
+        event_copy.thread_id = response_id
 
-            self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message= "Processing incoming data, please wait...", message_type=MessageType.COMMENT)
+        self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
+        await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                            message="Processing incoming data, please wait...",
+                                                            message_type=MessageType.COMMENT)
 
-            # Count the number of words in event_copy.text
-            word_count = len(event_copy.text.split())
+        # Count the number of words in event_copy.text
+        word_count = len(event_copy.text.split())
 
-            # If there are more than 300 words, call plugin.file_upload
-            if word_count > 300:
-                await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text, filename="Bot reply.txt", title=":zap::robot_face: Automated User Input", is_internal=True)
-            else:
-                await self.user_interaction_dispatcher.send_message(event=event_copy, message= f":zap::robot_face: *AutomatedUserInput*: {event_copy.text}", message_type=MessageType.TEXT, is_internal= True)
+        # If there are more than 300 words, call plugin.file_upload
+        if word_count > 300:
+            await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text,
+                                                               filename="Bot reply.txt",
+                                                               title=":zap::robot_face: Automated User Input",
+                                                               is_internal=True)
+        else:
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=f":zap::robot_face: *AutomatedUserInput*: {event_copy.text}",
+                                                                message_type=MessageType.TEXT, is_internal=True)
 
-            await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
+        await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
 
     async def trigger_feedback(self, event: IncomingNotificationDataBase) -> Any:
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
