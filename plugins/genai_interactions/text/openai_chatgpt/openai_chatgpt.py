@@ -42,7 +42,8 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         self.logger = self.global_manager.logger
         self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.config_manager: ConfigManager = global_manager.config_manager
-        openai_chatgpt_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT["OPENAI_CHATGPT"]
+        openai_chatgpt_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT[
+            "OPENAI_CHATGPT"]
         self.openai_chatgpt_config = OpenAIChatGptConfig(**openai_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
@@ -153,11 +154,11 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             automated_user_event = {
                 'role': 'user',
                 'content': [
-                        {
-                            'type': 'text',
-                            'text': input_param
-                        }
-                    ],
+                    {
+                        'type': 'text',
+                        'text': input_param
+                    }
+                ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
@@ -201,11 +202,11 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             assistant_message = {
                 "role": "assistant",
                 "content": [
-                        {
-                            "type": "text",
-                            "text": completion
-                        }
-                    ],
+                    {
+                        "type": "text",
+                        "text": completion
+                    }
+                ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,
@@ -240,7 +241,7 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error(f"Error in handle_action: {e}")
             raise
 
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output= False):
+    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output=False):
         # Check if we should use the assistant
         self.logger.info("Generate completion triggered...")
 
@@ -249,12 +250,14 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
 
         # Filter out messages content from the metadata
 
-        messages =  [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
+        messages = [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
 
         if event_data.images:
             if not self.openai_chatgpt_config.OPENAI_CHATGPT_VISION_MODEL_NAME:
                 self.logger.error("Image received without AZURE_CHATGPT_VISION_MODEL_NAME in config")
-                await self.user_interaction_dispatcher.send_message(event=event_data, message="Image received without genai interpreter in config", message_type=MessageType.COMMENT)
+                await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                                    message="Image received without genai interpreter in config",
+                                                                    message_type=MessageType.COMMENT)
                 return
             model_name = self.openai_chatgpt_config.OPENAI_CHATGPT_VISION_MODEL_NAME
         else:
@@ -316,16 +319,20 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
             return response, self.genai_cost_base
 
         except asyncio.CancelledError:
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
         except asyncio.exceptions.CancelledError:
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                                message="An unexpected error occurred",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             raise  # Re-raise the exception after logging
 
     async def filter_images(self, messages):
@@ -350,20 +357,27 @@ class OpenaiChatgptPlugin(GenAIInteractionsTextPluginBase):
         event_copy.user_name = AUTOMATED_RESPONSE_TRIGGER
         event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
         event_copy.event_label = "thread_message"
-        user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event, message=event_copy.text)
+        user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event,
+                                                                                     message=event_copy.text)
         event_copy.text = user_message
         event_copy.is_mention = True
         event_copy.thread_id = response_id
 
         self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
-        await self.user_interaction_dispatcher.send_message(event=event_copy, message="Processing incoming data, please wait...", message_type=MessageType.COMMENT)
+        await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                            message="Processing incoming data, please wait...",
+                                                            message_type=MessageType.COMMENT)
 
         word_count = len(event_copy.text.split())
 
         if word_count > 300:
-            await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text, filename="Bot reply.txt", title="Automated User Input", is_internal=True)
+            await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text,
+                                                               filename="Bot reply.txt", title="Automated User Input",
+                                                               is_internal=True)
         else:
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"AutomatedUserInput: {event_copy.text}", message_type=MessageType.TEXT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=f"AutomatedUserInput: {event_copy.text}",
+                                                                message_type=MessageType.TEXT, is_internal=True)
 
         await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
 

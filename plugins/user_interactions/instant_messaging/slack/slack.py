@@ -51,11 +51,12 @@ class SlackConfig(BaseModel):
     SLACK_BEHAVIOR_PLUGIN_NAME: str
     SLACK_AUTHORIZE_DIRECT_MESSAGE: bool
 
+
 class SlackPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
-        self.global_manager :GlobalManager = global_manager
-        self.plugin_manager :PluginManager = global_manager.plugin_manager
+        self.global_manager: GlobalManager = global_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
         self._reactions = SlackReactions()
         self.logger = global_manager.logger
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
@@ -85,8 +86,8 @@ class SlackPlugin(UserInteractionsPluginBase):
         self._plugin_name = value
 
     def initialize(self):
-        self.slack_input_handler = SlackInputHandler(self.global_manager,self.slack_config)
-        self.slack_output_handler = SlackOutputHandler(self.global_manager,self.slack_config)
+        self.slack_input_handler = SlackInputHandler(self.global_manager, self.slack_config)
+        self.slack_output_handler = SlackOutputHandler(self.global_manager, self.slack_config)
 
         self.SLACK_MESSAGE_TTL = self.slack_config.SLACK_MESSAGE_TTL
         self.SLACK_AUTHORIZED_CHANNELS = self.slack_config.SLACK_AUTHORIZED_CHANNELS.split(",")
@@ -107,7 +108,6 @@ class SlackPlugin(UserInteractionsPluginBase):
         # Dispatchers
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
-
 
     async def handle_request(self, request: Request):
         try:
@@ -157,22 +157,30 @@ class SlackPlugin(UserInteractionsPluginBase):
 
         # Check if the command is 'list'
         if command == '/listprompt':
-            files = await self.backend_internal_data_processing_dispatcher.list_container_files(self.backend_internal_data_processing_dispatcher.prompts)
+            files = await self.backend_internal_data_processing_dispatcher.list_container_files(
+                self.backend_internal_data_processing_dispatcher.prompts)
             if files is None:
                 self.logger.error("Error listing prompt files.")
                 return
             else:
-                files = [f"{file}\n" for file in files if file not in [self.global_manager.bot_config.MAIN_PROMPT, self.global_manager.bot_config.CORE_PROMPT]]
+                files = [f"{file}\n" for file in files if file not in [self.global_manager.bot_config.MAIN_PROMPT,
+                                                                       self.global_manager.bot_config.CORE_PROMPT]]
                 files = ''.join(files)
-                await self.slack_output_handler.send_slack_message(channel_id=channel_id, response_id=None, message=files, message_type=MessageType.TEXT)
+                await self.slack_output_handler.send_slack_message(channel_id=channel_id, response_id=None,
+                                                                   message=files, message_type=MessageType.TEXT)
         elif command == '/setprompt':
             try:
                 prompt_name = event_data.get('text', [''])[0]
                 prompt_folder = self.backend_internal_data_processing_dispatcher.prompts
                 main_prompt_name = self.global_manager.bot_config.MAIN_PROMPT
-                prompt_text = await self.backend_internal_data_processing_dispatcher.read_data_content(prompt_folder, f"{prompt_name}.txt")
-                await self.backend_internal_data_processing_dispatcher.write_data_content(data_container=prompt_folder, data_file=f"{main_prompt_name}.txt", data=prompt_text)
-                await self.slack_output_handler.send_slack_message(channel_id=channel_id, response_id=None, message=f"Main prompt updated successfully to [{prompt_name}].", message_type=MessageType.COMMENT)
+                prompt_text = await self.backend_internal_data_processing_dispatcher.read_data_content(prompt_folder,
+                                                                                                       f"{prompt_name}.txt")
+                await self.backend_internal_data_processing_dispatcher.write_data_content(data_container=prompt_folder,
+                                                                                          data_file=f"{main_prompt_name}.txt",
+                                                                                          data=prompt_text)
+                await self.slack_output_handler.send_slack_message(channel_id=channel_id, response_id=None,
+                                                                   message=f"Main prompt updated successfully to [{prompt_name}].",
+                                                                   message_type=MessageType.COMMENT)
             except IndexError:
                 self.logger.error("No text found in event data.")
                 return
@@ -196,9 +204,11 @@ class SlackPlugin(UserInteractionsPluginBase):
             api_app_id = event_data.get('api_app_id')
             channel_id = event_data.get('event', {}).get('channel')
             if user_id is not None:
-                self.logger.info(f"Valid <SLACK> request received from user {user_id} in channel {channel_id}, processing..")
+                self.logger.info(
+                    f"Valid <SLACK> request received from user {user_id} in channel {channel_id}, processing..")
             if app_id is not None:
-                self.logger.info(f"Valid <SLACK> request received from app {app_id} in channel {channel_id}, processing..")
+                self.logger.info(
+                    f"Valid <SLACK> request received from app {app_id} in channel {channel_id}, processing..")
             event_type = event_data.get('event', {}).get('type')
             event_subtype = event_data.get('event', {}).get('subtype')
 
@@ -275,7 +285,8 @@ class SlackPlugin(UserInteractionsPluginBase):
 
     def _validate_event_data(self, event_type, ts, channel_id, user_id, app_id, api_app_id, event):
         if (user_id is None and app_id is None and api_app_id is None) or channel_id is None:
-            self.logger.debug(f"User ID is {'None' if user_id is None else 'set'}, App ID is {'None' if app_id is None else 'set'}, API App ID is {'None' if app_id is None else 'set'}, Channel ID is {'None' if channel_id is None else 'set'}")
+            self.logger.debug(
+                f"User ID is {'None' if user_id is None else 'set'}, App ID is {'None' if app_id is None else 'set'}, API App ID is {'None' if app_id is None else 'set'}, Channel ID is {'None' if channel_id is None else 'set'}")
             return False
 
         if event_type == "reaction_added":
@@ -286,12 +297,13 @@ class SlackPlugin(UserInteractionsPluginBase):
             self.logger.info("Discarding request: message from the bot itself")
             return False
 
-        if ((api_app_id is not None and user_id is not None and app_id is not None) or (api_app_id is not None and app_id is None)):
+        if ((api_app_id is not None and user_id is not None and app_id is not None) or (
+                api_app_id is not None and app_id is None)):
             if api_app_id not in self.SLACK_AUTHORIZED_WEBHOOKS and api_app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized webhook: {api_app_id}")
                 return False
 
-        if app_id is not None and api_app_id is None :
+        if app_id is not None and api_app_id is None:
             if app_id not in self.SLACK_AUTHORIZED_APPS and app_id != self.bot_user_id:
                 self.logger.info(f"Discarding request: ignoring event from unauthorized app: {app_id}")
                 return False
@@ -306,7 +318,8 @@ class SlackPlugin(UserInteractionsPluginBase):
                 return False
 
         if channel_id == self.SLACK_FEEDBACK_CHANNEL and user_id != self.FEEDBACK_BOT_USER_ID:
-            self.logger.info(f"Discarding request: ignoring event from unauthorized user in feedback channel: {user_id}")
+            self.logger.info(
+                f"Discarding request: ignoring event from unauthorized user in feedback channel: {user_id}")
             return False
 
         if event_type not in ['message', 'app_mention', 'file_shared']:
@@ -322,7 +335,8 @@ class SlackPlugin(UserInteractionsPluginBase):
 
         session_name = f"{channel_id}-{ts}.txt"
         processing_container = self.backend_internal_data_processing_dispatcher.processing
-        result = await self.backend_internal_data_processing_dispatcher.read_data_content(processing_container, session_name)
+        result = await self.backend_internal_data_processing_dispatcher.read_data_content(processing_container,
+                                                                                          session_name)
 
         if result is not None:
             self.logger.warning(f"Discarding request: This request is already being processed for {session_name}")
@@ -331,7 +345,8 @@ class SlackPlugin(UserInteractionsPluginBase):
         return True
 
     async def request_to_notification_data(self, event_data):
-        incoming_data : IncomingNotificationDataBase  = await self.slack_input_handler.request_to_notification_data(event_data)
+        incoming_data: IncomingNotificationDataBase = await self.slack_input_handler.request_to_notification_data(
+            event_data)
         return incoming_data
 
     def split_message(self, message, length):
@@ -351,7 +366,8 @@ class SlackPlugin(UserInteractionsPluginBase):
             message_blocks.append(message_block)
         return message_blocks
 
-    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
+    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT,
+                           title=None, is_internal=False, show_ref=False):
         try:
             if not isinstance(message_type, MessageType):
                 raise ValueError(f"Invalid message type: {message_type}. Expected MessageType enum.")
@@ -401,13 +417,14 @@ class SlackPlugin(UserInteractionsPluginBase):
                             event=event, channel_id=event.channel_id, timestamp=event.timestamp
                         )
                         payload = self.construct_payload(
-                            channel_id, response_id, message_block, message_type, i, len(message_blocks), title, is_new_message_added
+                            channel_id, response_id, message_block, message_type, i, len(message_blocks), title,
+                            is_new_message_added
                         )
 
                         async with session.post(
-                            'https://slack.com/api/chat.postMessage',
-                            headers=headers,
-                            json=payload
+                                'https://slack.com/api/chat.postMessage',
+                                headers=headers,
+                                json=payload
                         ) as response:
                             if response.status != 200:
                                 self.logger.error(f"Error sending message to Slack: {response.status}")
@@ -430,21 +447,27 @@ class SlackPlugin(UserInteractionsPluginBase):
 
         except Exception as e:
             self.logger.error(f"Exception occurred in send_message: {str(e)}")
-            self.global_manager.user_interactions_dispatcher.send_message(event=event, message=f"An error occured while sending a message from slack plugin: {str(e)}", message_type=MessageType.COMMENT, is_internal=True)
+            self.global_manager.user_interactions_dispatcher.send_message(event=event,
+                                                                          message=f"An error occured while sending a message from slack plugin: {str(e)}",
+                                                                          message_type=MessageType.COMMENT,
+                                                                          is_internal=True)
             return None
 
     async def add_reference_message(self, event, message_blocks, response_id):
-        msg_url, msg_text = await self.slack_input_handler.get_message_permalink_and_text(event.channel_id, event.timestamp)
+        msg_url, msg_text = await self.slack_input_handler.get_message_permalink_and_text(event.channel_id,
+                                                                                          event.timestamp)
         if msg_url and msg_text:
             reference_message = f"<{msg_url}|[ref msg link]> | thread: `{event.channel_id}-{response_id}`"
             message_blocks.insert(0, reference_message)
             return True
         return False
 
-    async def handle_internal_message(self, event, event_copy: IncomingNotificationDataBase, response_id, already_found_internal_ts, show_ref):
+    async def handle_internal_message(self, event, event_copy: IncomingNotificationDataBase, response_id,
+                                      already_found_internal_ts, show_ref):
         try:
             if self.INTERNAL_CHANNEL is None:
-                self.logger.warning("An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
+                self.logger.warning(
+                    "An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
                 return response_id, event.channel_id
 
             event_copy.channel_id = self.INTERNAL_CHANNEL
@@ -465,7 +488,8 @@ class SlackPlugin(UserInteractionsPluginBase):
 
                     try:
                         # Search for the message
-                        search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{response_id}")
+                        search_internal_ts = await self.slack_input_handler.search_message_in_thread(
+                            query=f"thread: {event.channel_id}-{response_id}")
 
                         # If found, break out of the loop
                         if search_internal_ts:
@@ -488,7 +512,8 @@ class SlackPlugin(UserInteractionsPluginBase):
 
                 # If we didn't find the message within 40 seconds, fall back to the original thread
                 if search_internal_ts is None:
-                    self.logger.warning("Internal message not found after 40 seconds, sending the message in the original thread.")
+                    self.logger.warning(
+                        "Internal message not found after 40 seconds, sending the message in the original thread.")
                 else:
                     event_copy.thread_id = search_internal_ts
 
@@ -504,7 +529,8 @@ class SlackPlugin(UserInteractionsPluginBase):
             )
             return response_id, event.channel_id
 
-    def construct_payload(self, channel_id, response_id, message_block, message_type, block_index, total_blocks, title, is_new_message_added):
+    def construct_payload(self, channel_id, response_id, message_block, message_type, block_index, total_blocks, title,
+                          is_new_message_added):
         payload = {
             'channel': channel_id,
             'thread_ts': response_id
@@ -538,7 +564,8 @@ class SlackPlugin(UserInteractionsPluginBase):
         if not response_data.get('ok'):
             error_message = response_data.get('error')
             detailed_errors = response_data.get('errors')
-            self.logger.error(f"Error posting message to Slack: {error_message}. Detailed errors: {detailed_errors}. Original message: \n{message_block}")
+            self.logger.error(
+                f"Error posting message to Slack: {error_message}. Detailed errors: {detailed_errors}. Original message: \n{message_block}")
 
     def split_message(self, message, length):
         if message is None:
@@ -561,11 +588,13 @@ class SlackPlugin(UserInteractionsPluginBase):
         event_copy = copy.deepcopy(event)
         if is_internal:
             await self.handle_internal_channel(event, event_copy)
-        await self.slack_output_handler.upload_file_to_slack(event=event_copy, file_content=file_content, filename=filename, title=title)
+        await self.slack_output_handler.upload_file_to_slack(event=event_copy, file_content=file_content,
+                                                             filename=filename, title=title)
 
     async def handle_internal_channel(self, event, event_copy):
         if self.INTERNAL_CHANNEL is None:
-            self.logger.warning("An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
+            self.logger.warning(
+                "An internal message was sent but INTERNAL_CHANNEL is not defined, so the message is sent in the original thread.")
         else:
             event_copy.channel_id = self.INTERNAL_CHANNEL
             await self.wait_for_internal_message(event, event_copy)
@@ -579,7 +608,8 @@ class SlackPlugin(UserInteractionsPluginBase):
             while search_internal_ts is None and time.time() - start_time <= 15:
                 self.logger.info(f"Attempt {attempt}: waiting for internal file object to be posted...")
                 try:
-                    search_internal_ts = await self.slack_input_handler.search_message_in_thread(query=f"thread: {event.channel_id}-{event.response_id}")
+                    search_internal_ts = await self.slack_input_handler.search_message_in_thread(
+                        query=f"thread: {event.channel_id}-{event.response_id}")
                     if search_internal_ts:  # If a message was found in the internal thread
                         event_copy.thread_id = search_internal_ts
                     else:
@@ -596,7 +626,8 @@ class SlackPlugin(UserInteractionsPluginBase):
                     return
 
             if search_internal_ts is None:
-                self.logger.warning("Internal message not found after 15 seconds, sending the message in the original thread.")
+                self.logger.warning(
+                    "Internal message not found after 15 seconds, sending the message in the original thread.")
             else:
                 self.logger.info(f"Internal thread found: {search_internal_ts}")
                 event_copy.thread_id = search_internal_ts
@@ -609,7 +640,6 @@ class SlackPlugin(UserInteractionsPluginBase):
                 message_type=MessageType.COMMENT,
                 is_internal=True
             )
-
 
     async def add_reaction(self, event, channel_id, timestamp, reaction_name):
         missing = [var for var, value in locals().items() if value is None]
@@ -641,7 +671,7 @@ class SlackPlugin(UserInteractionsPluginBase):
         return formatted_message
 
     async def fetch_conversation_history(
-        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+            self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         """
         Fetch the conversation history via SlackOutputHandler.
@@ -653,7 +683,8 @@ class SlackPlugin(UserInteractionsPluginBase):
             final_thread_id = thread_id if thread_id else event.thread_id
 
             # Use SlackOutputHandler to fetch conversation history
-            messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id, thread_id=final_thread_id)
+            messages = await self.slack_output_handler.fetch_conversation_history(channel_id=final_channel_id,
+                                                                                  thread_id=final_thread_id)
 
             # Convert each message into IncomingNotificationDataBase
             event_data_list = []
@@ -670,7 +701,6 @@ class SlackPlugin(UserInteractionsPluginBase):
         except Exception as e:
             self.logger.error(f"Error fetching conversation history: {e}")
             return []
-
 
     async def remove_reaction_from_thread(self, channel_id, thread_id, reaction_name):
         try:

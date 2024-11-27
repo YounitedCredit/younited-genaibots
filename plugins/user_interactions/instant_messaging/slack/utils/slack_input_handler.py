@@ -26,12 +26,12 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 
 class SlackInputHandler:
-    def __init__(self, global_manager : GlobalManager, slack_config):
+    def __init__(self, global_manager: GlobalManager, slack_config):
         from ..slack import SlackConfig
         self.global_manager = global_manager
         self.logger = global_manager.logger
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
-        self.slack_config : SlackConfig = slack_config
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
+        self.slack_config: SlackConfig = slack_config
         self.APPLICATION_PLACEHOLDER = 'application/pdf'
         if self.slack_config is None:
             self.logger.error("No 'SLACK' configuration found in 'USER_INTERACTIONS_PLUGINS'")
@@ -101,8 +101,6 @@ class SlackInputHandler:
         else:
             return True
 
-
-
     # Function to get user info
     async def get_user_info(self, user_id):
         if user_id is not None and user_id != 'Unknown':
@@ -171,8 +169,8 @@ class SlackInputHandler:
             image = image.convert("RGB")  # Convert image to RGB
         width, height = image.size
         if width > max_size[0] or height > max_size[1]:  # Only resize if the image is larger than max_size
-            ratio = min(max_size[0]/width, max_size[1]/height)
-            new_size = (int(width*ratio), int(height*ratio))
+            ratio = min(max_size[0] / width, max_size[1] / height)
+            new_size = (int(width * ratio), int(height * ratio))
             image = image.resize(new_size, Image.BILINEAR)
         byte_arr = io.BytesIO()
         image.save(byte_arr, format='JPEG')
@@ -218,7 +216,8 @@ class SlackInputHandler:
                         else:
                             file_content = file_in_zip.read()
                             if zip_info.filename.lower().endswith('.pdf'):
-                                file = {'url_private': file_content, 'mimetype': self.APPLICATION_PLACEHOLDER, 'name': zip_info.filename}
+                                file = {'url_private': file_content, 'mimetype': self.APPLICATION_PLACEHOLDER,
+                                        'name': zip_info.filename}
                                 text_contents = await self.handle_text_file(file, file_content=file_content)
                                 all_files_content.extend(text_contents)
                                 self.logger.debug(f'Successfully processed PDF file {zip_info.filename}')
@@ -227,14 +226,18 @@ class SlackInputHandler:
                                 for encoding in ['utf-8', 'latin-1', 'cp1252']:
                                     try:
                                         file_content_decoded = file_content.decode(encoding)
-                                        all_files_content.append(f"SHARED FILE FULL NAME in a ZIP : {zip_info.filename}\n THIS FILE CONTENT: \n{file_content_decoded}")
-                                        self.logger.debug(f'Successfully processed text file {zip_info.filename} with encoding {encoding}')
+                                        all_files_content.append(
+                                            f"SHARED FILE FULL NAME in a ZIP : {zip_info.filename}\n THIS FILE CONTENT: \n{file_content_decoded}")
+                                        self.logger.debug(
+                                            f'Successfully processed text file {zip_info.filename} with encoding {encoding}')
                                         decoded = True
                                         break
                                     except UnicodeDecodeError as e:
-                                        self.logger.warning(f'UnicodeDecodeError for file {zip_info.filename} with encoding {encoding}: start={e.start}, end={e.end}, reason={e.reason}')
+                                        self.logger.warning(
+                                            f'UnicodeDecodeError for file {zip_info.filename} with encoding {encoding}: start={e.start}, end={e.end}, reason={e.reason}')
                                 if not decoded:
-                                    self.logger.warning(f'Error decoding file content for file {zip_info.filename}, content might be binary.')
+                                    self.logger.warning(
+                                        f'Error decoding file content for file {zip_info.filename}, content might be binary.')
         except Exception as e:
             self.logger.error(f"Failed to extract files from zip: {e}")
         return all_files_content, zip_images
@@ -254,7 +257,8 @@ class SlackInputHandler:
                     file_content = pdftext
             else:
                 file_content = file_content.decode('utf-8')
-            return [f"\nYOU RECEIVED A SHARED FILE FROM THE USER. FILE NAME : {file.get('name')}. Here is the file content between BEGIN OF FILE and END OF FILE marquee: ```BEGIN OF FILE \n {file_content} \n ```END OF FILE"]
+            return [
+                f"\nYOU RECEIVED A SHARED FILE FROM THE USER. FILE NAME : {file.get('name')}. Here is the file content between BEGIN OF FILE and END OF FILE marquee: ```BEGIN OF FILE \n {file_content} \n ```END OF FILE"]
 
     async def request_to_notification_data(self, event_data):
         try:
@@ -293,7 +297,8 @@ class SlackInputHandler:
             response_id = ts if thread_id == '' else thread_id
 
             event_data_instance = await self._create_event_data_instance(
-                ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content
+                ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text,
+                base64_images, files_content
             )
 
             if text or event_data_instance.images or event_data_instance.files_content:
@@ -372,15 +377,18 @@ class SlackInputHandler:
 
             # Extract Slack link details (channel, message timestamp, thread timestamp, and if it's a thread)
             channel_id, message_ts, thread_ts, is_thread = await self.extract_info_from_url(link)
-            self.logger.debug(f"Extracted info: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, is_thread={is_thread}")
+            self.logger.debug(
+                f"Extracted info: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, is_thread={is_thread}")
 
             # Fetch the full thread or specific message depending on link type
             if not is_thread and not thread_ts:
                 self.logger.info(f"Fetching entire thread for message_ts: {message_ts} (Thread link)")
-                result = await self.get_message_content(channel_id, message_ts, thread_ts=message_ts, original_link=link)
+                result = await self.get_message_content(channel_id, message_ts, thread_ts=message_ts,
+                                                        original_link=link)
             elif is_thread:
                 if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS:
-                    self.logger.info(f"GET_ALL_THREAD_FROM_MESSAGE_LINKS is True, fetching entire thread for message: {message_ts}")
+                    self.logger.info(
+                        f"GET_ALL_THREAD_FROM_MESSAGE_LINKS is True, fetching entire thread for message: {message_ts}")
                     result = await self.get_message_content(channel_id, message_ts, thread_ts=None, original_link=link)
                 else:
                     self.logger.info(f"Fetching single message for thread_ts: {thread_ts}")
@@ -394,7 +402,8 @@ class SlackInputHandler:
             metadata = result['metadata']
             content_type = result['content_type']
             messages = result['messages']
-            messages = [message for message in messages if message['ts'] != main_timestamp]  # Remove the originating message
+            messages = [message for message in messages if
+                        message['ts'] != main_timestamp]  # Remove the originating message
 
             # Find and tag the exact message that was linked
             tagged_message = None
@@ -422,12 +431,16 @@ class SlackInputHandler:
                     for attachment in message['attachments']:
                         if "from_url" in attachment:
                             # Inject 'from_url' into the text for processing
-                            processed_attachment_url = await self._process_single_slack_link(attachment['from_url'], "", main_timestamp, user_id, depth + 1)
+                            processed_attachment_url = await self._process_single_slack_link(attachment['from_url'], "",
+                                                                                             main_timestamp, user_id,
+                                                                                             depth + 1)
                             message['text'] += f"\n{processed_attachment_url}"  # Injecting 'from_url' into text
 
                         # Handle additional fields in attachments where links might exist
                         if "title_link" in attachment:  # Sometimes links exist in titles
-                            processed_title_link = await self._process_single_slack_link(attachment['title_link'], "", main_timestamp, user_id, depth + 1)
+                            processed_title_link = await self._process_single_slack_link(attachment['title_link'], "",
+                                                                                         main_timestamp, user_id,
+                                                                                         depth + 1)
                             attachment['title_link'] = processed_title_link
 
                 # Process links in message blocks if they exist
@@ -435,7 +448,9 @@ class SlackInputHandler:
                     for block in message['message_blocks']:
                         if "from_url" in block:
                             # Process links found in blocks
-                            processed_block_url = await self._process_single_slack_link(block['from_url'], "", main_timestamp, user_id, depth + 1)
+                            processed_block_url = await self._process_single_slack_link(block['from_url'], "",
+                                                                                        main_timestamp, user_id,
+                                                                                        depth + 1)
                             message['text'] += f"\n{processed_block_url}"
 
                 processed_messages.append(message)
@@ -459,8 +474,8 @@ class SlackInputHandler:
             if tagged_message:
                 tagged_message_content = tagged_message.get('text', 'No content found')
                 metadata_str += (f"Note: The exact message referenced in the link is tagged below.\n"
-                                f"Message content: \"{tagged_message_content}\"\n"
-                                f"Author: {user_name} (Email: {user_email})\n")
+                                 f"Message content: \"{tagged_message_content}\"\n"
+                                 f"Author: {user_name} (Email: {user_email})\n")
 
             # Add a note if the entire thread was retrieved based on config
             if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS and is_thread:
@@ -468,15 +483,14 @@ class SlackInputHandler:
 
             # Combine metadata and formatted content into a full message
             full_message_text = (f"\n[Automated Response] Slack link content (depth {depth}):\n"
-                                f"{metadata_str}\n\n"
-                                f"{formatted_content}")
+                                 f"{metadata_str}\n\n"
+                                 f"{formatted_content}")
 
             return full_message_text
 
         except Exception as e:
             self.logger.error(f"Error processing Slack link: {link}. Error: {str(e)}", exc_info=True)
             raise
-
 
     async def _process_slack_links_in_text(self, text, depth):
         #
@@ -490,7 +504,8 @@ class SlackInputHandler:
                 linked_content = await self._process_single_slack_link(full_url, "", "", "", depth=depth)
                 # Remplacer le lien Slack original par le contenu traité
                 text = text.replace(f'<{full_url}|{display_url}>', f"[Linked content: {linked_content}]")
-                text = text.replace(f'<{full_url}>', f"[Linked content: {linked_content}]")  # Pour les cas sans texte d'affichage
+                text = text.replace(f'<{full_url}>',
+                                    f"[Linked content: {linked_content}]")  # Pour les cas sans texte d'affichage
             except Exception as e:
                 self.logger.error(f"Failed to process nested Slack link: {full_url}. Error: {e}", exc_info=True)
                 # Remplacer le lien par un message d'erreur
@@ -515,16 +530,20 @@ class SlackInputHandler:
     async def _process_single_url(self, url):
         if "slack.com/archives/" in url:
             try:
-                match = re.search(r'archives/(?P<channel_id>[A-Z0-9]+)/p(?P<message_ts>\d+)(?:\?thread_ts=(?P<thread_ts>[\d.]+))?', url)
+                match = re.search(
+                    r'archives/(?P<channel_id>[A-Z0-9]+)/p(?P<message_ts>\d+)(?:\?thread_ts=(?P<thread_ts>[\d.]+))?',
+                    url)
                 if match:
                     channel_id = match.group('channel_id')
                     message_ts = f"{match.group('message_ts')[:10]}.{match.group('message_ts')[10:]}"
                     thread_ts = match.group('thread_ts')
 
-                    messages = await self.global_manager.slack_output_handler.fetch_conversation_history(channel_id, thread_ts or message_ts)
+                    messages = await self.global_manager.slack_output_handler.fetch_conversation_history(channel_id,
+                                                                                                         thread_ts or message_ts)
 
                     if messages:
-                        content = "\n".join([f"User: {msg.get('user', 'Unknown')}\nMessage: {msg.get('text', '')}" for msg in messages])
+                        content = "\n".join(
+                            [f"User: {msg.get('user', 'Unknown')}\nMessage: {msg.get('text', '')}" for msg in messages])
                         return f"The following text is the content of the Slack message or thread:\n{content}\n"
                     else:
                         return f"Unable to retrieve content for Slack URL: {url}"
@@ -546,7 +565,8 @@ class SlackInputHandler:
                 self.logger.error(f"An error occurred while trying to get {url}: {e}")
                 return f"An error occurred while trying to get {url}:\n"
 
-    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id, username, is_mention, text, base64_images, files_content):
+    async def _create_event_data_instance(self, ts, channel_id, thread_id, response_id, user_id, app_id, api_app_id,
+                                          username, is_mention, text, base64_images, files_content):
         user_name, user_email, _ = await self.get_user_info(user_id)
         event_label = "thread_message" if thread_id != ts else "message"
 
@@ -591,7 +611,8 @@ class SlackInputHandler:
 
     async def get_message_content(self, channel_id, message_ts, thread_ts=None, original_link=None):
         try:
-            self.logger.debug(f"get_message_content called with: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, original_link={original_link}")
+            self.logger.debug(
+                f"get_message_content called with: channel_id={channel_id}, message_ts={message_ts}, thread_ts={thread_ts}, original_link={original_link}")
 
             # Function to check if two timestamps match within a tolerance
             def ts_match(ts1, ts2, tolerance=0.001):
@@ -668,7 +689,6 @@ class SlackInputHandler:
             'inclusive': 'true'  # Changé de True à 'true'
         }
         return await self._make_slack_api_call(url, params)
-
 
     async def _make_slack_api_call(self, url, params):
         headers = {'Authorization': f'Bearer {self.SLACK_BOT_USER_TOKEN}'}
@@ -863,11 +883,13 @@ class SlackInputHandler:
                 if 'thread_id' in permalink:
                     # Threaded message, use conversations.replies endpoint
                     ts = path_elements[5].split('?')[0]
-                    ts = ts[:len(ts)-6] + '.' + ts[len(ts)-6:]
+                    ts = ts[:len(ts) - 6] + '.' + ts[len(ts) - 6:]
 
                     latest = path_elements[5].split('thread_id=')[1].split('&')[0]
 
-                    message_response = await self.async_client.conversations_replies(channel=channel, ts=ts, latest=latest, inclusive=True, limit=1)
+                    message_response = await self.async_client.conversations_replies(channel=channel, ts=ts,
+                                                                                     latest=latest, inclusive=True,
+                                                                                     limit=1)
                 else:
                     # Non-threaded message, use conversations.history endpoint
                     latest = path_elements[5][1:]
@@ -877,13 +899,15 @@ class SlackInputHandler:
                     # Convert the timestamp to the correct format
                     latest = str(float(latest) / 1000000)
 
-                    message_response = await self.async_client.conversations_history(channel=channel, latest=latest, inclusive=True, limit=1)
+                    message_response = await self.async_client.conversations_history(channel=channel, latest=latest,
+                                                                                     inclusive=True, limit=1)
 
                 messages = message_response.get('messages')
 
                 if messages:
                     # Get the user's name
-                    if "user" in messages[0] and (self.SLACK_AUTHORIZED_APPS[0] == "" or not any(str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS)):
+                    if "user" in messages[0] and (self.SLACK_AUTHORIZED_APPS[0] == "" or not any(
+                            str(app_id) in str(messages) for app_id in self.SLACK_AUTHORIZED_APPS)):
                         for message in messages:
                             self.logger.info(
                                 f"user: user_id={message.get('user', 'N/A')}, "

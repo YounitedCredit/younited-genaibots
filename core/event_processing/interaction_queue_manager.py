@@ -31,6 +31,8 @@ def make_serializable(obj):
     else:
         # Ici, on peut choisir de retourner une représentation chaîne de l'objet
         return str(obj)
+
+
 class InteractionQueueManager:
     def __init__(self, global_manager):
         self.global_manager = global_manager
@@ -261,7 +263,8 @@ class InteractionQueueManager:
 
             container = self.internal_event_container if internal else self.external_event_container
 
-            self.logger.debug(f"Attempting to dequeue message: channel_id={channel_id}, thread_id={thread_id}, message_id={message_id}, guid={guid}, container={container}")
+            self.logger.debug(
+                f"Attempting to dequeue message: channel_id={channel_id}, thread_id={thread_id}, message_id={message_id}, guid={guid}, container={container}")
 
             await self.backend_dispatcher.dequeue_message(
                 data_container=container,
@@ -274,7 +277,6 @@ class InteractionQueueManager:
 
         except Exception as e:
             self.logger.error(f"Error marking event as processed: {e}\nTraceback: {traceback.format_exc()}")
-
 
     async def process_internal_queue(self, queue_key):
         try:
@@ -305,7 +307,8 @@ class InteractionQueueManager:
                     elif event_type == "remove_reaction_from_thread":
                         await dispatcher.remove_reaction_from_thread(**method_params, is_replayed=True)
                     elif event_type == "update_reactions_batch":
-                        await dispatcher.update_reactions_batch(reactions_actions=method_params['reactions_actions'], is_replayed=True)
+                        await dispatcher.update_reactions_batch(reactions_actions=method_params['reactions_actions'],
+                                                                is_replayed=True)
                     else:
                         self.logger.error(f"Unknown event_type '{event_type}' in process_internal_queue")
 
@@ -352,7 +355,8 @@ class InteractionQueueManager:
                     elif event_type == "remove_reaction_from_thread":
                         await dispatcher.remove_reaction_from_thread(**method_params, is_replayed=True)
                     elif event_type == "update_reactions_batch":
-                        await dispatcher.update_reactions_batch(reactions_actions=method_params['reactions_actions'], is_replayed=True)
+                        await dispatcher.update_reactions_batch(reactions_actions=method_params['reactions_actions'],
+                                                                is_replayed=True)
                     else:
                         self.logger.error(f"Unknown event_type '{event_type}' in process_external_queue")
 

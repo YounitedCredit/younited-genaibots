@@ -8,10 +8,11 @@ class SessionManagerPluginBase(PluginBase):
     def generate_session_id(self, channel_id: str, thread_id: str) -> str:
         raise NotImplementedError("This method should be implemented by subclasses")
 
-    async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None, enriched: bool = False):
+    async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None,
+                             enriched: bool = False):
         raise NotImplementedError("This method should be implemented by subclasses")
 
-    async def load_session(self, session_id: str) -> Optional[EnrichedSession]: # type: ignore
+    async def load_session(self, session_id: str) -> Optional[EnrichedSession]:  # type: ignore
         raise NotImplementedError("This method should be implemented by subclasses")
 
     async def save_session(self, session: EnrichedSession):

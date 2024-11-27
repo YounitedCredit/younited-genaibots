@@ -20,25 +20,26 @@ from botbuilder.schema.teams import TeamInfo, TeamsChannelAccount
 
 ADAPTIVECARDTEMPLATE = "resources/UserMentionCardTemplate.json"
 
+
 class TeamsConversationBot(TeamsActivityHandler):
     def __init__(self, app_id: str, app_password: str):
         self._app_id = app_id
         self._app_password = app_password
 
     async def on_teams_members_added(  # pylint: disable=unused-argument
-        self,
-        teams_members_added: [TeamsChannelAccount],
-        team_info: TeamInfo,
-        turn_context: TurnContext,
+            self,
+            teams_members_added: [TeamsChannelAccount],
+            team_info: TeamInfo,
+            turn_context: TurnContext,
     ):
         for member in teams_members_added:
             if member.id != turn_context.activity.recipient.id:
                 await turn_context.send_activity(
-                    f"Welcome to the team { member.given_name } { member.surname }. "
+                    f"Welcome to the team {member.given_name} {member.surname}. "
                 )
 
-    async def on_message_activity(self, turn_context: TurnContext,):
-        #TurnContext.remove_recipient_mention(turn_context.activity)
+    async def on_message_activity(self, turn_context: TurnContext, ):
+        # TurnContext.remove_recipient_mention(turn_context.activity)
         text = turn_context.activity.text.strip().lower()
         if text.startswith("special action"):
             # Extract the string after "special action"
@@ -47,7 +48,7 @@ class TeamsConversationBot(TeamsActivityHandler):
             # Call the method with the extracted string as an additional parameter
             if emoji == "👀":
                 await turn_context.send_activity(emoji)
-            #await self.send_special_action_card(turn_context, emoji)
+            # await self.send_special_action_card(turn_context, emoji)
         else:
             # Otherwise, process normally
             text = f"{turn_context.activity.text.strip()}"
@@ -109,7 +110,8 @@ class TeamsConversationBot(TeamsActivityHandler):
         for e in template_json["msteams"]["entities"]:
             e["text"] = e["text"].replace(USERNAME_PLACEHOLDER, member.name)
             e["mentioned"]["id"] = e["mentioned"]["id"].replace("${userUPN}", member.user_principal_name)
-            e["mentioned"]["id"] = e["mentioned"]["id"].replace("${userAAD}", member.additional_properties["aadObjectId"])
+            e["mentioned"]["id"] = e["mentioned"]["id"].replace("${userAAD}",
+                                                                member.additional_properties["aadObjectId"])
             e["mentioned"]["name"] = e["mentioned"]["name"].replace(USERNAME_PLACEHOLDER, member.name)
 
         adaptive_card_attachment = Activity(
@@ -232,7 +234,7 @@ class TeamsConversationBot(TeamsActivityHandler):
         )
 
     async def _get_paged_members(
-        self, turn_context: TurnContext
+            self, turn_context: TurnContext
     ) -> List[TeamsChannelAccount]:
         paged_members = []
         continuation_token = None

@@ -181,7 +181,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
             # Si on trouve le texte à supprimer
             if data_lower in existing_content.lower():
                 new_content = '\n'.join([line for line in existing_content.split('\n')
-                                    if data_lower not in line.lower()])
+                                         if data_lower not in line.lower()])
 
                 # Si le nouveau contenu est vide, on met un espace
                 if new_content.strip() == "":
@@ -393,7 +393,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
 
     def clear_container_sync(self, container_name: str):
         """
-        Clear all contents of the specified container.
+        Clear all contents of the specified container but do not remove the directory itself.
         """
         container_path = os.path.join(self.root_directory, container_name)
         if os.path.exists(container_path):
@@ -404,8 +404,7 @@ class FileSystemPlugin(InternalDataProcessingBase):
                         os.remove(file_path)
                         self.logger.info(f"File {file_path} successfully deleted.")
                     elif os.path.isdir(file_path):
-                        os.rmdir(file_path)
-                        self.logger.info(f"Directory {file_path} successfully deleted.")
+                        self.clear_container_sync(file_path)
                 self.logger.info(f"All contents of container {container_name} have been cleared.")
             except Exception as e:
                 self.logger.error(f"Failed to clear container {container_name}: {str(e)}")

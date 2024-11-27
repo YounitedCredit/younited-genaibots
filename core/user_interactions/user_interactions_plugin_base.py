@@ -61,14 +61,15 @@ class UserInteractionsPluginBase(PluginBase, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
+    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT,
+                           title=None, is_internal=False, show_ref=False):
         """
         Asynchronously send a message to a specified channel.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def upload_file(self, event :IncomingNotificationDataBase, file_content, filename, title, is_internal=False):
+    async def upload_file(self, event: IncomingNotificationDataBase, file_content, filename, title, is_internal=False):
         """
         Asynchronously upload a file to a specified channel.
         """
@@ -125,7 +126,7 @@ class UserInteractionsPluginBase(PluginBase, ABC):
 
     @abstractmethod
     async def fetch_conversation_history(
-        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+            self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         """
         Fetches the conversation history for a given channel and thread.
