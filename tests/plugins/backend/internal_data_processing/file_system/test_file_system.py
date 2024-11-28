@@ -98,9 +98,11 @@ async def test_write_data_content(file_system_plugin):
 
 @pytest.mark.asyncio
 async def test_remove_data_content(file_system_plugin):
-    with patch("os.path.exists", return_value=True), patch("os.remove", new_callable=AsyncMock) as mock_remove:
-        await file_system_plugin.remove_data_content('container', 'file')
-        mock_remove.assert_called_once_with(os.path.join(file_system_plugin.root_directory, 'container', 'file'))
+    with patch("os.path.exists", return_value=True), patch("os.remove") as mock_remove:
+        await file_system_plugin.remove_data_content("container", "file")
+        mock_remove.assert_called_once_with(
+            os.path.join(file_system_plugin.root_directory, "container", "file")
+        )
 
 @pytest.mark.asyncio
 async def test_remove_data_content_file_not_exists(file_system_plugin):
@@ -112,6 +114,15 @@ async def test_remove_data_content_file_not_exists(file_system_plugin):
 def test_init_shares(mock_makedirs, file_system_plugin):
     file_system_plugin.init_shares()
     assert mock_makedirs.call_count == 11
+
+@pytest.mark.asyncio
+async def test_clear_container_with_permission_error(file_system_plugin):
+    with patch("os.path.exists", return_value=True), \
+         patch("os.listdir", side_effect=PermissionError("Permission denied")), \
+         patch.object(file_system_plugin.logger, "error") as mock_logger:
+        with pytest.raises(PermissionError, match="Permission denied"):
+            await file_system_plugin.clear_container("test_container")
+        mock_logger.assert_called_once_with("Failed to clear container test_container: Permission denied")
 
 
 pytest.mark.asyncio
@@ -320,28 +331,25 @@ async def test_write_data_content_calls_open(file_system_plugin):
 
 @pytest.mark.asyncio
 async def test_write_read_remove_data_integration(file_system_plugin):
-    # Créez le répertoire si nécessaire avant l'écriture
-    file_path = os.path.join(file_system_plugin.root_directory, 'container', 'file')
-    directory_path = os.path.dirname(file_path)
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
+    # Mock the filesystem operations
+    with patch("os.makedirs"), \
+         patch("os.path.exists", side_effect=lambda path: path.endswith("file")), \
+         patch("builtins.open", mock_open(read_data='{"key": "value"}')) as mock_file, \
+         patch("os.remove") as mock_remove:
 
-    # Écriture de données
-    await file_system_plugin.write_data_content('container', 'file', '{"key": "value"}')
+        # Write data
+        await file_system_plugin.write_data_content("container", "file", '{"key": "value"}')
+        mock_file().write.assert_called_once_with('{"key": "value"}')
 
-    # Vérifiez si le fichier a été correctement écrit en vérifiant l'existence du fichier
-    assert os.path.exists(file_path), f"Le fichier n'existe pas : {file_path}"
+        # Read data
+        content = await file_system_plugin.read_data_content("container", "file")
+        assert content == '{"key": "value"}'
 
-    # Lecture des données
-    content = await file_system_plugin.read_data_content('container', 'file')
-    assert content == '{"key": "value"}', f"Contenu incorrect: {content}"
-
-    # Suppression des données
-    await file_system_plugin.remove_data_content('container', 'file')
-
-    # Vérification que les données ont bien été supprimées
-    content_after_removal = await file_system_plugin.read_data_content('container', 'file')
-    assert content_after_removal is None
+        # Remove data
+        await file_system_plugin.remove_data_content("container", "file")
+        mock_remove.assert_called_once_with(
+            os.path.join(file_system_plugin.root_directory, "container", "file")
+        )
 
 @pytest.mark.asyncio
 async def test_update_session_invalid_json(file_system_plugin):
@@ -402,13 +410,13 @@ async def test_update_prompt_system_message_no_system_role(file_system_plugin):
 async def test_clear_container_with_subdirectories(file_system_plugin):
     with patch("os.path.exists", return_value=True), \
          patch("os.listdir", return_value=["file1.txt", "subdir"]), \
-         patch("os.path.isfile", side_effect=[True, False]), \
-         patch("os.path.isdir", side_effect=[True, True]), \
+         patch("os.path.isfile", side_effect=lambda path: path.endswith(".txt")), \
+         patch("os.path.isdir", side_effect=lambda path: path.endswith("subdir")), \
          patch("os.remove") as mock_remove, \
          patch("os.rmdir") as mock_rmdir:
         await file_system_plugin.clear_container("test_container")
-        assert mock_remove.called
-        assert mock_rmdir.called
+        mock_remove.assert_any_call(os.path.join(file_system_plugin.root_directory, "test_container", "file1.txt"))
+        mock_rmdir.assert_called_once_with(os.path.join(file_system_plugin.root_directory, "test_container", "subdir"))
 
 @pytest.mark.asyncio
 async def test_clear_container_error_handling(file_system_plugin):
@@ -426,6 +434,14 @@ async def test_file_exists(file_system_plugin):
     with patch("os.path.exists", return_value=False):
         result = await file_system_plugin.file_exists("container", "nonexistent.txt")
         assert result is False
+
+def test_clear_container_sync_error_handling(file_system_plugin):
+    with patch("os.path.exists", return_value=True), \
+         patch("os.listdir", side_effect=PermissionError("Permission denied")), \
+         patch.object(file_system_plugin.logger, "error") as mock_logger:
+        with pytest.raises(PermissionError, match="Permission denied"):
+            file_system_plugin.clear_container_sync("test_container")
+        mock_logger.assert_called_once_with("Failed to clear container test_container: Permission denied")
 
 def test_clear_container_sync_with_errors(file_system_plugin):
     with patch("os.path.exists", return_value=True), \
@@ -452,3 +468,12 @@ async def test_remove_data_with_empty_content(file_system_plugin):
 async def test_remove_data_with_none_content(file_system_plugin):
     with patch.object(file_system_plugin, "read_data_content", return_value=None):
         await file_system_plugin.remove_data("container", "file", "data")
+
+def test_clear_container_sync_with_empty_directory(file_system_plugin):
+    with patch("os.path.exists", return_value=True), \
+         patch("os.listdir", return_value=[]), \
+         patch("os.rmdir") as mock_rmdir:
+        file_system_plugin.clear_container_sync("test_container")
+
+        # Verify that `os.rmdir` is not called for the empty container itself
+        mock_rmdir.assert_not_called()

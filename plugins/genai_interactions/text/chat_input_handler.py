@@ -144,7 +144,6 @@ class ChatInputHandler():
             self.logger.error(f"Error extracting version from prompt: {e}")
             return "Unknown"
 
-
     async def handle_thread_message_event(self, event_data: IncomingNotificationDataBase):
         try:
             # Récupérer ou créer la session
@@ -179,11 +178,11 @@ class ChatInputHandler():
 
                 # Ajouter le message système aux messages
                 system_message = {"role": "system", "content": [
-                        {
-                            "type": "text",
-                            "text": init_prompt
-                        }
-                    ]}
+                    {
+                        "type": "text",
+                        "text": init_prompt
+                    }
+                ]}
                 messages.insert(0, system_message)
 
             # Construire le message utilisateur
@@ -206,13 +205,15 @@ class ChatInputHandler():
             current_event_timestamp = datetime.fromtimestamp(float(event_data.timestamp), tz=timezone.utc)
 
             try:
-                conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(event=event_data)
+                conversation_history = await self.user_interaction_dispatcher.fetch_conversation_history(
+                    event=event_data)
             except Exception as e:
                 self.logger.error(f"Error fetching conversation history: {e}")
                 return
 
             if not conversation_history:
-                self.logger.warning(f"No conversation history found for channel {event_data.channel_id}, thread {event_data.thread_id}")
+                self.logger.warning(
+                    f"No conversation history found for channel {event_data.channel_id}, thread {event_data.thread_id}")
                 return
 
             try:
@@ -224,7 +225,8 @@ class ChatInputHandler():
                     if last_message_timestamp_str is None:
                         last_message_timestamp = datetime.fromtimestamp(0, tz=timezone.utc)
                     else:
-                        last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str), tz=timezone.utc)
+                        last_message_timestamp = datetime.fromtimestamp(float(last_message_timestamp_str),
+                                                                        tz=timezone.utc)
                     if last_message_timestamp.tzinfo is None:
                         last_message_timestamp = last_message_timestamp.replace(tzinfo=timezone.utc)
 
@@ -253,7 +255,8 @@ class ChatInputHandler():
                 converted_messages.sort(key=lambda x: float(x.get('timestamp', datetime.now().timestamp())))
                 # Ajouter aux messages de la session
                 for message in converted_messages:
-                    self.global_manager.session_manager_dispatcher.append_messages(session.messages, message, session.session_id)
+                    self.global_manager.session_manager_dispatcher.append_messages(session.messages, message,
+                                                                                   session.session_id)
                 await self.global_manager.session_manager_dispatcher.save_session(session)
             except Exception as e:
                 self.logger.error(f"Error converting events to messages: {e}")
@@ -312,7 +315,6 @@ class ChatInputHandler():
             "is_automated": is_automated  # Nouveau champ ajouté
         }
 
-
     async def generate_response(self, event_data: IncomingNotificationDataBase, session):
         completion = None  # Initialiser à None
         try:
@@ -352,7 +354,6 @@ class ChatInputHandler():
             self.logger.error(f"Error while generating response: {e}\n{traceback.format_exc()}")
             raise
 
-
     async def filter_messages(self, messages):
         filtered_messages = []
         for message in messages:
@@ -381,7 +382,8 @@ class ChatInputHandler():
             generation_time_ms = generation_time * 1000
 
         except asyncio.exceptions.CancelledError:
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             return None
         except Exception as e:
@@ -398,7 +400,9 @@ class ChatInputHandler():
         gpt_response = completion.replace("[BEGINIMDETECT]", "").replace("[ENDIMDETECT]", "")
 
         # Étape 2 : Enregistrer la réponse brute de GenAI pour le débogage
-        await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response, filename="Genai_response_raw.yaml", title="Genai response file", is_internal=True)
+        await self.user_interaction_dispatcher.upload_file(event=event_data, file_content=gpt_response,
+                                                           filename="Genai_response_raw.yaml",
+                                                           title="Genai response file", is_internal=True)
 
         try:
             # Étape 3 : Gestion de la conversion JSON ou YAML
@@ -420,8 +424,12 @@ class ChatInputHandler():
 
         except json.JSONDecodeError as e:
             # Étape 5 : Gérer et signaler les erreurs de décodage JSON
-            await self.user_interaction_dispatcher.send_message(event=event_data, message=f"An error occurred while converting the completion: {e}", message_type=MessageType.COMMENT, is_internal=True)
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Oops something went wrong, try again or contact the bot owner", message_type=MessageType.COMMENT)
+            await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                                message=f"An error occurred while converting the completion: {e}",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                                message="Oops something went wrong, try again or contact the bot owner",
+                                                                message_type=MessageType.COMMENT)
             self.logger.error(f"Failed to parse JSON: {e}")
             return None
 
@@ -490,13 +498,17 @@ class ChatInputHandler():
         return extracted_actions
 
     async def handle_completion_errors(self, event_data, e):
-        await self.user_interaction_dispatcher.send_message(event=event_data, message=f"An error occurred while calling the completion: {e}", message_type=MessageType.COMMENT, is_internal=True)
+        await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                            message=f"An error occurred while calling the completion: {e}",
+                                                            message_type=MessageType.COMMENT, is_internal=True)
         error_message = str(e)
         start = error_message.find('\'message\': "') + 12
         end = error_message.find('", \'param\':', start)
         sanitized_message = error_message[start:end]
         sanitized_message = sanitized_message.replace('\\r\\n', ' ')
-        await self.user_interaction_dispatcher.send_message(event=event_data, message=f":warning: Sorry, I was unable to analyze the content you provided: {sanitized_message}", message_type=MessageType.COMMENT, is_internal=False)
+        await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                            message=f":warning: Sorry, I was unable to analyze the content you provided: {sanitized_message}",
+                                                            message_type=MessageType.COMMENT, is_internal=False)
         self.logger.error(f"Failed to create completion: {e}")
         return None
 
@@ -577,7 +589,8 @@ class ChatInputHandler():
                     value_str = action['Action']['Parameters']['value']
 
                     # Traiter uniquement si value_str est une chaîne et formatée en YAML
-                    if isinstance(value_str, str) and value_str.strip().startswith('```yaml') and value_str.strip().endswith('```'):
+                    if isinstance(value_str, str) and value_str.strip().startswith(
+                            '```yaml') and value_str.strip().endswith('```'):
                         # Supprimer la syntaxe du bloc de code markdown
                         yaml_str = value_str.strip()[7:-3].strip()
                         # Parser le contenu YAML
@@ -601,7 +614,8 @@ class ChatInputHandler():
             )
             return None
 
-    async def calculate_and_update_costs(self, cost_params: GenAICostBase, costs_blob_container_name, blob_name, event: IncomingNotificationDataBase, session):
+    async def calculate_and_update_costs(self, cost_params: GenAICostBase, costs_blob_container_name, blob_name,
+                                         event: IncomingNotificationDataBase, session):
         # Initialiser total_cost, input_cost et output_cost à 0
         total_cost = input_cost = output_cost = 0
 

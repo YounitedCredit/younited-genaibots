@@ -28,6 +28,7 @@ class CaseInsensitiveDict(dict):
     def _convert_key(self, key):
         return key.lower() if isinstance(key, str) else key
 
+
 class ActionInput:
     def __init__(self, action_name, parameters=None):
         self._action_name = action_name

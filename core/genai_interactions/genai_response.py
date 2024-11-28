@@ -8,13 +8,17 @@ class Action:
     ActionName: str  # The name of the action
     Parameters: Dict[str, Any]  # The parameters of the action
 
+
 def normalize_keys(d):
     if isinstance(d, list):
         return [normalize_keys(v) for v in d]
     elif isinstance(d, dict):
-        return {('Action' if k.lower() == 'action' else 'ActionName' if k.lower() == 'actionname' else 'Parameters' if k.lower() == 'parameters' else k): normalize_keys(v) for k, v in d.items()}
+        return {(
+                    'Action' if k.lower() == 'action' else 'ActionName' if k.lower() == 'actionname' else 'Parameters' if k.lower() == 'parameters' else k): normalize_keys(
+            v) for k, v in d.items()}
     else:
         return d
+
 
 class GenAIResponse():
     def __init__(self, response: List[Action]):

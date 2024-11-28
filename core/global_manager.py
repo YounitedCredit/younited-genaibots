@@ -59,8 +59,6 @@ class GlobalManager:
 
         self.logger.info("Plugin manager and main handlers initialized.")
 
-
-
         bot_config_dict = self.config_manager.config_model.BOT_CONFIG
         self.bot_config: BotConfig = bot_config_dict
 
@@ -83,9 +81,11 @@ class GlobalManager:
         else:
             self.logger.info("Interaction Queue Manager is disabled in the config.")
 
-        backend_internal_data_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
+        backend_internal_data_processing_plugins: List[
+            InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_DATA_PROCESSING")
-        backend_internal_queue_processing_plugins: List[InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
+        backend_internal_queue_processing_plugins: List[
+            InternalDataProcessingBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "INTERNAL_QUEUE_PROCESSING")
         session_manager_plugins: List[SessionManagerPluginBase] = self.plugin_manager.get_plugin_by_category(
             "BACKEND", "SESSION_MANAGERS")
@@ -98,7 +98,8 @@ class GlobalManager:
             "GENAI_INTERACTIONS", "IMAGE")
         vector_search_plugins: List[GenAIInteractionsPluginBase] = self.plugin_manager.get_plugin_by_category(
             "GENAI_INTERACTIONS", "VECTOR_SEARCH")
-        user_interactions_behavior_plugins: List[UserInteractionsBehaviorBase] = self.plugin_manager.get_plugin_by_category(
+        user_interactions_behavior_plugins: List[
+            UserInteractionsBehaviorBase] = self.plugin_manager.get_plugin_by_category(
             "USER_INTERACTIONS_BEHAVIORS")
 
         # Initialize dispatchers
@@ -118,12 +119,10 @@ class GlobalManager:
         self.plugin_manager.initialize_plugins()
         self.logger.info("Plugins loaded.")
 
-         # Initialize the event queue manager only if enabled in the config
+        # Initialize the event queue manager only if enabled in the config
         if self.bot_config.ACTIVATE_USER_INTERACTION_EVENTS_QUEUING:
             self.logger.debug("Initializing interaction queue manager and Session manager...")
             self.interaction_queue_manager.initialize()
-
-
 
         self.logger.debug("Creating routes...")
         self.plugin_manager.intialize_routes(app)

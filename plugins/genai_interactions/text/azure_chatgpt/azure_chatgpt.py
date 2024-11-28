@@ -43,9 +43,10 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = self.global_manager.logger
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
-        self.config_manager : ConfigManager = global_manager.config_manager
-        azure_chatgpt_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT["AZURE_CHATGPT"]
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
+        self.config_manager: ConfigManager = global_manager.config_manager
+        azure_chatgpt_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT[
+            "AZURE_CHATGPT"]
         self.azure_chatgpt_config = AzureChatGptConfig(**azure_chatgpt_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
@@ -112,7 +113,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             self.logger.error(f"Unexpected error while loading Azure OpenAI client: {e}")
             raise
 
-    def validate_request(self, event:IncomingNotificationDataBase):
+    def validate_request(self, event: IncomingNotificationDataBase):
         """Determines whether the plugin can handle the given request."""
         # Check if the request is a valid request for this plugin
         # todo: add validation logic
@@ -180,11 +181,11 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             automated_user_event = {
                 'role': 'user',
                 'content': [
-                        {
-                            'type': 'text',
-                            'text': input_param
-                        }
-                    ],
+                    {
+                        'type': 'text',
+                        'text': input_param
+                    }
+                ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
@@ -228,11 +229,11 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             assistant_message = {
                 "role": "assistant",
                 "content": [
-                        {
-                            "type": "text",
-                            "text": completion
-                        }
-                    ],
+                    {
+                        "type": "text",
+                        "text": completion
+                    }
+                ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,
@@ -314,7 +315,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 self.logger.info(f"Using vision model: {vision_model}")
                 image_interpretations = []
                 for i, base64_image in enumerate(event_data.images):
-                    self.logger.info(f"Interpreting image {i+1}/{len(event_data.images)}")
+                    self.logger.info(f"Interpreting image {i + 1}/{len(event_data.images)}")
                     image_prompt = (
                         f"Please provide a detailed description of this image in the context of the following user query: '{user_query}'. "
                         "Include all relevant details, colors, text, objects, and their relationships. "
@@ -340,7 +341,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                         ]
                     )
                     interpretation = image_completion.choices[0].message.content
-                    self.logger.info(f"Image {i+1} interpretation: {interpretation[:50]}...")  # Log first 50 chars
+                    self.logger.info(f"Image {i + 1} interpretation: {interpretation[:50]}...")  # Log first 50 chars
                     image_interpretations.append(interpretation)
 
                 # Ajout des interprétations d'images au dernier message utilisateur
@@ -454,7 +455,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             filtered_messages.append(message)
         return filtered_messages
 
-    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output= False):
+    async def generate_completion(self, messages, event_data: IncomingNotificationDataBase, raw_output=False):
         # Check if we should use the assistant
         self.logger.info("Generate completion triggered...")
         if self.azure_chatgpt_config.AZURE_CHATGPT_IS_ASSISTANT:
@@ -465,12 +466,14 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
         # Filter out messages content from the metadata
 
-        messages =  [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
+        messages = [{'role': message.get('role'), 'content': message.get('content')} for message in messages]
 
         if event_data.images:
             if not self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME:
                 self.logger.error("Image received without AZURE_CHATGPT_VISION_MODEL_NAME in config")
-                await self.user_interaction_dispatcher.send_message(event=event_data, message="Image received without genai interpreter in config", message_type=MessageType.COMMENT)
+                await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                                    message="Image received without genai interpreter in config",
+                                                                    message_type=MessageType.COMMENT)
                 return
             model_name = self.azure_chatgpt_config.AZURE_CHATGPT_VISION_MODEL_NAME
         else:
@@ -533,47 +536,57 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             return response, self.genai_cost_base
 
         except asyncio.exceptions.CancelledError:
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="An unexpected error occurred", message_type=MessageType.ERROR, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data,
+                                                                message="An unexpected error occurred",
+                                                                message_type=MessageType.ERROR, is_internal=True)
             raise  # Re-raise the exception after logging
 
+    async def trigger_genai(self, event: IncomingNotificationDataBase):
 
-    async def trigger_genai(self, event :IncomingNotificationDataBase):
+        AUTOMATED_RESPONSE_TRIGGER = "Automated response"
+        event_copy = event
 
-            AUTOMATED_RESPONSE_TRIGGER = "Automated response"
-            event_copy = event
+        if event.thread_id == '':
+            response_id = event_copy.timestamp
+        else:
+            response_id = event_copy.thread_id
 
-            if event.thread_id == '':
-                response_id = event_copy.timestamp
-            else:
-                response_id = event_copy.thread_id
+        event_copy.user_id = "AUTOMATED_RESPONSE"
+        event_copy.user_name = AUTOMATED_RESPONSE_TRIGGER
+        event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
+        event_copy.event_label = "thread_message"
+        user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event,
+                                                                                     message=event_copy.text)
+        event_copy.text = user_message
+        event_copy.is_mention = True
+        event_copy.thread_id = response_id
 
-            event_copy.user_id = "AUTOMATED_RESPONSE"
-            event_copy.user_name =  AUTOMATED_RESPONSE_TRIGGER
-            event_copy.user_email = AUTOMATED_RESPONSE_TRIGGER
-            event_copy.event_label = "thread_message"
-            user_message = self.user_interaction_dispatcher.format_trigger_genai_message(event=event, message=event_copy.text)
-            event_copy.text = user_message
-            event_copy.is_mention = True
-            event_copy.thread_id = response_id
+        self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
+        await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                            message="Processing incoming data, please wait...",
+                                                            message_type=MessageType.COMMENT)
 
-            self.logger.debug(f"Triggered automated response on behalf of the user: {event_copy.text}")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message= "Processing incoming data, please wait...", message_type=MessageType.COMMENT)
+        # Count the number of words in event_copy.text
+        word_count = len(event_copy.text.split())
 
-            # Count the number of words in event_copy.text
-            word_count = len(event_copy.text.split())
+        # If there are more than 300 words, call plugin.file_upload
+        if word_count > 300:
+            await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text,
+                                                               filename="Bot reply.txt",
+                                                               title=":zap::robot_face: Automated User Input",
+                                                               is_internal=True)
+        else:
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=f":zap::robot_face: *AutomatedUserInput*: {event_copy.text}",
+                                                                message_type=MessageType.TEXT, is_internal=True)
 
-            # If there are more than 300 words, call plugin.file_upload
-            if word_count > 300:
-                await self.user_interaction_dispatcher.upload_file(event=event_copy, file_content=event_copy.text, filename="Bot reply.txt", title=":zap::robot_face: Automated User Input", is_internal=True)
-            else:
-                await self.user_interaction_dispatcher.send_message(event=event_copy, message= f":zap::robot_face: *AutomatedUserInput*: {event_copy.text}", message_type=MessageType.TEXT, is_internal= True)
-
-            await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
+        await self.global_manager.user_interactions_behavior_dispatcher.process_incoming_notification_data(event_copy)
 
     def camel_case(self, snake_str):
         components = snake_str.split('_')
@@ -588,4 +601,5 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             return d
 
     async def trigger_feedback(self, event: IncomingNotificationDataBase) -> Any:
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")

@@ -46,7 +46,8 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         self.logger = self.global_manager.logger
         self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.config_manager: ConfigManager = global_manager.config_manager
-        vertexai_gemini_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT["VERTEXAI_GEMINI"]
+        vertexai_gemini_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT[
+            "VERTEXAI_GEMINI"]
         self.vertexai_gemini_config = VertexaiGeminiConfig(**vertexai_gemini_config_dict)
         self.plugin_name = None
         self._genai_cost_base = None
@@ -94,13 +95,14 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
         self.user_interaction_dispatcher = self.global_manager.user_interactions_dispatcher
         self.genai_interactions_text_dispatcher = self.global_manager.genai_interactions_text_dispatcher
         self.backend_internal_data_processing_dispatcher = self.global_manager.backend_internal_data_processing_dispatcher
-        self.session_manager_dispatcher : SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
+        self.session_manager_dispatcher: SessionManagerDispatcher = self.global_manager.session_manager_dispatcher
 
     def load_client(self):
         json_str = self.vertexai_gemini_key.replace("\n", "\\n")
         service_account_info = json.loads(json_str)
         credentials = service_account.Credentials.from_service_account_info(service_account_info)
-        vertexai.init(project=self.vertexai_gemini_projectname, location=self.vertexai_gemini_location, credentials=credentials)
+        vertexai.init(project=self.vertexai_gemini_projectname, location=self.vertexai_gemini_location,
+                      credentials=credentials)
         self.client = GenerativeModel(self.vertexai_gemini_modelname)
 
     def validate_request(self, event: IncomingNotificationDataBase):
@@ -143,11 +145,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             automated_user_event = {
                 'role': 'user',
                 'content': [
-                        {
-                            'type': 'text',
-                            'text': input_param
-                        }
-                    ],
+                    {
+                        'type': 'text',
+                        'text': input_param
+                    }
+                ],
                 'is_automated': True,
                 'timestamp': action_start_time.isoformat()
             }
@@ -176,7 +178,8 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             target_messages.append({"role": "user", "content": input_param})
 
             # Call the model to generate the completion
-            self.logger.info(f"GENAI CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
+            self.logger.info(
+                f"GENAI CALL: Calling Generative AI completion for user input on model {self.plugin_name}..")
             generation_start_time = datetime.now()
 
             # Ensure raw_output is set to True
@@ -196,11 +199,11 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
             assistant_message = {
                 "role": "assistant",
                 "content": [
-                        {
-                            "type": "text",
-                            "text": completion
-                        }
-                    ],
+                    {
+                        "type": "text",
+                        "text": completion
+                    }
+                ],
                 "timestamp": generation_end_time.isoformat(),
                 "cost": {
                     "total_tokens": genai_cost_base.total_tk,
@@ -310,7 +313,8 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
 
         except asyncio.exceptions.CancelledError:
             # Handle task cancellation
-            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_data, message="Task was cancelled",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             self.logger.error("Task was cancelled")
             raise
 
@@ -335,7 +339,8 @@ class VertexaiGeminiPlugin(GenAIInteractionsTextPluginBase):
                 json_text = json_match.group(0)
                 # Remove newlines inside the JSON except for those inside strings
                 json_text_no_newlines = re.sub(r'(?<!\\)"[^"]*"(?!")|\n',
-                                               lambda m: m.group(0).replace('\n', '') if m.group(0).startswith('"') else '',
+                                               lambda m: m.group(0).replace('\n', '') if m.group(0).startswith(
+                                                   '"') else '',
                                                json_text)
                 formatted_response = f'[BEGINIMDETECT]{json_text_no_newlines}[ENDIMDETECT]'
                 return formatted_response

@@ -48,4 +48,3 @@ class GenAIInteractionsPluginBase(PluginBase, ABC):
         :return: The result of handling the action
         """
         raise NotImplementedError
-

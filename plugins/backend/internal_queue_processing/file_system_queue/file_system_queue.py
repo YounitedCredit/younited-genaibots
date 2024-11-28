@@ -11,6 +11,7 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 LOG_PREFIX = "[FILE_SYSTEM_QUEUE]"
 
+
 class FileSystemQueueConfig(BaseModel):
     PLUGIN_NAME: str
     FILE_SYSTEM_QUEUE_DIRECTORY: str
@@ -30,7 +31,8 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         self.logger = global_manager.logger
         self.global_manager = global_manager
         self.plugin_manager: PluginManager = global_manager.plugin_manager
-        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING["FILE_SYSTEM_QUEUE"]
+        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_QUEUE_PROCESSING[
+            "FILE_SYSTEM_QUEUE"]
         self.file_system_config = FileSystemQueueConfig(**config_dict)
 
         # Initialize queue containers and TTLs to None
@@ -127,7 +129,7 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             self.internal_events_queue_ttl = self.file_system_config.FILE_SYSTEM_QUEUE_INTERNAL_EVENTS_QUEUE_TTL
             self.external_events_queue_ttl = self.file_system_config.FILE_SYSTEM_QUEUE_EXTERNAL_EVENTS_QUEUE_TTL
             self.wait_queue_ttl = self.file_system_config.FILE_SYSTEM_QUEUE_WAIT_QUEUE_TTL
-            self.plugin_name =self.file_system_config.PLUGIN_NAME
+            self.plugin_name = self.file_system_config.PLUGIN_NAME
             self.init_queues()
 
         except KeyError as e:
@@ -149,7 +151,8 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
                 self.logger.error(f"{LOG_PREFIX} Failed to create directory: {directory_path} - {str(e)}")
                 raise
 
-    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str, guid: Optional[str] = None) -> None:
+    async def enqueue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, message: str,
+                              guid: Optional[str] = None) -> None:
         """
         Adds a message to the queue with a unique GUID for each message.
         """
@@ -161,7 +164,8 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         file_path = os.path.join(self.root_directory, data_container, message_file_name)
 
         try:
-            self.logger.debug(f"{LOG_PREFIX} Enqueuing message for channel '{channel_id}', thread '{thread_id}' with GUID '{guid}'.")
+            self.logger.debug(
+                f"{LOG_PREFIX} Enqueuing message for channel '{channel_id}', thread '{thread_id}' with GUID '{guid}'.")
             with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(message)
             self.logger.info(f"{LOG_PREFIX} Message successfully enqueued with ID '{message_file_name}'.")
@@ -170,14 +174,16 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
 
             self.logger.error(f"{LOG_PREFIX} Failed to enqueue message: {str(e)}")
 
-    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str, guid: str) -> None:
+    async def dequeue_message(self, data_container: str, channel_id: str, thread_id: str, message_id: str,
+                              guid: str) -> None:
         """
         Removes a message from the queue based on channel_id, thread_id, message_id, and guid.
         """
         file_name = f"{channel_id}_{thread_id}_{message_id}_{guid}.txt"
         file_path = os.path.join(self.root_directory, data_container, file_name)
 
-        self.logger.debug(f"{LOG_PREFIX} Dequeuing message '{file_name}' for channel '{channel_id}', thread '{thread_id}'.")
+        self.logger.debug(
+            f"{LOG_PREFIX} Dequeuing message '{file_name}' for channel '{channel_id}', thread '{thread_id}'.")
 
         if os.path.exists(file_path):
             try:
@@ -187,7 +193,6 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
                 self.logger.error(f"{LOG_PREFIX} Failed to remove message: {str(e)}")
         else:
             self.logger.warning(f"{LOG_PREFIX} Message '{file_name}' not found in queue.")
-
 
     def extract_message_id(self, file_name: str) -> Optional[str]:
         """
@@ -205,11 +210,13 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         except (ValueError, IndexError):
             return None
 
-    async def get_next_message(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_next_message(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> \
+    Tuple[Optional[str], Optional[str]]:
         """
         Retrieves the next message in the queue for a given channel/thread.
         """
-        self.logger.info(f"{LOG_PREFIX} Retrieving next message for channel '{channel_id}', thread '{thread_id}' after '{current_message_id}'.")
+        self.logger.info(
+            f"{LOG_PREFIX} Retrieving next message for channel '{channel_id}', thread '{thread_id}' after '{current_message_id}'.")
 
         try:
             queue_path = os.path.join(self.root_directory, data_container)
@@ -226,7 +233,8 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             filtered_files.sort(key=self.extract_message_id)
 
             # Find the next message after current_message_id
-            next_message_file = next((f for f in filtered_files if float(self.extract_message_id(f)) > current_timestamp), None)
+            next_message_file = next(
+                (f for f in filtered_files if float(self.extract_message_id(f)) > current_timestamp), None)
 
             if not next_message_file:
                 return None, None
@@ -243,7 +251,6 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         except Exception as e:
             self.logger.error(f"{LOG_PREFIX} Failed to retrieve next message: {str(e)}")
             return None, None
-
 
     async def get_all_messages(self, data_container: str, channel_id: str, thread_id: str) -> List[str]:
         """
@@ -271,11 +278,13 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
             self.logger.error(f"{LOG_PREFIX} Failed to retrieve messages: {str(e)}")
             return []
 
-    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str, current_message_id: str) -> bool:
+    async def has_older_messages(self, data_container: str, channel_id: str, thread_id: str,
+                                 current_message_id: str) -> bool:
         """
         Checks if there are any older messages in the queue, excluding the current message.
         """
-        self.logger.info(f"{LOG_PREFIX} Checking for older messages in queue for channel '{channel_id}', thread '{thread_id}', excluding message_id '{current_message_id}'.")
+        self.logger.info(
+            f"{LOG_PREFIX} Checking for older messages in queue for channel '{channel_id}', thread '{thread_id}', excluding message_id '{current_message_id}'.")
 
         try:
             queue_path = os.path.join(self.root_directory, data_container)
@@ -334,8 +343,8 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
         current_time = time.time()
         return (current_time - message_timestamp) > ttl_seconds
 
-
-    async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str, ttl_seconds: int) -> None:
+    async def cleanup_expired_messages(self, data_container: str, channel_id: str, thread_id: str,
+                                       ttl_seconds: int) -> None:
         """
         Cleans up expired messages for a specific thread/channel based on the TTL, taking GUID into account.
         """
@@ -351,7 +360,6 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
                     file_path = os.path.join(queue_path, file_name)
                     self.logger.info(f"{LOG_PREFIX} Removing expired message: {file_path}")
                     os.remove(file_path)
-
 
     async def clean_all_queues(self) -> None:
         """
@@ -382,7 +390,8 @@ class FileSystemQueuePlugin(InternalQueueProcessingBase):
                     os.remove(file_path)
                     removed_files_count += 1
 
-            self.logger.info(f"{LOG_PREFIX} Removed {removed_files_count} expired files from queue '{queue_container}'.")
+            self.logger.info(
+                f"{LOG_PREFIX} Removed {removed_files_count} expired files from queue '{queue_container}'.")
             total_removed_files += removed_files_count
 
         self.logger.info(f"{LOG_PREFIX} Total removed expired files across all queues: {total_removed_files}.")

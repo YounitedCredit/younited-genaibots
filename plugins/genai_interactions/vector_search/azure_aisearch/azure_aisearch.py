@@ -21,6 +21,7 @@ class OpenAIRequestError(Exception):
         self.response_body = response_body
         super().__init__(f"OpenAI request failed with status code {status_code}")
 
+
 class AzureAisearchConfig(BaseModel):
     PLUGIN_NAME: str
     AZURE_AISEARCH_AZURE_OPENAI_KEY: str
@@ -34,12 +35,14 @@ class AzureAisearchConfig(BaseModel):
     AZURE_AISEARCH_TEXT_COMPLETION_MODEL_NAME: str
     AZURE_AISEARCH_PROMPT: str
 
+
 class AzureAisearchPlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = global_manager.logger
-        azure_aisearch_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.VECTOR_SEARCH["AZURE_AISEARCH"]
+        azure_aisearch_config_dict = \
+        global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.VECTOR_SEARCH["AZURE_AISEARCH"]
         self.azure_aisearch_config = AzureAisearchConfig(**azure_aisearch_config_dict)
         self.plugin_name = None
 
@@ -57,9 +60,9 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
         self.plugin_name = self.azure_aisearch_config.PLUGIN_NAME
 
         self.client = AsyncAzureOpenAI(
-            api_version =  self.openai_api_version,
-            azure_endpoint= self.azure_openai_endpoint,
-            api_key= self.azure_openai_key,
+            api_version=self.openai_api_version,
+            azure_endpoint=self.azure_openai_endpoint,
+            api_key=self.azure_openai_key,
         )
 
     @property
@@ -86,12 +89,14 @@ class AzureAisearchPlugin(GenAIInteractionsPluginBase):
         return True
 
     def trigger_genai(self, user_message=None, event: IncomingNotificationDataBase = None):
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
         query = parameters.get('query', '')  # The search query
-        index_name = parameters.get('index_name', self.search_index_name).lower()  # Use provided index_name or fallback to default
+        index_name = parameters.get('index_name',
+                                    self.search_index_name).lower()  # Use provided index_name or fallback to default
         get_whole_doc = parameters.get('get_whole_doc', False)  # New flag for fetching full document
 
         # Check if index_name is empty

@@ -45,17 +45,18 @@ class TeamsConfig(BaseModel):
     TEAMS_APP_PASSWORD: str
     ROUTE_PATH: str
     ROUTE_METHODS: List[str]
-    TEAMS_BOT_USER_ID : str
-    TEAMS_AUTHORIZED_CHANNELS : str
-    TEAMS_FEEDBACK_CHANNEL : str
-    TEAMS_FEEDBACK_BOT_USER_ID : str
+    TEAMS_BOT_USER_ID: str
+    TEAMS_AUTHORIZED_CHANNELS: str
+    TEAMS_FEEDBACK_CHANNEL: str
+    TEAMS_FEEDBACK_BOT_USER_ID: str
     BEHAVIOR_PLUGIN_NAME: str
+
 
 class TeamsPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
-        self.global_manager :GlobalManager = global_manager
-        self.plugin_manager :PluginManager = global_manager.plugin_manager
+        self.global_manager: GlobalManager = global_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.logger = global_manager.logger
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
         self._reactions = TeamsReactions()
@@ -96,7 +97,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
         self.teams_authorized_channels = self.teams_config.TEAMS_AUTHORIZED_CHANNELS.split(',')
         self.teams_feedback_channel = self.teams_config.TEAMS_FEEDBACK_CHANNEL
         self.teams_feedback_bot_user_id = self.teams_config.TEAMS_FEEDBACK_BOT_USER_ID
-        self.settings = BotFrameworkAdapterSettings(self.teams_config.TEAMS_APP_ID, self.teams_config.TEAMS_APP_PASSWORD)
+        self.settings = BotFrameworkAdapterSettings(self.teams_config.TEAMS_APP_ID,
+                                                    self.teams_config.TEAMS_APP_PASSWORD)
         self.adapter = BotFrameworkAdapter(self.settings)
         self.credentials = MicrosoftAppCredentials(self.teams_config.TEAMS_APP_ID, self.teams_config.TEAMS_APP_PASSWORD)
         self.BOT = TeamsConversationBot(self.teams_config.TEAMS_APP_ID, self.teams_config.TEAMS_APP_PASSWORD)
@@ -120,7 +122,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
 
             return Response(
                 content=json.dumps({"status": "success", "message": "Request accepted for processing"}),
-                media_type= self.APPJSON,
+                media_type=self.APPJSON,
                 status_code=202  # 202 Accepted
             )
 
@@ -153,14 +155,14 @@ class TeamsPlugin(UserInteractionsPluginBase):
                     else:
                         channel_id = f"personal_{user_id}"
 
-
-                    self.logger.info(f"Valid <TEAMS> request received from user {user_id} in channel {channel_id}, processing..")
+                    self.logger.info(
+                        f"Valid <TEAMS> request received from user {user_id} in channel {channel_id}, processing..")
                     event_type = event_data.get('type')
 
                     if event_type == 'message':
                         await self.global_manager.user_interactions_behavior_dispatcher.process_interaction(
                             event_data=event_data,
-                            event_origin= self.plugin_name,
+                            event_origin=self.plugin_name,
                             plugin_name=self.teams_config.BEHAVIOR_PLUGIN_NAME
                         )
                     else:
@@ -174,7 +176,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             self.logger.error(f"An error occurred while processing user input: {e}")
             raise  # re-raise the exception
 
-    async def validate_request(self, event_data = None, headers = None, raw_body_str = None):
+    async def validate_request(self, event_data=None, headers=None, raw_body_str=None):
         self.logger.debug("Validating request...")
 
         if not await self._validate_auth_header(headers):
@@ -232,7 +234,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
 
     def _validate_user_and_channel(self, user_id, channel_id, channel_type):
         if channel_type != 'personal' and (user_id is None or channel_id is None):
-            self.logger.debug(f"User ID is {'None' if user_id is None else 'set'}, Channel ID is {'None' if channel_id is None else 'set'}")
+            self.logger.debug(
+                f"User ID is {'None' if user_id is None else 'set'}, Channel ID is {'None' if channel_id is None else 'set'}")
             return False
 
         if user_id == self.bot_user_id:
@@ -244,7 +247,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
             return False
 
         if channel_id == self.teams_feedback_channel and user_id != self.teams_feedback_bot_user_id:
-            self.logger.info(f"Discarding request: ignoring event from unauthorized user in feedback channel: {user_id}")
+            self.logger.info(
+                f"Discarding request: ignoring event from unauthorized user in feedback channel: {user_id}")
             return False
 
         return True
@@ -259,14 +263,16 @@ class TeamsPlugin(UserInteractionsPluginBase):
             session_name = f"{user_id}-{message_id}.txt"
 
         processing_container = self.backend_internal_data_processing_dispatcher.processing
-        result = await self.backend_internal_data_processing_dispatcher.read_data_content(processing_container, session_name)
+        result = await self.backend_internal_data_processing_dispatcher.read_data_content(processing_container,
+                                                                                          session_name)
 
         if result is not None:
             self.logger.warning(f"Discarding request: This request is already being processed for {session_name}")
             return True
         return False
 
-    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT, title=None, is_internal=False, show_ref=False):
+    async def send_message(self, message, event: IncomingNotificationDataBase, message_type=MessageType.TEXT,
+                           title=None, is_internal=False, show_ref=False):
 
         if (is_internal == False and show_ref == False):
             # Convert event_data to an Activity
@@ -323,7 +329,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
     def _extract_conversation_info(self, event_data):
         conversation_id = event_data.get('conversation', {}).get('id', '').replace(':', '_')
         ts = event_data.get('id')
-        thread_id = conversation_id.split(';messageid=')[1].replace(':', '_') if ';messageid=' in conversation_id else ''
+        thread_id = conversation_id.split(';messageid=')[1].replace(':',
+                                                                    '_') if ';messageid=' in conversation_id else ''
         event_label = "thread_message" if ts != thread_id else "message"
         return conversation_id, ts, thread_id, event_label
 
@@ -350,8 +357,8 @@ class TeamsPlugin(UserInteractionsPluginBase):
         return None
 
     def _create_teams_event_data(self, timestamp, ts, event_label, channel_id, thread_id,
-                                user_name, user_id, is_mention, text, base64_images,
-                                files_content, event_data):
+                                 user_name, user_id, is_mention, text, base64_images,
+                                 files_content, event_data):
         return TeamsEventData(
             timestamp=ts,
             event_label=event_label,
@@ -365,7 +372,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
             text=text,
             images=base64_images,
             files_content=files_content,
-            #origin=inspect.currentframe().f_back.f_globals['__name__'],
+            # origin=inspect.currentframe().f_back.f_globals['__name__'],
             raw_data=event_data,
             origin_plugin_name=self.teams_config.PLUGIN_NAME
         )
@@ -382,7 +389,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
         # NOT IMPLEMENTED YET
         pass
 
-    async def upload_file(self, event, file_content, filename, title, is_internal= False):
+    async def upload_file(self, event, file_content, filename, title, is_internal=False):
         # NOT IMPLEMENTED YET
         pass
 
@@ -391,7 +398,7 @@ class TeamsPlugin(UserInteractionsPluginBase):
         pass
 
     async def fetch_conversation_history(
-        self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
+            self, event: IncomingNotificationDataBase, channel_id: Optional[str] = None, thread_id: Optional[str] = None
     ) -> List[IncomingNotificationDataBase]:
         # NOT IMPLEMENTED YET
         pass

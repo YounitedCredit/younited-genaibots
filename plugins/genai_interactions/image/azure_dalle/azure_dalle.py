@@ -23,11 +23,13 @@ class AzureChatGptConfig(BaseModel):
     AZURE_DALLE_INPUT_TOKEN_PRICE: float
     AZURE_DALLE_OUTPUT_TOKEN_PRICE: float
 
+
 class AzureDallePlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager = global_manager
-        azure_dalle_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.IMAGE["AZURE_DALLE"]
+        azure_dalle_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.IMAGE[
+            "AZURE_DALLE"]
         self.azure_chatgpt_config = AzureChatGptConfig(**azure_dalle_config_dict)
         self.logger = global_manager.logger
         self.plugin_name = None
@@ -40,9 +42,9 @@ class AzureDallePlugin(GenAIInteractionsPluginBase):
         self.plugin_name = self.azure_chatgpt_config.PLUGIN_NAME
 
         self.client = AsyncAzureOpenAI(
-            api_version =  self.openai_api_version,
-            azure_endpoint= self.azure_openai_endpoint,
-            api_key= self.azure_openai_key,
+            api_version=self.openai_api_version,
+            azure_endpoint=self.azure_openai_endpoint,
+            api_key=self.azure_openai_key,
         )
 
     @property
@@ -54,22 +56,24 @@ class AzureDallePlugin(GenAIInteractionsPluginBase):
         self._plugin_name = value
 
     def handle_request(self, event: IncomingNotificationDataBase):
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
     def validate_request(self, event: IncomingNotificationDataBase):
         return True
 
     def trigger_genai(self, event: IncomingNotificationDataBase):
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
-    async def handle_action(self, action_input:ActionInput, event: IncomingNotificationDataBase = None):
+    async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         parameters = {k.lower(): v for k, v in action_input.parameters.items()}
         prompt = parameters.get('prompt')
         size = parameters.get('size')
 
         try:
             result = await self.client.images.generate(
-                model="dall-e-3", # the name of your DALL-E 3 deployment
+                model="dall-e-3",  # the name of your DALL-E 3 deployment
                 prompt=prompt,
                 n=1,
                 size=size
