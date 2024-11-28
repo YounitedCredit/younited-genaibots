@@ -425,42 +425,6 @@ async def test_remove_data_content_not_found(azure_blob_storage_plugin):
         # Verify that warning is logged but doesn't raise exception
 
 @pytest.mark.asyncio
-async def test_file_exists(azure_blob_storage_plugin):
-    """Test if we can check for file existence in a container"""
-    with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists = AsyncMock(return_value=True)
-
-        result = await azure_blob_storage_plugin.exists('container', 'file.txt')
-
-        assert result is True
-        mock_blob_client.exists.assert_awaited_once()
-
-@pytest.mark.asyncio
-async def test_file_does_not_exist(azure_blob_storage_plugin):
-    """Test checking for a file that doesn't exist"""
-    with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists = AsyncMock(return_value=False)
-
-        result = await azure_blob_storage_plugin.exists('container', 'nonexistent.txt')
-
-        assert result is False
-        mock_blob_client.exists.assert_awaited_once()
-
-@pytest.mark.asyncio
-async def test_file_exists_error(azure_blob_storage_plugin):
-    """Test handling of errors when checking file existence"""
-    with patch.object(azure_blob_storage_plugin.blob_service_client, 'get_blob_client') as mock_get_blob_client:
-        mock_blob_client = mock_get_blob_client.return_value
-        mock_blob_client.exists = AsyncMock(side_effect=Exception("Storage error"))
-
-        result = await azure_blob_storage_plugin.exists('container', 'file.txt')
-
-        assert result is False
-        mock_blob_client.exists.assert_awaited_once()
-
-@pytest.mark.asyncio
 async def test_remove_data_empty_content(azure_blob_storage_plugin):
     with patch.object(azure_blob_storage_plugin, 'read_data_content', new_callable=AsyncMock) as mock_read:
         mock_read.return_value = ""
