@@ -1,5 +1,5 @@
 # Main dependencies
-aiohttp~=3.9.5
+aiohttp~=3.9.6
 asynctest
 coloredlogs~=15.0.1
 fastapi~=0.110.2
@@ -24,6 +24,7 @@ pytest-cov
 pandas
 coverage
 requests-mock
+httpx>=0.24.0
 
 # Azure environment dependencies
 azure.identity
