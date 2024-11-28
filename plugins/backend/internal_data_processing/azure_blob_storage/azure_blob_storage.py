@@ -359,21 +359,14 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
     async def file_exists(self, container_name: str, file_name: str) -> bool:
         """
-        Check if a file exists in the specified container.
-        """
-        file_path = os.path.join(self.root_directory, container_name, file_name)
-        return os.path.exists(file_path)
+        Check if a file (blob) exists in the specified container in Azure Blob Storage.
 
-    async def exists(self, container_name: str, file_name: str) -> bool:
-        """
-        Check if a file exists in the specified container.
-        
         Args:
-            container_name (str): Name of the container
-            file_name (str): Name of the file to check
-            
+            container_name (str): Name of the Azure Blob Storage container.
+            file_name (str): Name of the file (blob) to check.
+
         Returns:
-            bool: True if the file exists, False otherwise
+            bool: True if the file exists, False otherwise.
         """
         try:
             blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=file_name)
