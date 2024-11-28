@@ -24,6 +24,7 @@ pytest-cov
 pandas
 coverage
 requests-mock
+httpx==0.25.2
 
 # Azure environment dependencies
 azure.identity
@@ -45,7 +46,7 @@ botbuilder-core
 
 ## GENAI interactions plugins
 # OpenAI
-openai~=1.23.1
+openai==1.23.6
 tiktoken
 # Mistral ai plugin dependencies
 mistralai
