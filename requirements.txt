@@ -1,5 +1,5 @@
 # Main dependencies
-aiohttp~=3.9.6
+aiohttp~=3.9.5
 asynctest
 coloredlogs~=15.0.1
 fastapi~=0.110.2
