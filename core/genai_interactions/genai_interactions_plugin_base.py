@@ -34,7 +34,6 @@ class GenAIInteractionsPluginBase(PluginBase, ABC):
         """
         Updates the messages as the user with the result of an action.
 
-        :param user_message: The user message
         :param event: The incoming notification data
         :return: The result of triggering the user
         """

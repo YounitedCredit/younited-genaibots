@@ -64,9 +64,9 @@ class UserInteractionsBehaviorsDispatcher(UserInteractionsBehaviorBase):
 
         return self.default_plugin
 
-        def set_default_plugin(self, plugin_name):
-            self.default_plugin_name = plugin_name
-            self.default_plugin = self.get_plugin(plugin_name)
+    def set_default_plugin(self, plugin_name):
+        self.default_plugin_name = plugin_name
+        self.default_plugin = self.get_plugin(plugin_name)
 
     @property
     def plugins(self) -> List[UserInteractionsPluginBase]:
