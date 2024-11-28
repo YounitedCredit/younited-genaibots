@@ -75,54 +75,61 @@ def setup_logger_and_tracer(global_manager):
         # File handler setup
         log_file_path = config_handler.get_config(['UTILS', 'LOGGING', 'LOCAL_LOGGING', 'LOCAL_LOGGING_FILE_PATH'])
         try:
-            os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-            file_handler = RotatingFileHandler(
-                log_file_path,
-                maxBytes=10000000,
-                backupCount=3
-            )
-            file_handler.setFormatter(file_formatter)
-            logger.addHandler(file_handler)
-            logger.debug("File logging is set up")
-        except PermissionError:
-            logger.error(f"Permission denied to write log in {log_file_path}")
+            if log_file_path:
+                os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+                file_handler = RotatingFileHandler(
+                    log_file_path,
+                    maxBytes=10000000,
+                    backupCount=3
+                )
+                file_handler.setFormatter(file_formatter)
+                logger.addHandler(file_handler)
+                logger.debug("File logging is set up")
+            else:
+                logger.warning("Log file path is empty. File logging will be skipped.")
+        except Exception as e:
+            logger.warning(f"Failed to set up file logging: {e}")
 
     elif log_plugin_azure and log_plugin_azure.PLUGIN_NAME == 'azure':
-        logging.getLogger('azure').setLevel(logging.WARNING)
-        # Azure handler setup for logging
-        azure_config = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE_LOGGING'])
-        connection_string = azure_config.AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING
+        try:
+            logging.getLogger('azure').setLevel(logging.WARNING)
+            # Azure handler setup for logging
+            azure_config = config_handler.get_config(['UTILS', 'LOGGING', 'AZURE_LOGGING'])
+            connection_string = azure_config.AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING
 
-        # Set up Azure Monitor Log Exporter
-        logger_provider = LoggerProvider()
-        set_logger_provider(logger_provider)
-        azure_log_exporter = AzureMonitorLogExporter(connection_string=connection_string)
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(azure_log_exporter))
-        handler = LoggingHandler()
-        logger.addHandler(handler)
+            # Set up Azure Monitor Log Exporter
+            logger_provider = LoggerProvider()
+            set_logger_provider(logger_provider)
+            azure_log_exporter = AzureMonitorLogExporter(connection_string=connection_string)
+            logger_provider.add_log_record_processor(BatchLogRecordProcessor(azure_log_exporter))
+            handler = LoggingHandler()
+            logger.addHandler(handler)
 
-        # OpenTelemetry Tracer setup
-        tracer_provider = TracerProvider()
-        trace.set_tracer_provider(tracer_provider)
-        tracer_exporter = AzureMonitorTraceExporter(connection_string=connection_string)
-        span_processor = BatchSpanProcessor(tracer_exporter)
-        tracer_provider.add_span_processor(span_processor)
-        tracer = trace.get_tracer(__name__)
+            # OpenTelemetry Tracer setup
+            tracer_provider = TracerProvider()
+            trace.set_tracer_provider(tracer_provider)
+            tracer_exporter = AzureMonitorTraceExporter(connection_string=connection_string)
+            span_processor = BatchSpanProcessor(tracer_exporter)
+            tracer_provider.add_span_processor(span_processor)
+            tracer = trace.get_tracer(__name__)
 
-        # Set up MeterProvider with MetricReader
-        metric_exporter = AzureMonitorMetricExporter(connection_string=connection_string)
-        metric_reader = PeriodicExportingMetricReader(exporter=metric_exporter, export_interval_millis=60000)
-        meter_provider = MeterProvider(metric_readers=[metric_reader])
-        metrics.set_meter_provider(meter_provider)
+            # Set up MeterProvider with MetricReader
+            metric_exporter = AzureMonitorMetricExporter(connection_string=connection_string)
+            metric_reader = PeriodicExportingMetricReader(exporter=metric_exporter, export_interval_millis=60000)
+            meter_provider = MeterProvider(metric_readers=[metric_reader])
+            metrics.set_meter_provider(meter_provider)
 
-        # Get a meter
-        meter = metrics.get_meter(__name__, version="0.1")
+            # Get a meter
+            meter = metrics.get_meter(__name__, version="0.1")
 
-        logging.getLogger("opentelemetry").setLevel(logging.WARNING)
-        logging.getLogger("requests").setLevel(logging.WARNING)
-        logging.getLogger("urllib3").setLevel(logging.WARNING)
+            logging.getLogger("opentelemetry").setLevel(logging.WARNING)
+            logging.getLogger("requests").setLevel(logging.WARNING)
+            logging.getLogger("urllib3").setLevel(logging.WARNING)
+        except Exception as e:
+            logger.warning(f"Failed to set up Azure logging: {e}")
 
     return logger, tracer
+
 
 if __name__ == "__main__":
     logger, tracer = setup_logger_and_tracer(None)
