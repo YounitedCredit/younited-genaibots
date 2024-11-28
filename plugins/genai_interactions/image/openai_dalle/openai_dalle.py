@@ -27,7 +27,8 @@ class OpenaiDallePlugin(GenAIInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager = global_manager
-        openai_dalle_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.IMAGE["OPENAI_DALLE"]
+        openai_dalle_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.IMAGE[
+            "OPENAI_DALLE"]
         self.openai_dalle_config = OpenaiDalleConfig(**openai_dalle_config_dict)
         self.logger = global_manager.logger
         self.plugin_name = None
@@ -50,13 +51,15 @@ class OpenaiDallePlugin(GenAIInteractionsPluginBase):
         self._plugin_name = value
 
     def handle_request(self, event: IncomingNotificationDataBase):
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
     def validate_request(self, event: IncomingNotificationDataBase):
         return True
 
     def trigger_genai(self, event: IncomingNotificationDataBase):
-        raise NotImplementedError(f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.{inspect.currentframe().f_code.co_name} is not implemented")
 
     async def handle_action(self, action_input: ActionInput, event: IncomingNotificationDataBase = None):
         """
@@ -86,4 +89,3 @@ class OpenaiDallePlugin(GenAIInteractionsPluginBase):
             self.logger.error(f"Error generating image: {e}\n{error_trace}")
             self.logger.error(f"Parameters: prompt={prompt}, size={size}")
             return str(e)
-

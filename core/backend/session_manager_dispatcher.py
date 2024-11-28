@@ -9,6 +9,7 @@ if TYPE_CHECKING:
         GlobalManager,  # Forward reference to avoid circular import
     )
 
+
 class SessionManagerDispatcher(SessionManagerPluginBase):
     def __init__(self, global_manager: 'GlobalManager'):
         self.global_manager = global_manager
@@ -74,7 +75,8 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         return plugin.generate_session_id(channel_id, thread_id)
 
-    async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None, enriched: bool = False, plugin_name=None):
+    async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None,
+                             enriched: bool = False, plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         return await plugin.create_session(channel_id, thread_id, start_time, enriched)
 
@@ -94,10 +96,12 @@ class SessionManagerDispatcher(SessionManagerPluginBase):
         plugin: SessionManagerPluginBase = self.get_plugin()
         plugin.append_messages(messages, message, session_id)
 
-    async def add_user_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict, plugin_name=None):
+    async def add_user_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict,
+                                              plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         await plugin.add_user_interaction_to_message(session, message_index, interaction)
 
-    async def add_mind_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict, plugin_name=None):
+    async def add_mind_interaction_to_message(self, session: EnrichedSession, message_index: int, interaction: Dict,
+                                              plugin_name=None):
         plugin: SessionManagerPluginBase = self.get_plugin(plugin_name)
         await plugin.add_mind_interaction_to_message(session, message_index, interaction)

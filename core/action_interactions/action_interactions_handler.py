@@ -18,10 +18,10 @@ class ActionInteractionsHandler:
         if not isinstance(global_manager, GlobalManager):
             raise TypeError("global_manager must be an instance of GlobalManager")
 
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
         self.plugin_manager = global_manager.plugin_manager
         self.logger = global_manager.logger
-        self.im_dispatcher : UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
+        self.im_dispatcher: UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
         self.available_actions = {}
 
     async def handle_action(self, action, event):
@@ -35,8 +35,12 @@ class ActionInteractionsHandler:
                 return result
             except Exception as e:
                 self.logger.error(f"An error occurred while executing the action {action.ActionName}: {e}")
-                await self.im_dispatcher.send_message(event, f"An error occurred while executing the action {action.ActionName}: {e}", is_internal=True)
-                await self.im_dispatcher.send_message(event, "There was a technical issue while processing your query, try again or ask for help to the bot admin !", is_internal=False)
+                await self.im_dispatcher.send_message(event,
+                                                      f"An error occurred while executing the action {action.ActionName}: {e}",
+                                                      is_internal=True)
+                await self.im_dispatcher.send_message(event,
+                                                      "There was a technical issue while processing your query, try again or ask for help to the bot admin !",
+                                                      is_internal=False)
         return None
 
     async def handle_request(self, genai_response: GenAIResponse, event: IncomingNotificationDataBase):

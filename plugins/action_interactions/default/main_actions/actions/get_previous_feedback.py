@@ -10,9 +10,10 @@ from core.user_interactions.message_type import MessageType
 
 class GetPreviousFeedback(ActionBase):
     REQUIRED_PARAMETERS = ['value']
+
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
         self.logger = self.global_manager.logger
         self.user_interactions_text_plugin = None
         self.internal_data_plugin = None
@@ -39,30 +40,45 @@ class GetPreviousFeedback(ActionBase):
         existing_content = ""  # Initialize existing_content
 
         try:
-            general_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.feedbacks_container, data_file=general_blob_name)
+            general_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                data_container=self.feedbacks_container, data_file=general_blob_name)
         except Exception as e:
             self.logger.error(f"Error reading general feedback: {str(e)}")
             general_content = ""
 
         try:
-            existing_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.feedbacks_container, data_file=blob_name)
+            existing_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                data_container=self.feedbacks_container, data_file=blob_name)
             if general_content:
                 existing_content = general_content + "\n" + existing_content
         except Exception as e:
             self.logger.info(f"No previous feedback found for: {category}_{sub_category}. error: {e}")
             await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=":warningSorry there was an issue gathering previous feedback, ignoring this (but contact my administrator!)", message_type=MessageType.TEXT, action_ref="get_previous_feedback")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Error gathering previous feedback found for: {category}_{sub_category}. error: {e}", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=":warningSorry there was an issue gathering previous feedback, ignoring this (but contact my administrator!)",
+                                                                message_type=MessageType.TEXT,
+                                                                action_ref="get_previous_feedback")
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=f"Error gathering previous feedback found for: {category}_{sub_category}. error: {e}",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
 
         if not existing_content:  # Changed condition
             event_copy.text = NO_FEEDBACK_FOUND_MESSAGE
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE, message_type=MessageType.COMMENT, action_ref="get_previous_feedback")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE, message_type=MessageType.COMMENT,is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE,
+                                                                message_type=MessageType.COMMENT,
+                                                                action_ref="get_previous_feedback")
+            await self.user_interaction_dispatcher.send_message(event=event_copy, message=NO_FEEDBACK_FOUND_MESSAGE,
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
         else:
             feedbackprompt = f"Don't create another feedback from this as this is an automated message containing our insights from past interactions in the context of {category} {sub_category} :[{existing_content}]. Based on these informations follow next step of your current workflow."
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Processing Previous feedback for [{blob_name}]...", message_type=MessageType.COMMENT, action_ref="get_previous_feedback")
-            await self.user_interaction_dispatcher.send_message(event=event_copy, message=f"Processing Previous feedback for [{blob_name}]: {existing_content}", message_type=MessageType.COMMENT, is_internal=True)
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=f"Processing Previous feedback for [{blob_name}]...",
+                                                                message_type=MessageType.COMMENT,
+                                                                action_ref="get_previous_feedback")
+            await self.user_interaction_dispatcher.send_message(event=event_copy,
+                                                                message=f"Processing Previous feedback for [{blob_name}]: {existing_content}",
+                                                                message_type=MessageType.COMMENT, is_internal=True)
             event_copy.text = feedbackprompt
             await self.genai_interactions_text_dispatcher.trigger_genai(event=event_copy)
 
@@ -71,13 +87,15 @@ class GetPreviousFeedback(ActionBase):
         blob_name = f"{category}_{sub_category}.txt"
         general_blob_name = f"{category}_Global.txt"
         try:
-            general_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.backend_internal_data_processing_dispatcher.feedbacks, data_file=general_blob_name)
+            general_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                data_container=self.backend_internal_data_processing_dispatcher.feedbacks, data_file=general_blob_name)
         except Exception as e:
             self.logger.error(f"Error reading general feedback: {str(e)}")
             general_content = ""
 
         try:
-            existing_content = await self.backend_internal_data_processing_dispatcher.read_data_content(data_container=self.backend_internal_data_processing_dispatcher.feedbacks, data_file=blob_name)
+            existing_content = await self.backend_internal_data_processing_dispatcher.read_data_content(
+                data_container=self.backend_internal_data_processing_dispatcher.feedbacks, data_file=blob_name)
             if general_content:
                 existing_content = general_content + "\n" + existing_content
         except Exception as e:

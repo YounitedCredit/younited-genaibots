@@ -25,18 +25,19 @@ from core.user_interactions.user_interactions_dispatcher import (
 
 class FetchWebContent(ActionBase):
     REQUIRED_PARAMETERS = ['url']
+
     def __init__(self, global_manager):
         from core.global_manager import GlobalManager
-        self.global_manager : GlobalManager = global_manager
+        self.global_manager: GlobalManager = global_manager
         self.logger = self.global_manager.logger
         self.user_interactions_text_plugin = None
 
         # Dispatchers
-        self.user_interaction_dispatcher : UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
-        self.genai_interactions_text_dispatcher : GenaiInteractionsTextDispatcher = self.global_manager.genai_interactions_text_dispatcher
-        self.backend_internal_data_processing_dispatcher : BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
+        self.user_interaction_dispatcher: UserInteractionsDispatcher = self.global_manager.user_interactions_dispatcher
+        self.genai_interactions_text_dispatcher: GenaiInteractionsTextDispatcher = self.global_manager.genai_interactions_text_dispatcher
+        self.backend_internal_data_processing_dispatcher: BackendInternalDataProcessingDispatcher = self.global_manager.backend_internal_data_processing_dispatcher
 
-    async def execute(self, action_input: ActionInput , event: IncomingNotificationDataBase):
+    async def execute(self, action_input: ActionInput, event: IncomingNotificationDataBase):
 
         try:
             parameters = action_input.parameters
@@ -44,8 +45,12 @@ class FetchWebContent(ActionBase):
 
             if not urls:
                 self.logger.error("No URL provided")
-                await self.user_interaction_dispatcher.send_message(event=event, message="No URL provided", message_type=MessageType.COMMENT, is_internal=True)
-                await self.user_interaction_dispatcher.send_message(event=event, message="Sorry, something went wrong, I didn't receive any url. Try again or contact the bot owner", message_type=MessageType.COMMENT, action_ref="fetch_web_content")
+                await self.user_interaction_dispatcher.send_message(event=event, message="No URL provided",
+                                                                    message_type=MessageType.COMMENT, is_internal=True)
+                await self.user_interaction_dispatcher.send_message(event=event,
+                                                                    message="Sorry, something went wrong, I didn't receive any url. Try again or contact the bot owner",
+                                                                    message_type=MessageType.COMMENT,
+                                                                    action_ref="fetch_web_content")
                 return
 
             urls = urls.split(',')  # split the urls by comma

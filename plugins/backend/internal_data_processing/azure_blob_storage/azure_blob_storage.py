@@ -15,6 +15,7 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 AZURE_BLOB_STORAGE = "AZURE_BLOB_STORAGE"
 
+
 class AzureBlobStorageConfig(BaseModel):
     PLUGIN_NAME: str
     AZURE_BLOB_STORAGE_CONNECTION_STRING: str
@@ -30,6 +31,7 @@ class AzureBlobStorageConfig(BaseModel):
     AZURE_BLOB_STORAGE_SUBPROMPTS_CONTAINER: str
     AZURE_BLOB_STORAGE_CHAINOFTHOUGHTS_CONTAINER: str
 
+
 class AzureBlobStoragePlugin(InternalDataProcessingBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
@@ -42,7 +44,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
 
         self.global_manager = global_manager
         self.plugin_manager: PluginManager = global_manager.plugin_manager
-        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[AZURE_BLOB_STORAGE]
+        config_dict = global_manager.config_manager.config_model.PLUGINS.BACKEND.INTERNAL_DATA_PROCESSING[
+            AZURE_BLOB_STORAGE]
         self.azure_blob_storage_config = AzureBlobStorageConfig(**config_dict)
 
         self.plugin_name = None
@@ -182,7 +185,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
                 return
 
             if data_lower in existing_content.lower():
-                new_content = '\n'.join([line for line in existing_content.split('\n') if data_lower not in line.lower()])
+                new_content = '\n'.join(
+                    [line for line in existing_content.split('\n') if data_lower not in line.lower()])
                 if new_content == "":
                     new_content = " "
                 await self.write_data_content(container_name, datafile_name, new_content)
@@ -316,7 +320,8 @@ class AzureBlobStoragePlugin(InternalDataProcessingBase):
                 self.logger.debug(f"Blob {data_file} not found, initializing new session data")
                 data = []  # Initialize as an empty list if blob does not exist
         except ResourceNotFoundError:
-            self.logger.debug(f"Blob {data_file} not found in container {data_container}, initializing new session data")
+            self.logger.debug(
+                f"Blob {data_file} not found in container {data_container}, initializing new session data")
             data = []  # Initialize as an empty list if the blob does not exist
         except Exception as e:
             self.logger.error(f"Failed to read blob: {str(e)}")

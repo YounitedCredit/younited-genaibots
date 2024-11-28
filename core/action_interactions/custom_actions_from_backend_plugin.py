@@ -26,7 +26,6 @@ class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
     def plugin_name(self, value):
         self._plugin_name = value
 
-
     async def load_actions(self):
         """
         Overrides load_actions to fetch actions from the backend using the dispatcher asynchronously.
@@ -38,7 +37,8 @@ class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
 
         try:
             # Fetch action files asynchronously from the backend
-            custom_actions_files = await self.global_manager.backend_internal_data_processing_dispatcher.list_container_files(custom_actions_container)
+            custom_actions_files = await self.global_manager.backend_internal_data_processing_dispatcher.list_container_files(
+                custom_actions_container)
 
             if not custom_actions_files:
                 self.logger.warning(f"No custom actions found in backend container '{custom_actions_container}'")
@@ -46,7 +46,8 @@ class CustomActionsFromBackendPlugin(ActionInteractionsPluginBase):
                 # Process each action file asynchronously
                 for action_file in custom_actions_files:
                     # Read the action file content asynchronously from the backend
-                    action_content = await self.global_manager.backend_internal_data_processing_dispatcher.read_data_content(custom_actions_container, f"{action_file}.py")
+                    action_content = await self.global_manager.backend_internal_data_processing_dispatcher.read_data_content(
+                        custom_actions_container, f"{action_file}.py")
                     if action_content:
                         # Dynamically load the action module from the content
                         module = types.ModuleType(f"custom_action_{action_file}")

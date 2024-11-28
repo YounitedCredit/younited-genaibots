@@ -44,24 +44,24 @@ class IncomingNotificationDataBase:
     """
 
     def __init__(
-        self,
-        timestamp: str,
-        event_label: str,
-        channel_id: str,
-        thread_id: str,
-        response_id: str,
-        is_mention: bool,
-        text: str,
-        origin_plugin_name: str,
-        app_id: Optional[str] = None,
-        api_app_id: Optional[str] = None,
-        username: Optional[str] = None,
-        user_name: Optional[str] = None,
-        user_email: Optional[str] = None,
-        user_id: Optional[str] = None,
-        images: Optional[List[str]] = None,
-        files_content: Optional[List[str]] = None,
-        raw_data: Optional[Dict] = None
+            self,
+            timestamp: str,
+            event_label: str,
+            channel_id: str,
+            thread_id: str,
+            response_id: str,
+            is_mention: bool,
+            text: str,
+            origin_plugin_name: str,
+            app_id: Optional[str] = None,
+            api_app_id: Optional[str] = None,
+            username: Optional[str] = None,
+            user_name: Optional[str] = None,
+            user_email: Optional[str] = None,
+            user_id: Optional[str] = None,
+            images: Optional[List[str]] = None,
+            files_content: Optional[List[str]] = None,
+            raw_data: Optional[Dict] = None
     ) -> None:
         self.timestamp: str = timestamp
         self.event_label: str = event_label

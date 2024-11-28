@@ -12,9 +12,9 @@ from utils.plugin_manager.plugin_manager import PluginManager
 
 
 class ActionInteractionsPluginBase(PluginBase, ABC):
-    def __init__(self, global_manager: GlobalManager ):
+    def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
-        self.plugin_manager : PluginManager = global_manager.plugin_manager
+        self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.logger = global_manager.logger
         self.available_actions = {}  # Initialize available actions
 

@@ -17,7 +17,8 @@ class UserInteractionsBehaviorBase(PluginBase, ABC):
         pass
 
     @abstractmethod
-    async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id: str, timestamp: str) -> None:
+    async def begin_genai_completion(self, event: IncomingNotificationDataBase, channel_id: str,
+                                     timestamp: str) -> None:
         pass
 
     @abstractmethod

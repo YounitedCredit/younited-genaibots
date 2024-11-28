@@ -102,16 +102,19 @@ class GenerateText(ActionBase):
 
             action_input.parameters['messages'] = messages
             # Notify the user that the model invocation is starting
-            await self.user_interaction_dispatcher.send_message(f"Invoking model {model_name}...", event, message_type=MessageType.COMMENT)
+            await self.user_interaction_dispatcher.send_message(f"Invoking model {model_name}...", event,
+                                                                message_type=MessageType.COMMENT)
 
             # Check if the model exists in the plugins
             if any(plugin.plugin_name == model_name for plugin in self.genai_interactions_text_dispatcher.plugins):
                 # Model found, handle the action with the model
-                result = await self.genai_interactions_text_dispatcher.handle_action(action_input, event, plugin_name=model_name)
+                result = await self.genai_interactions_text_dispatcher.handle_action(action_input, event,
+                                                                                     plugin_name=model_name)
 
                 # Send the result as an internal message and back to the user
                 mind_message = f":speaking_head_in_silhouette: *UserInteraction [From {model_name}]:* {result}"
-                await self.user_interaction_dispatcher.send_message(event=event, message=mind_message, message_type=MessageType.TEXT, is_internal=True)
+                await self.user_interaction_dispatcher.send_message(event=event, message=mind_message,
+                                                                    message_type=MessageType.TEXT, is_internal=True)
                 await self.user_interaction_dispatcher.send_message(result, event, action_ref="generate_text")
             else:
                 # Model not found, log an error and send a message to the user

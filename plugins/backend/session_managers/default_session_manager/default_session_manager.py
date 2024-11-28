@@ -10,6 +10,7 @@ if TYPE_CHECKING:
         GlobalManager,  # Forward reference to avoid circular import
     )
 
+
 class DefaultSessionManagerPlugin(SessionManagerPluginBase):
     def __init__(self, global_manager: 'GlobalManager'):
         self.global_manager = global_manager
@@ -35,7 +36,8 @@ class DefaultSessionManagerPlugin(SessionManagerPluginBase):
         bot_id = self.global_manager.bot_config.BOT_UNIQUE_ID
         return f"{bot_id}_{channel_id}_{thread_id}.json"
 
-    async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None, enriched: bool = False):
+    async def create_session(self, channel_id: str, thread_id: str, start_time: Optional[str] = None,
+                             enriched: bool = False):
         session_id = self.generate_session_id(channel_id, thread_id)
         if enriched:
             return EnrichedSession(session_id, start_time)
@@ -86,7 +88,7 @@ class DefaultSessionManagerPlugin(SessionManagerPluginBase):
                 self.sessions[session_id] = session
                 return session
 
-    def append_messages(self, messages: List[Dict], message: Dict, session_id = None):
+    def append_messages(self, messages: List[Dict], message: Dict, session_id=None):
         """
         Updates the list of messages with a new message.
         """
