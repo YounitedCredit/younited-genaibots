@@ -251,6 +251,7 @@ class UserInteractionsDispatcher(UserInteractionsPluginBase):
                     plugin = self.get_plugin(plugin_name)
                     if self.global_manager.bot_config.DISABLE_COMMENT.lower() == "true" and message_type == MessageType.COMMENT:
                         self.logger.info("Comment disabled, skipping comment message")
+                        return
 
                     result = await plugin.send_message(message=message, event=event, message_type=message_type,
                                                        title=title, is_internal=is_internal, show_ref=show_ref)
