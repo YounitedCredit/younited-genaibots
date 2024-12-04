@@ -29,6 +29,7 @@ class MessageType(Enum):
     COMMENT = "comment"
     FILE = "file"
     CUSTOM = "custom"
+    PRIVATE = "private"
 
     @classmethod
     def has_value(cls, value):
