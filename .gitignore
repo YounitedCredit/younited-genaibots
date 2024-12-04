@@ -62,3 +62,9 @@ plugins/user_interactions_behaviors/custom_api/*
 
 # Ignore all __pycache__ directories globally
 **/__pycache__/
+
+# Ignore all files in subprompts
+subprompts/*
+
+# Do not ignore testsubprompt.txt in subprompts
+!subprompts/testsubprompt.txt
