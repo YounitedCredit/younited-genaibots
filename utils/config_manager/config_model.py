@@ -50,6 +50,9 @@ class BotConfig(BaseModel):
     # The default plugin for instant messaging behavior, which defines how the bot behaves in IM platforms (e.g., Slack or Teams).
     USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: str
 
+    # Specify an override that force the bot to treat all comments as internal comments.
+    DISABLE_COMMENT: str
+
     # The default plugin for session management
     SESSION_MANAGER_DEFAULT_PLUGIN_NAME: str
 

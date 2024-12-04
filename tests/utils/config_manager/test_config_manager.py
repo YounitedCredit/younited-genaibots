@@ -25,6 +25,7 @@ def test_config_manager_initialization(mock_global_manager):
       REQUIRE_MENTION_NEW_MESSAGE: true  
       REQUIRE_MENTION_THREAD_MESSAGE: true  
       GET_ALL_THREAD_FROM_MESSAGE_LINKS: true  
+      DISABLE_COMMENT: 'false'
       ACTIVATE_MESSAGE_QUEUING: true  
       ACTIVATE_USER_INTERACTION_EVENTS_QUEUING: true  
       BEGIN_MARKER: '[BEGINIMDETECT]'  
@@ -285,6 +286,7 @@ def test_replace_env_vars_with_nested_structures(mock_global_manager):
           SHOW_COST_IN_THREAD: false  
           GET_ALL_THREAD_FROM_MESSAGE_LINKS: true  
           GET_URL_CONTENT: true  
+          DISABLE_COMMENT: 'false'
           ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'  
           INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: 'default_processing_plugin'  
           USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: 'default_im_behavior_plugin'  
@@ -384,6 +386,7 @@ def test_get_config_with_missing_keys(mock_global_manager):
       SHOW_COST_IN_THREAD: false  
       GET_ALL_THREAD_FROM_MESSAGE_LINKS: true  
       GET_URL_CONTENT: true  
+      DISABLE_COMMENT: 'false'
       ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'  
       INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: 'default_processing_plugin'  
       USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: 'default_im_behavior_plugin'  
@@ -493,6 +496,7 @@ def test_replace_env_vars_missing_env_var(mock_global_manager):
           SHOW_COST_IN_THREAD: false  
           GET_ALL_THREAD_FROM_MESSAGE_LINKS: true  
           GET_URL_CONTENT: true  
+          DISABLE_COMMENT: 'false'
           ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'  
           INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: 'default_processing_plugin'  
           USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: 'default_im_behavior_plugin'  
@@ -583,6 +587,7 @@ def test_config_manager_partial_initialization(mock_global_manager):
       SHOW_COST_IN_THREAD: false  
       GET_ALL_THREAD_FROM_MESSAGE_LINKS: true  
       GET_URL_CONTENT: true  
+      DISABLE_COMMENT: 'false'
       ACTION_INTERACTIONS_DEFAULT_PLUGIN_NAME: 'default_action_plugin'  
       INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME: 'default_processing_plugin'  
       USER_INTERACTIONS_INSTANT_MESSAGING_BEHAVIOR_DEFAULT_PLUGIN_NAME: 'default_im_behavior_plugin'  

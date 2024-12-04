@@ -150,6 +150,7 @@ def mock_config_manager(mock_utils, mock_plugins):
             GENAI_IMAGE_DEFAULT_PLUGIN_NAME="azure_dalle",
             USER_INTERACTIONS_INSTANT_MESSAGING_DEFAULT_PLUGIN_NAME="test_plugin",
             GENAI_VECTOR_SEARCH_DEFAULT_PLUGIN_NAME="openai_file_search",
+            DISABLE_COMMENT="false",
             SESSION_MANAGER_DEFAULT_PLUGIN_NAME="default_session_manager",
             LLM_CONVERSION_FORMAT="LLM_conversion_format",
             BREAK_KEYWORD="start",
