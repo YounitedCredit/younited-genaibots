@@ -90,7 +90,7 @@ def setup_logger_and_tracer(global_manager):
         except Exception as e:
             logger.warning(f"Failed to set up file logging: {e}")
 
-    elif log_plugin_azure and log_plugin_azure.PLUGIN_NAME == 'azure':
+    elif log_plugin_azure and log_plugin_azure.PLUGIN_NAME == 'azure_logging':
         try:
             logging.getLogger('azure').setLevel(logging.WARNING)
             # Azure handler setup for logging
