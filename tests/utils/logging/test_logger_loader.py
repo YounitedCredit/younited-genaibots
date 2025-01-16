@@ -127,7 +127,7 @@ def test_setup_logger_azure_config(mock_config_manager, mock_azure_monitor_log_e
     mock_config_manager().get_config.side_effect = [
         'INFO',
         None,  # for log_plugin_file
-        MagicMock(PLUGIN_NAME='azure'),
+        MagicMock(PLUGIN_NAME='azure_logging'),
         mock_azure_config  # Return a mock object with the required attribute
     ]
 
