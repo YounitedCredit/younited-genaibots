@@ -64,11 +64,9 @@ class SlackInputHandler:
 
     def is_message_too_old(self, event_ts):
 
-        # Convertir le timestamp de l'événement en objet datetime
+        # Convert the event timestamp into a datetime object
         event_datetime = event_ts
-        # Obtenir le datetime actuel
         current_datetime = datetime.now(timezone.utc)
-        # Calculer la différence
         diff = current_datetime - event_datetime
         return diff.total_seconds() > self.SLACK_MESSAGE_TTL
 
@@ -542,13 +540,13 @@ class SlackInputHandler:
 
             try:
                 linked_content = await self._process_single_slack_link(full_url, "", "", "", depth=depth)
-                # Remplacer le lien Slack original par le contenu traité
+                # Replace slack link with original text
                 text = text.replace(f'<{full_url}|{display_url}>', f"[Linked content: {linked_content}]")
                 text = text.replace(f'<{full_url}>',
                                     f"[Linked content: {linked_content}]")  # Pour les cas sans texte d'affichage
             except Exception as e:
                 self.logger.error(f"Failed to process nested Slack link: {full_url}. Error: {e}", exc_info=True)
-                # Remplacer le lien par un message d'erreur
+                # Replace link with error message
                 error_message = f"[Failed to retrieve content for Slack link: {full_url}]"
                 text = text.replace(f'<{full_url}|{display_url}>', error_message)
                 text = text.replace(f'<{full_url}>', error_message)
@@ -732,8 +730,6 @@ class SlackInputHandler:
 
     async def _make_slack_api_call(self, url, params):
         headers = {'Authorization': f'Bearer {self.SLACK_BOT_USER_TOKEN}'}
-
-        # Convertir tous les paramètres en chaînes
         params = {k: str(v) for k, v in params.items()}
 
         try:
