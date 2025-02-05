@@ -61,7 +61,7 @@ def test_process_input_block_with_missing_label(slack_block_processor):
         "element": {"placeholder": {"text": "Placeholder Text"}},
     }
     result = slack_block_processor.process_input_block(block)
-    # .strip() supprime l'espace en début de chaîne, d'où le résultat attendu sans espace initial.
+    # .strip() removes leading spaces, hence the expected result without a leading space.
     assert result == "Placeholder Text"
 
 
@@ -86,7 +86,7 @@ def test_process_rich_text_section_or_preformatted_with_user(slack_block_process
         ]
     }
     result = slack_block_processor.process_rich_text_section_or_preformatted(element)
-    # Le comportement actuel ne rajoute pas "User Mention:" devant la mention utilisateur.
+    # The current behavior does not add "User Mention:" before the user mention.
     assert result == "Some Text <@U123456>"
 
 
@@ -141,7 +141,6 @@ def test_extract_text_from_blocks_unsupported_block_type(slack_block_processor):
         {"type": "unsupported_block", "content": "Unsupported content"}
     ]
     result = slack_block_processor.extract_text_from_blocks(blocks)
-    # Remarquez que str() d'un dictionnaire produit des quotes simples en Python.
     assert result == "{'type': 'unsupported_block', 'content': 'Unsupported content'}"
 
 
