@@ -1,8 +1,8 @@
 # Main dependencies
-aiohttp~=3.9.5
+aiohttp~=3.10.11
 asynctest
 coloredlogs~=15.0.1
-fastapi~=0.110.2
+fastapi
 gunicorn
 opentelemetry-api
 opentelemetry-exporter-otlp
@@ -15,7 +15,7 @@ pypdf~=4.3.1
 pytest~=8.1.1
 pytest-asyncio
 python-dotenv~=1.0.1
-requests~=2.31.0
+requests~=2.32.0
 ruff==0.4.2
 uvicorn~=0.29.0
 pytest-aiohttp
@@ -72,7 +72,7 @@ azure.mgmt.applicationinsights
 
 azure.keyvault
 
-starlette~=0.37.2
+starlette~=0.40.0
 pydantic~=2.7.0
 numpy
 msal~=1.28.0
