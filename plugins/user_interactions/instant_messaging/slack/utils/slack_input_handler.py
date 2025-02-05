@@ -134,7 +134,29 @@ class SlackInputHandler:
 
     def process_message_event(self, event, bot_user_id, timestamp):
         try:
+            all_blocks = []
+            
+            # Collect blocks from main message
+            if 'blocks' in event:
+                all_blocks.extend(event['blocks'])
+                self.logger.debug(f"Added blocks from main message")
+            
+            # Collect blocks from attachments
+            if 'attachments' in event:
+                for attachment in event['attachments']:
+                    if 'blocks' in attachment:
+                        all_blocks.extend(attachment['blocks'])
+                        self.logger.debug(f"Added blocks from attachment")
+            
+            # Get text from blocks if any exist
             text = event.get('text', event.get('message', {}).get('text', ''))
+            if all_blocks:
+                slack_block_processor = SlackBlockProcessor()
+                blocks_text = slack_block_processor.extract_text_from_blocks(all_blocks)
+                if blocks_text:
+                    text = blocks_text
+                    self.logger.debug(f"Using text extracted from blocks")
+
             is_mention = f"<@{bot_user_id}>" in text
             response_id = event.get('thread_ts', timestamp)
             return text, is_mention, response_id
@@ -421,37 +443,55 @@ class SlackInputHandler:
             # Process the message text and handle nested links recursively
             processed_messages = []
             for message in messages:
+                # Collect all blocks
+                all_blocks = []
+                
+                # Add blocks from main message
+                if "blocks" in message:
+                    all_blocks.extend(message["blocks"])
+                    self.logger.debug(f"Added blocks from main message")
+                
+                # Add blocks from attachments
+                if "attachments" in message:
+                    for attachment in message['attachments']:
+                        if "blocks" in attachment:
+                            all_blocks.extend(attachment["blocks"])
+                            self.logger.debug(f"Added blocks from attachment")
+                
+                # Process all collected blocks if any exist
+                if all_blocks:
+                    slack_block_processor = SlackBlockProcessor()
+                    blocks_text = slack_block_processor.extract_text_from_blocks(all_blocks)
+                    if blocks_text:
+                        message['text'] = blocks_text
+                        self.logger.debug(f"Using text extracted from blocks")
+
                 # Process links in the text field
                 if "text" in message:
                     processed_text = await self._process_slack_links_in_text(message['text'], depth + 1)
                     message['text'] = processed_text
 
-                # Process links in the attachments (including 'from_url')
+                # Process additional URLs in attachments
                 if "attachments" in message:
                     for attachment in message['attachments']:
                         if "from_url" in attachment:
-                            # Inject 'from_url' into the text for processing
-                            processed_attachment_url = await self._process_single_slack_link(attachment['from_url'], "",
-                                                                                             main_timestamp, user_id,
-                                                                                             depth + 1)
-                            message['text'] += f"\n{processed_attachment_url}"  # Injecting 'from_url' into text
+                            processed_url = await self._process_single_slack_link(
+                                attachment['from_url'], "", main_timestamp, user_id, depth + 1)
+                            message['text'] = f"{message['text']}\n{processed_url}"
+                        
+                        if "title_link" in attachment:
+                            processed_link = await self._process_single_slack_link(
+                                attachment['title_link'], "", main_timestamp, user_id, depth + 1)
+                            attachment['title_link'] = processed_link
 
-                        # Handle additional fields in attachments where links might exist
-                        if "title_link" in attachment:  # Sometimes links exist in titles
-                            processed_title_link = await self._process_single_slack_link(attachment['title_link'], "",
-                                                                                         main_timestamp, user_id,
-                                                                                         depth + 1)
-                            attachment['title_link'] = processed_title_link
-
-                # Process links in message blocks if they exist
+                # Handle any message_blocks (maintain backward compatibility)
                 if "message_blocks" in message:
                     for block in message['message_blocks']:
                         if "from_url" in block:
-                            # Process links found in blocks
-                            processed_block_url = await self._process_single_slack_link(block['from_url'], "",
-                                                                                        main_timestamp, user_id,
-                                                                                        depth + 1)
-                            message['text'] += f"\n{processed_block_url}"
+                            processed_block_url = await self._process_single_slack_link(
+                                block['from_url'], "", main_timestamp, user_id, depth + 1
+                            )
+                            message['text'] = f"{message['text']}\n{processed_block_url}"
 
                 processed_messages.append(message)
 
@@ -474,8 +514,8 @@ class SlackInputHandler:
             if tagged_message:
                 tagged_message_content = tagged_message.get('text', 'No content found')
                 metadata_str += (f"Note: The exact message referenced in the link is tagged below.\n"
-                                 f"Message content: \"{tagged_message_content}\"\n"
-                                 f"Author: {user_name} (Email: {user_email})\n")
+                                f"Message content: \"{tagged_message_content}\"\n"
+                                f"Author: {user_name} (Email: {user_email})\n")
 
             # Add a note if the entire thread was retrieved based on config
             if self.global_manager.bot_config.GET_ALL_THREAD_FROM_MESSAGE_LINKS and is_thread:
@@ -483,8 +523,8 @@ class SlackInputHandler:
 
             # Combine metadata and formatted content into a full message
             full_message_text = (f"\n[Automated Response] Slack link content (depth {depth}):\n"
-                                 f"{metadata_str}\n\n"
-                                 f"{formatted_content}")
+                                f"{metadata_str}\n\n"
+                                f"{formatted_content}")
 
             return full_message_text
 
