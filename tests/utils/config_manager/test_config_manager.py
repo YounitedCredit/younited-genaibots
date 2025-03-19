@@ -50,7 +50,16 @@ def test_config_manager_initialization(mock_global_manager):
           LOCAL_LOGGING_FILE_PATH: 'C:\\LOGS\\GENAI_BOT.log'  
         AZURE_LOGGING:  
           PLUGIN_NAME: 'azure_logging'  
-          AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING: 'connection_string'  
+          AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING: 'connection_string'
+      INSTANT_MESSAGING_REACTIONS:
+        SLACK:
+          PROCESSING: "gear"
+          DONE: "robot_face"
+          ACKNOWLEDGE: "eyes"
+          GENERATING: "thinking_face"
+          WRITING: "pencil2"
+          ERROR: "redcross"
+          WAIT: "watch"  
   
     PLUGINS:  
       ACTION_INTERACTIONS:  
@@ -184,6 +193,7 @@ def test_config_manager_initialization(mock_global_manager):
         assert config_manager.config['BOT_CONFIG']['MAIN_PROMPT'] == 'main_prompt'
         assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS']['DEFAULT']['MAIN_ACTIONS']['PLUGIN_NAME'] == 'main_actions'
         assert config_manager.config['UTILS']['LOGGING']['LOCAL_LOGGING']['PLUGIN_NAME'] == 'local_logging'
+        assert config_manager.config['UTILS']['INSTANT_MESSAGING']['SLACK']['PROCESSING'] == 'gear'
 
 def test_config_file_not_found(mock_global_manager):
     # Test handling of a missing configuration file
@@ -308,7 +318,16 @@ def test_replace_env_vars_with_nested_structures(mock_global_manager):
           LOGGING:  
             LOCAL_LOGGING:  
               PLUGIN_NAME: 'local_logging'  
-              LOCAL_LOGGING_FILE_PATH: 'logs/path.log'  
+              LOCAL_LOGGING_FILE_PATH: 'logs/path.log'
+          INSTANT_MESSAGING_REACTIONS:
+            SLACK:
+              PROCESSING: "gear"
+              DONE: "robot_face"
+              ACKNOWLEDGE: "eyes"
+              GENERATING: "thinking_face"
+              WRITING: "pencil2"
+              ERROR: "redcross"
+              WAIT: "watch"  
   
         PLUGINS:  
           ACTION_INTERACTIONS:  
@@ -408,7 +427,16 @@ def test_get_config_with_missing_keys(mock_global_manager):
       LOGGING:  
         LOCAL_LOGGING:  
           PLUGIN_NAME: 'local_logging'  
-          LOCAL_LOGGING_FILE_PATH: 'logs/path.log'  
+          LOCAL_LOGGING_FILE_PATH: 'logs/path.log'
+      INSTANT_MESSAGING_REACTIONS:
+        SLACK:
+          PROCESSING: "gear"
+          DONE: "robot_face"
+          ACKNOWLEDGE: "eyes"
+          GENERATING: "thinking_face"
+          WRITING: "pencil2"
+          ERROR: "redcross"
+          WAIT: "watch"  
   
     PLUGINS:  
       ACTION_INTERACTIONS:  
@@ -518,7 +546,16 @@ def test_replace_env_vars_missing_env_var(mock_global_manager):
           LOGGING:  
             LOCAL_LOGGING:  
               PLUGIN_NAME: 'local_logging'  
-              LOCAL_LOGGING_FILE_PATH: 'logs/path.log'  
+              LOCAL_LOGGING_FILE_PATH: 'logs/path.log'
+          INSTANT_MESSAGING_REACTIONS:
+            SLACK:
+              PROCESSING: "gear"
+              DONE: "robot_face"
+              ACKNOWLEDGE: "eyes"
+              GENERATING: "thinking_face"
+              WRITING: "pencil2"
+              ERROR: "redcross"
+              WAIT: "watch"  
   
         PLUGINS:  
           ACTION_INTERACTIONS:  
