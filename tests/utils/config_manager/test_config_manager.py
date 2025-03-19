@@ -193,7 +193,7 @@ def test_config_manager_initialization(mock_global_manager):
         assert config_manager.config['BOT_CONFIG']['MAIN_PROMPT'] == 'main_prompt'
         assert config_manager.config['PLUGINS']['ACTION_INTERACTIONS']['DEFAULT']['MAIN_ACTIONS']['PLUGIN_NAME'] == 'main_actions'
         assert config_manager.config['UTILS']['LOGGING']['LOCAL_LOGGING']['PLUGIN_NAME'] == 'local_logging'
-        assert config_manager.config['UTILS']['INSTANT_MESSAGING']['SLACK']['PROCESSING'] == 'gear'
+        assert config_manager.config['UTILS']['INSTANT_MESSAGING_REACTIONS']['SLACK']['PROCESSING'] == 'gear'
 
 def test_config_file_not_found(mock_global_manager):
     # Test handling of a missing configuration file
