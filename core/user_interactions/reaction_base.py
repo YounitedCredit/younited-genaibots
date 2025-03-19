@@ -7,7 +7,6 @@ class ReactionBase(ABC):
     """
 
     @property
-    @abstractmethod
     def ACKNOWLEDGE(self):
         """
         Property for the done reaction.
@@ -15,7 +14,6 @@ class ReactionBase(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def PROCESSING(self):
         """
         Property for the processing reaction.
@@ -23,7 +21,6 @@ class ReactionBase(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def DONE(self):
         """
         Property for the done reaction.
@@ -31,7 +28,6 @@ class ReactionBase(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def GENERATING(self):
         """
         Property for the done reaction.
@@ -39,7 +35,6 @@ class ReactionBase(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def WRITING(self):
         """
         Property for the done reaction.
@@ -47,7 +42,6 @@ class ReactionBase(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def ERROR(self):
         """
         Property for the done reaction.
@@ -55,14 +49,12 @@ class ReactionBase(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def WAIT(self):
         """
         Property for the done reaction.
         """
         raise NotImplementedError
 
-    @abstractmethod
     def get_reaction(self):
         """
         Get the reaction.

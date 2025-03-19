@@ -51,19 +51,30 @@ class SlackConfig(BaseModel):
     SLACK_BEHAVIOR_PLUGIN_NAME: str
     SLACK_AUTHORIZE_DIRECT_MESSAGE: bool
 
+class SlackReactionsConfig(BaseModel):
+    PROCESSING: str
+    DONE: str
+    ACKNOWLEDGE: str
+    GENERATING: str
+    WRITING: str
+    ERROR: str
+    WAIT: str
+
 
 class SlackPlugin(UserInteractionsPluginBase):
     def __init__(self, global_manager: GlobalManager):
         super().__init__(global_manager)
         self.global_manager: GlobalManager = global_manager
         self.plugin_manager: PluginManager = global_manager.plugin_manager
-        self._reactions = SlackReactions()
         self.logger = global_manager.logger
         self.plugin_configs = global_manager.config_manager.config_model.PLUGINS
         config_dict = global_manager.config_manager.config_model.PLUGINS.USER_INTERACTIONS.INSTANT_MESSAGING["SLACK"]
+        config_dict_reaction = global_manager.config_manager.config_model.UTILS.INSTANT_MESSAGING_REACTIONS["SLACK"]
         self.slack_config = SlackConfig(**config_dict)
+        self._reactions = SlackReactionsConfig(**config_dict_reaction)
         self.genai_interactions_text_dispatcher = None
         self.backend_internal_data_processing_dispatcher = None
+        
 
     @property
     def route_path(self):
