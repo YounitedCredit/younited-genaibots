@@ -147,7 +147,7 @@ def slack_plugin(mock_global_manager, slack_config_data, slack_config_reactions_
     plugin.slack_bot_token = slack_config_data["SLACK_BOT_TOKEN"]
     plugin.MAX_MESSAGE_LENGTH = slack_config_data["MAX_MESSAGE_LENGTH"]
     plugin.backend_internal_data_processing_dispatcher = AsyncMock()
-    plugin._reactions = SlackReactionsConfig(slack_config_reactions_data)
+    plugin._reactions = slack_config_reactions_data
     plugin.slack_input_handler = AsyncMock()
     plugin.slack_output_handler = AsyncMock()
     return plugin
