@@ -55,6 +55,16 @@ UTILS:
     AZURE_LOGGING:
       PLUGIN_NAME: "azure_logging"
       AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING: <your_applicationinsights_connection_string>
+    
+  INSTANT_MESSAGING_REACTIONS:
+    SLACK:
+      PROCESSING: "gear"
+      DONE: "white_check_mark"
+      ACKNOWLEDGE: "eyes"
+      GENERATING: "thinking_face"
+      WRITING: "pencil2"
+      ERROR: "redcross"
+      WAIT: "watch"
 
 PLUGINS:
   ACTION_INTERACTIONS:

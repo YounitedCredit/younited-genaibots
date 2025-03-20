@@ -74,6 +74,15 @@ class SlackConfig(BaseModel):
     SLACK_BEHAVIOR_PLUGIN_NAME: str
     SLACK_AUTHORIZE_DIRECT_MESSAGE: bool
 
+class SlackReactionsConfig(BaseModel):
+    PROCESSING: str
+    DONE: str
+    ACKNOWLEDGE: str
+    GENERATING: str
+    WRITING: str
+    ERROR: str
+    WAIT: str
+
 @pytest.fixture
 def slack_config_data():
     return {
@@ -105,11 +114,26 @@ def slack_config_data():
         "SLACK_AUTHORIZE_DIRECT_MESSAGE": True
     }
 
+@pytest.fixture
+def slack_config_reactions_data():
+    return {
+       "PROCESSING": "gear",
+        "DONE": "white_check_mark",
+        "ACKNOWLEDGE": "eyes",
+        "GENERATING": "thinking_face",
+        "WRITING": "pencil2",
+        "ERROR": "redcross",
+        "WAIT": "watch"
+    }
+
 
 @pytest.fixture
-def slack_plugin(mock_global_manager, slack_config_data):
+def slack_plugin(mock_global_manager, slack_config_data, slack_config_reactions_data):
     mock_global_manager.config_manager.config_model.PLUGINS.USER_INTERACTIONS.INSTANT_MESSAGING = {
         "SLACK": slack_config_data
+    }
+    mock_global_manager.config_manager.config_model.UTILS.INSTANT_MESSAGING_REACTIONS = {
+        "SLACK": slack_config_reactions_data
     }
     plugin = SlackPlugin(mock_global_manager)
     plugin.slack_signing_secret = slack_config_data["SLACK_SIGNING_SECRET"]
@@ -123,6 +147,7 @@ def slack_plugin(mock_global_manager, slack_config_data):
     plugin.slack_bot_token = slack_config_data["SLACK_BOT_TOKEN"]
     plugin.MAX_MESSAGE_LENGTH = slack_config_data["MAX_MESSAGE_LENGTH"]
     plugin.backend_internal_data_processing_dispatcher = AsyncMock()
+    plugin._reactions = slack_config_reactions_data
     plugin.slack_input_handler = AsyncMock()
     plugin.slack_output_handler = AsyncMock()
     return plugin

@@ -84,7 +84,9 @@ def mock_utils():
                 PLUGIN_NAME="azure_logging",
                 AZURE_LOGGING_APPLICATIONINSIGHTS_CONNECTION_STRING="connection_string"
             )
-        )
+        ),
+        INSTANT_MESSAGING_REACTIONS={"slack": "reaction"}
+
     )
 
 @pytest.fixture
