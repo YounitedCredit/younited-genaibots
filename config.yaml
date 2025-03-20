@@ -59,7 +59,7 @@ UTILS:
   INSTANT_MESSAGING_REACTIONS:
     SLACK:
       PROCESSING: "gear"
-      DONE: "robot_face"
+      DONE: "white_check_mark"
       ACKNOWLEDGE: "eyes"
       GENERATING: "thinking_face"
       WRITING: "pencil2"
