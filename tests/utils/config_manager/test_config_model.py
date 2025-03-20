@@ -86,9 +86,11 @@ def test_utils():
 
     # Ensure LOCAL_LOGGING is properly set in Logging
     logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data))
-    utils = Utils(LOGGING=logging)
+    instant_messaging_reactions = {"key": "value"}
+    utils = Utils(LOGGING=logging, INSTANT_MESSAGING_REACTIONS=instant_messaging_reactions)
 
     assert utils.LOGGING.LOCAL_LOGGING.LOCAL_LOGGING_FILE_PATH == "path/to/log"
+    assert utils.INSTANT_MESSAGING_REACTIONS == instant_messaging_reactions
 
 def test_plugins():
     # Test valid Plugins
@@ -175,7 +177,7 @@ def test_config_model():
 
     # Ensure LOCAL_LOGGING is properly set
     logging = Logging(LOCAL_LOGGING=LocalLogging(**file_data))
-    utils = Utils(LOGGING=logging)
+    utils = Utils(LOGGING=logging, INSTANT_MESSAGING_REACTIONS={"key": "value"})
 
     plugin_data = {"PLUGIN_NAME": "plugin_name"}
     action_interactions = ActionInteractions(DEFAULT={"default_plugin": Plugin(**plugin_data)})
@@ -222,4 +224,5 @@ def test_config_model():
 
     assert config_model.BOT_CONFIG.CORE_PROMPT == "core_prompt"
     assert config_model.UTILS.LOGGING.LOCAL_LOGGING.PLUGIN_NAME == "file_plugin"
+    assert config_model.UTILS.INSTANT_MESSAGING_REACTIONS == {"key": "value"}
     assert config_model.PLUGINS.BACKEND.SESSION_MANAGERS == session_managers_data

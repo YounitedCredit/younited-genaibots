@@ -105,11 +105,21 @@ class Logging(BaseModel):
     LOCAL_LOGGING: Optional[LocalLogging] = None
     AZURE_LOGGING: Optional[AzureLogging] = None
 
+class Reaction(BaseModel):
+    ACKNOWLEDGE: str
+    PROCESSING: str
+    DONE: str
+    GENERATING: str
+    WRITING: str
+    ERROR: str
+    WAIT: str
+
 class Environment(BaseModel):
     PLUGIN_NAME: str
 
 class Utils(BaseModel):
     LOGGING: Logging
+    INSTANT_MESSAGING_REACTIONS: Dict[str, Any]
 
 class Plugin(BaseModel):
     PLUGIN_NAME: str
@@ -126,6 +136,7 @@ class Backend(BaseModel):
 class UserInteractions(BaseModel):
     INSTANT_MESSAGING: Dict[str, Any]
     CUSTOM_API: Dict[str, Any]
+
 
 class GenaiInteractions(BaseModel):
     TEXT: Dict[str, Any]
