@@ -281,7 +281,7 @@ class ChatInputHandler():
     def construct_message(self, event_data):
         # Construire le message utilisateur à partir de event_data
         format_timestamp = str(event_data.timestamp)
-        constructed_message_content = f"Timestamp: {str(format_timestamp)}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data.is_mention)}, [message]: {str(event_data.text)}"
+        constructed_message_content = f"Timestamp: {str(format_timestamp)}, [Human readable date]:{str(datetime.fromtimestamp(float(event_data.timestamp)))}, [username]: {str(event_data.user_name)}, [user id]: {str(event_data.user_id)}, [user email]: {event_data.user_email}, [Directly mentioning you]: {str(event_data)}, [message]: {str(event_data.text)}"
 
         # Formater le contenu avec des images et des fichiers supplémentaires si applicable
         user_content_text = [{"type": "text", "text": constructed_message_content}]
