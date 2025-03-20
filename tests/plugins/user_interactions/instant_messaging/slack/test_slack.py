@@ -132,7 +132,7 @@ def slack_plugin(mock_global_manager, slack_config_data, slack_config_reactions_
     mock_global_manager.config_manager.config_model.PLUGINS.USER_INTERACTIONS.INSTANT_MESSAGING = {
         "SLACK": slack_config_data
     }
-    mock_global_manager.config_manager.config_model.PLUGINS.UTILS.INSTANT_MESSAGING_REACTIONS = {
+    mock_global_manager.config_manager.config_model.UTILS.INSTANT_MESSAGING_REACTIONS = {
         "SLACK": slack_config_reactions_data
     }
     plugin = SlackPlugin(mock_global_manager)
