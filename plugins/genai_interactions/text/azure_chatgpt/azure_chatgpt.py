@@ -24,6 +24,7 @@ from plugins.genai_interactions.text.chat_input_handler import ChatInputHandler
 from utils.config_manager.config_manager import ConfigManager
 from utils.plugin_manager.plugin_manager import PluginManager
 
+from opentelemetry.trace import Tracer
 
 class AzureChatGptConfig(BaseModel):
     PLUGIN_NAME: str
@@ -43,6 +44,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
         super().__init__(global_manager)
         self.global_manager = global_manager
         self.logger = self.global_manager.logger
+        self.tracer = self.global_manager.tracer
         self.plugin_manager: PluginManager = global_manager.plugin_manager
         self.config_manager: ConfigManager = global_manager.config_manager
         azure_chatgpt_config_dict = global_manager.config_manager.config_model.PLUGINS.GENAI_INTERACTIONS.TEXT[
@@ -103,15 +105,43 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 azure_endpoint=self.azure_openai_endpoint,
                 api_version=self.openai_api_version
             )
+            self.log_dependency(self.tracer, "AsyncAzureOpenAI - load_client", self.azure_openai_endpoint, "POST", 200, True)
         except KeyError as e:
             self.logger.error(f"Missing configuration key: {e}")
+            self.log_dependency(self.tracer, "AsyncAzureOpenAI - load_client", self.azure_openai_endpoint, "POST", 400, False)
             raise
         except ValueError as e:
             self.logger.error(f"Invalid configuration value: {e}")
+            self.log_dependency(self.tracer, "AsyncAzureOpenAI - load_client", self.azure_openai_endpoint, "POST", 400, False)
             raise
         except Exception as e:
             self.logger.error(f"Unexpected error while loading Azure OpenAI client: {e}")
+            self.log_dependency(self.tracer, "AsyncAzureOpenAI - load_client", self.azure_openai_endpoint, "POST", 500, False)
             raise
+
+    
+
+    def log_dependency(self, tracer: Tracer, name: str, url: str, method: str, status_code: int, success: bool = True):
+        """
+        Log a dependency (external call) into Azure Application Insights via OpenTelemetry.
+
+        :param tracer: The OpenTelemetry tracer instance
+        :param name: Logical name for the span (e.g., "CallToMyAPI")
+        :param url: The full URL that was called
+        :param method: HTTP method (GET, POST, etc.)
+        :param status_code: HTTP status code returned
+        :param success: Was the call successful?
+        """
+        if not tracer:
+            return  # fail silently if tracing not enabled
+
+        with tracer.start_as_current_span(name) as span:
+            span.set_attribute("component", "http")
+            span.set_attribute("http.method", method)
+            span.set_attribute("http.url", url)
+            span.set_attribute("http.status_code", status_code)
+            span.set_attribute("success", success)
+
 
     def validate_request(self, event: IncomingNotificationDataBase):
         """Determines whether the plugin can handle the given request."""
@@ -402,6 +432,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             self.logger.info(f"Run completed with status: {run.status}")
             if run.status == 'completed':
+                self.log_dependency(self.tracer, "generate_completion_assistant", self.azure_openai_endpoint, "POST", 200, True)
                 response_messages = await self.gpt_client.beta.threads.messages.list(thread_id=thread.id)
                 response = response_messages.data[0].content[0].text.value
                 self.logger.info(f"Received response: {response[:100]}...")  # Log first 100 chars of response
@@ -425,7 +456,9 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
         except Exception as e:
             self.logger.error(f"An error occurred during assistant completion: {str(e)}")
+            self.log_dependency(self.tracer, "generate_completion_assistant", self.azure_openai_endpoint, "POST",500, False)
             self.logger.error(traceback.format_exc())  # Log the full stack trace
+            
             await self.user_interaction_dispatcher.send_message(
                 event=event_data,
                 message="An unexpected error occurred during assistant completion",
@@ -433,6 +466,8 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
                 is_internal=True
             )
             raise
+
+    
 
     async def filter_messages(self, messages):
         filtered_messages = []
@@ -492,6 +527,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
 
             # Extract the full response between the markers
             response = completion.choices[0].message.content
+            self.log_dependency(self.tracer, f"generate_completion - genai", self.azure_openai_endpoint, "POST", 200, True)
             if raw_output == False:
                 start_marker = "[BEGINIMDETECT]"
                 end_marker = "[ENDIMDETECT]"
@@ -542,6 +578,7 @@ class AzureChatgptPlugin(GenAIInteractionsTextPluginBase):
             raise
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {str(e)}\n{traceback.format_exc()}")
+            self.log_dependency(self.tracer, f"generate_completion - genai", self.azure_openai_endpoint, "POST", 500, False)
             await self.user_interaction_dispatcher.send_message(event=event_data,
                                                                 message="An unexpected error occurred",
                                                                 message_type=MessageType.ERROR, is_internal=True)
