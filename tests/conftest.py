@@ -211,6 +211,7 @@ def mock_global_manager(mock_config_manager, mock_plugin_manager, mock_user_inte
     mock_global_manager.interaction_queue_manager = AsyncMock()
     mock_global_manager.logger = MagicMock()
     mock_global_manager.logger.level = logging.INFO
+    mock_global_manager.tracer = MagicMock()
     mock_global_manager.genai_image_generator_dispatcher = AsyncMock()
     mock_global_manager.bot_config.INTERNAL_DATA_PROCESSING_DEFAULT_PLUGIN_NAME = 'mock_plugin'
     mock_global_manager.session_manager_dispatcher = AsyncMock()  # Add this line
