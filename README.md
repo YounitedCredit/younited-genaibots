@@ -1,6 +1,12 @@
 
 # GenaiBots Project
 
+> [!WARNING]
+> This repository is **archived** and no longer maintained.
+> - No further updates or bug fixes will be provided.
+> - Issues and pull requests will not be reviewed.
+> - The code is provided as-is for reference purposes only.
+
 ## Overview
 GenaiBots is a comprehensive framework designed for automating and managing interactions across various digital platforms. It is primarily an enterprise tool for integrating generative AI into operational processes through mediums such as instant messaging, emails, ticketing tools, or internal tools. Utilizing advanced AI and a modular plugin system, it enables the creation of sophisticated operational flows and interaction models tailored for both businesses and developers.
 
