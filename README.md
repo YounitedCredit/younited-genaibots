@@ -1,4 +1,10 @@
 
+> [!WARNING]
+> This repository is **archived** and no longer maintained.
+> - No further updates or bug fixes will be provided.
+> - Issues and pull requests will not be reviewed.
+> - The code is provided as-is for reference purposes only.
+
 # GenaiBots Project
 
 ## Overview
